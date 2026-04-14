@@ -8,10 +8,10 @@ def final_selection(mol: Chem.Mol,
                     aligned_coords: torch.Tensor,
                     scores: torch.Tensor,
                     initial_scores: torch.Tensor = None,
-                    top_k: int = None,
+                    position_labels: List[int] = None,
                     output_path: str = "output.sdf") -> torch.Tensor:
     """
-    Sort scores, select Top-K conformers (or all if top_k=None), update coordinates and save.
+    Sort all poses by energy (ascending) and save to SDF.
 
     Args:
         mol: RDKit molecule
@@ -19,21 +19,14 @@ def final_selection(mol: Chem.Mol,
         aligned_coords: Aligned coordinates [N_poses, N_atoms, 3]
         scores: Vina scores [N_poses]
         initial_scores: Optional pre-optimization scores aligned to the same pose order
-        top_k: Number of top poses to save (None = save all)
+        position_labels: Optional MCS position index per pose (1-based)
         output_path: Output SDF file path
 
     Returns:
-        Indices of selected poses
+        Sorted indices (best energy first)
     """
-    sorted_indices = torch.argsort(scores)
-
-    # Save all poses if top_k is None
-    if top_k is None:
-        selected_indices = sorted_indices
-        print(f"Saving all {len(selected_indices)} poses sorted by energy...")
-    else:
-        selected_indices = sorted_indices[:top_k]
-        print(f"Saving top {top_k} poses...")
+    selected_indices = torch.argsort(scores)
+    print(f"Saving all {len(selected_indices)} poses sorted by energy...")
 
     print(f"\nTop 5 energies:")
     for rank in range(min(5, len(selected_indices))):
@@ -72,6 +65,8 @@ def final_selection(mol: Chem.Mol,
             out_mol.SetProp("Vina_Score_Initial", f"{initial_score:.4f}")
             out_mol.SetProp("Vina_Score_Delta", f"{score - initial_score:.4f}")
         out_mol.SetProp("Rank", str(rank+1))
+        if position_labels is not None:
+            out_mol.SetProp("MCS_Position", str(position_labels[idx_int]))
 
         writer.write(out_mol)
 

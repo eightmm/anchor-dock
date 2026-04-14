@@ -33,10 +33,6 @@ def main():
     parser.add_argument("--max_fragments", type=int, default=3,
                         help="Maximum fragments to find for cross-matching mode (default: 3)")
 
-    # Output options
-    parser.add_argument("--save_all", action="store_true", help="Save all poses instead of top-k")
-    parser.add_argument("--top_k", type=int, default=None, help="Number of top poses to save (default: 3)")
-
     args = parser.parse_args()
 
     run_pipeline(
@@ -58,8 +54,6 @@ def main():
         freeze_mcs=not args.free_mcs,
         weight_preset=args.weight_preset,
         torsion_penalty=args.torsion_penalty,
-        save_all_poses=args.save_all if args.save_all else None,
-        top_k=args.top_k,
     )
 
 

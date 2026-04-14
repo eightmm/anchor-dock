@@ -181,9 +181,6 @@ def run_pipeline(
     # Scoring
     weight_preset: Literal["vina", "vina_lp", "vinardo"] = "vina",
     torsion_penalty: bool = True,
-    # Output
-    save_all_poses: Optional[bool] = None,
-    top_k: Optional[int] = None,
     # Device
     device: Optional[str] = None,
     verbose: bool = True
@@ -214,8 +211,6 @@ def run_pipeline(
         freeze_mcs: Keep MCS atoms fixed during optimization (default: True)
         weight_preset: Vina scoring weights (default: "vina")
         torsion_penalty: Apply torsional entropy penalty (default: True)
-        save_all_poses: Save all poses or just top-k (default: None, auto)
-        top_k: Number of top poses to save (default: None, saves all if optimize=True else 3)
         device: Device to use: "cuda", "cpu", or None for auto (default: None)
         verbose: Print progress messages (default: True)
 
@@ -307,111 +302,110 @@ def run_pipeline(
     if not all_scores:
         raise RuntimeError("Failed to generate conformers for any MCS position")
 
-    # Find the best position
-    best_pos_idx = min(range(len(all_scores)), key=lambda i: all_scores[i].min().item())
-    query_mol_best = all_query_mols[best_pos_idx]
-    rep_cids = all_rep_cids[best_pos_idx]
-    aligned_coords = all_aligned_coords[best_pos_idx]
-    scores = all_scores[best_pos_idx]
-    best_mapping = all_position_mappings[best_pos_idx]
-    initial_scores = scores.clone()
+    # Save initial scores before optimization
+    all_initial_scores = [s.clone() for s in all_scores]
 
-    total_representatives = sum(len(c) for c in all_rep_cids)
+    # 7. Optional Gradient Optimization (per-position with correct MCS mapping)
+    if optimize:
+        total_poses = sum(len(c) for c in all_rep_cids)
+        if verbose:
+            print(f"\n--- Running Gradient-Based Torsion Optimization on {total_poses} Cluster Representatives ---")
+
+        for i in range(len(all_query_mols)):
+            mapping = all_position_mappings[i]
+            query_indices = [m[1] for m in mapping]
+            query_features = aligner.compute_vina_features(all_query_mols[i])
+
+            if verbose and num_mcs_positions > 1:
+                print(f"  Position {i + 1}: optimizing {len(all_rep_cids[i])} poses...")
+
+            all_aligned_coords[i] = aligner.step6_refine_pose(
+                mol=all_query_mols[i],
+                ref_indices=query_indices,
+                init_coords=all_aligned_coords[i],
+                pocket_coords=pocket_coords,
+                query_features=query_features,
+                pocket_features=pocket_features,
+                num_steps=opt_steps,
+                lr=opt_lr,
+                freeze_mcs=freeze_mcs,
+                num_rotatable_bonds=num_rotatable_bonds,
+                weight_preset=weight_preset,
+                batch_size=opt_batch_size,
+                optimizer=optimizer,
+            )
+
+            intra_mask = compute_intramolecular_mask(all_query_mols[i], aligner.device)
+            precomputed = precompute_interaction_matrices(query_features, pocket_features, aligner.device)
+            all_scores[i] = aligner.step4_vina_scoring(
+                all_aligned_coords[i], pocket_coords, query_features, pocket_features,
+                num_rotatable_bonds, weight_preset,
+                intramolecular_mask=intra_mask, precomputed_matrices=precomputed,
+            )
+
+        if verbose:
+            all_init = torch.cat(all_initial_scores)
+            all_opt = torch.cat(all_scores)
+            diffs = all_opt - all_init
+            best_idx = torch.argmin(all_opt).item()
+            print(f"Optimization complete!")
+            print(f"  Best score: {all_opt[best_idx]:.3f} kcal/mol (delta = {diffs[best_idx]:.3f})")
+            print(f"  Average improvement: {diffs.mean():.3f} kcal/mol")
+
+    # Merge all positions into a single pool
+    merged_coords = torch.cat(all_aligned_coords)
+    merged_scores = torch.cat(all_scores)
+    merged_initial_scores = torch.cat(all_initial_scores)
+    merged_rep_cids = []
+    merged_position_labels = []
+    for i, cids in enumerate(all_rep_cids):
+        merged_rep_cids.extend(cids)
+        merged_position_labels.extend([i + 1] * len(cids))
+
+    total_representatives = len(merged_rep_cids)
 
     if verbose and num_mcs_positions > 1:
-        print(f"\nBest position: {best_pos_idx + 1}/{num_mcs_positions} "
-              f"(best score = {scores.min().item():.3f} kcal/mol, "
-              f"{total_representatives} total representatives across all positions)")
+        per_pos = [f"pos{i+1}={len(c)}" for i, c in enumerate(all_rep_cids)]
+        print(f"\nMerged {total_representatives} poses from {num_mcs_positions} positions ({', '.join(per_pos)})")
 
-    # Set SDF properties
+    # Use best position's mapping for molecule-level SDF properties
+    best_pos_idx = min(range(len(all_scores)), key=lambda i: all_scores[i].min().item())
+    best_mapping = all_position_mappings[best_pos_idx]
+    query_mol_out = all_query_mols[best_pos_idx]
+
     num_mcs_atoms = len(best_mapping)
     ref_heavy = ref_mol.GetNumHeavyAtoms()
-    query_heavy = query_mol_best.GetNumHeavyAtoms()
+    query_heavy = query_mol_out.GetNumHeavyAtoms()
     ref_cov = (num_mcs_atoms / ref_heavy * 100) if ref_heavy else 0
     query_cov = (num_mcs_atoms / query_heavy * 100) if query_heavy else 0
 
-    query_mol_best.SetProp("MCS_Num_Atoms", str(num_mcs_atoms))
-    query_mol_best.SetProp("MCS_Ref_Coverage", f"{ref_cov:.1f}%")
-    query_mol_best.SetProp("MCS_Query_Coverage", f"{query_cov:.1f}%")
-    query_mol_best.SetProp("LigAlign_MCS_Mode", resolved_mode)
-    query_mol_best.SetProp("LigAlign_MCS_Mode_Requested", requested_mcs_mode)
-    query_mol_best.SetProp("LigAlign_Num_Confs_Generated", str(num_confs))
-    query_mol_best.SetProp("LigAlign_MMFF_Requested", str(mmff_optimize))
-    query_mol_best.SetProp("LigAlign_MMFF_Optimized", str(mmff_optimize))
+    query_mol_out.SetProp("MCS_Num_Atoms", str(num_mcs_atoms))
+    query_mol_out.SetProp("MCS_Ref_Coverage", f"{ref_cov:.1f}%")
+    query_mol_out.SetProp("MCS_Query_Coverage", f"{query_cov:.1f}%")
+    query_mol_out.SetProp("LigAlign_MCS_Mode", resolved_mode)
+    query_mol_out.SetProp("LigAlign_MCS_Mode_Requested", requested_mcs_mode)
+    query_mol_out.SetProp("LigAlign_Num_Confs_Generated", str(num_confs))
+    query_mol_out.SetProp("LigAlign_MMFF_Requested", str(mmff_optimize))
+    query_mol_out.SetProp("LigAlign_MMFF_Optimized", str(mmff_optimize))
     if num_mcs_positions > 1:
-        query_mol_best.SetProp("LigAlign_MCS_Positions_Tried", str(num_mcs_positions))
-        query_mol_best.SetProp("LigAlign_Best_Position", str(best_pos_idx + 1))
-
-    # 7. Optional Gradient Optimization
+        query_mol_out.SetProp("LigAlign_MCS_Positions_Tried", str(num_mcs_positions))
     if optimize:
-        if verbose:
-            print(f"\n--- Running Gradient-Based Torsion Optimization on {len(rep_cids)} Cluster Representatives ---")
-        query_indices = [m[1] for m in best_mapping]
-        query_features = aligner.compute_vina_features(query_mol_best)
+        query_mol_out.SetProp("LigAlign_Gradient_Optimized", "True")
+        query_mol_out.SetProp("LigAlign_Optimized_Poses", str(total_representatives))
 
-        aligned_coords = aligner.step6_refine_pose(
-            mol=query_mol_best,
-            ref_indices=query_indices,
-            init_coords=aligned_coords,
-            pocket_coords=pocket_coords,
-            query_features=query_features,
-            pocket_features=pocket_features,
-            num_steps=opt_steps,
-            lr=opt_lr,
-            freeze_mcs=freeze_mcs,
-            num_rotatable_bonds=num_rotatable_bonds,
-            weight_preset=weight_preset,
-            batch_size=opt_batch_size,
-            optimizer=optimizer
-        )
-
-        # Rescore
-        if verbose:
-            print("Rescoring optimized poses...")
-        intra_mask = compute_intramolecular_mask(query_mol_best, aligner.device)
-        precomputed = precompute_interaction_matrices(query_features, pocket_features, aligner.device)
-        new_scores = aligner.step4_vina_scoring(
-            aligned_coords, pocket_coords, query_features, pocket_features,
-            num_rotatable_bonds, weight_preset,
-            intramolecular_mask=intra_mask, precomputed_matrices=precomputed,
-        )
-
-        score_diffs = new_scores - scores
-        best_idx = torch.argmin(new_scores).item()
-        if verbose:
-            print(f"Optimization complete!")
-            print(f"  Best pose: {best_idx} with score {new_scores[best_idx]:.3f} kcal/mol (delta = {score_diffs[best_idx]:.3f})")
-            print(f"  Average improvement: {score_diffs.mean():.3f} kcal/mol")
-        scores = new_scores
-
-        query_mol_best.SetProp("LigAlign_Gradient_Optimized", "True")
-        query_mol_best.SetProp("LigAlign_Optimized_Poses", str(len(rep_cids)))
-
-    # 8. Output
-    if save_all_poses is None:
-        save_all_poses = optimize
-
-    if top_k is None:
-        if save_all_poses:
-            top_k = None
-        else:
-            top_k = 3
-
+    # 8. Output — save all poses sorted by energy
     os.makedirs(output_dir, exist_ok=True)
-
-    if top_k is None:
-        out_sdf = os.path.join(output_dir, "predicted_poses_all.sdf")
-        aligner.step5_final_selection(query_mol_best, rep_cids, aligned_coords, scores,
-                                     initial_scores=initial_scores, top_k=None, output_path=out_sdf)
-        num_saved = len(rep_cids)
-    else:
-        out_sdf = os.path.join(output_dir, f"predicted_pose_top{top_k}.sdf")
-        aligner.step5_final_selection(query_mol_best, rep_cids, aligned_coords, scores,
-                                     initial_scores=initial_scores, top_k=top_k, output_path=out_sdf)
-        num_saved = min(top_k, len(rep_cids))
+    out_sdf = os.path.join(output_dir, "predicted_poses.sdf")
+    aligner.step5_final_selection(
+        query_mol_out, merged_rep_cids, merged_coords, merged_scores,
+        initial_scores=merged_initial_scores,
+        position_labels=merged_position_labels if num_mcs_positions > 1 else None,
+        output_path=out_sdf,
+    )
+    num_saved = total_representatives
 
     runtime = time.time() - t0
-    best_score = float(torch.min(scores).item())
+    best_score = float(torch.min(merged_scores).item())
 
     if verbose:
         print(f"\n-> Prediction Completed successfully in {runtime:.2f}s!")
@@ -423,8 +417,7 @@ def run_pipeline(
         "best_score": best_score,
         "runtime": runtime,
         "num_conformers": num_confs,
-        "num_representatives": len(rep_cids),
-        "total_representatives": total_representatives,
+        "num_representatives": total_representatives,
         "mcs_size": num_mcs_atoms,
         "mcs_positions": num_mcs_positions,
         "best_position": best_pos_idx + 1,

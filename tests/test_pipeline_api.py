@@ -62,7 +62,7 @@ def test_with_optimization():
         )
 
         assert os.path.exists(results["output_file"])
-        assert "predicted_poses_all.sdf" in results["output_file"]
+        assert "predicted_poses.sdf" in results["output_file"]
 
         print(f"\n✓ Optimization test passed")
         print(f"  Optimized best score: {results['best_score']:.2f} kcal/mol")
@@ -128,35 +128,35 @@ def test_scoring_functions():
     print(f"\n✓ All scoring functions test passed")
 
 
-def test_top_k_output():
-    """Test different top_k output options"""
+def test_all_poses_output():
+    """Test that all poses are saved sorted by energy"""
     print("\n" + "="*60)
-    print("TEST 5: Top-K Output")
+    print("TEST 5: All Poses Output (sorted by energy)")
     print("="*60)
 
     from lig_align import run_pipeline
     from rdkit import Chem
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Save top 5 poses
         results = run_pipeline(
             protein_pdb="examples/10gs/10gs_pocket.pdb",
             ref_ligand="examples/10gs/10gs_ligand.sdf",
             query_ligand="CC(C)Cc1ccc(cc1)C(C)C(=O)O",
             output_dir=tmpdir,
             num_confs=50,
-            top_k=5,
             verbose=False
         )
 
-        # Verify number of poses
         suppl = Chem.SDMolSupplier(results["output_file"])
-        num_poses = len([mol for mol in suppl if mol is not None])
-        assert num_poses == min(5, results['num_representatives'])
+        mols = [mol for mol in suppl if mol is not None]
+        assert len(mols) == results['num_representatives']
 
-        print(f"  ✓ Saved {num_poses} poses (requested top_k=5)")
+        scores = [float(mol.GetProp("Vina_Score")) for mol in mols]
+        assert scores == sorted(scores), "Poses must be sorted by energy (ascending)"
 
-    print(f"\n✓ Top-K output test passed")
+        print(f"  ✓ Saved {len(mols)} poses, all sorted by energy")
+
+    print(f"\n✓ All poses output test passed")
 
 
 def test_batch_processing():
@@ -232,8 +232,6 @@ def test_all_parameters():
             weight_preset="vina",
             torsion_penalty=False,
             # Output
-            save_all_poses=True,
-            top_k=None,
             # System
             device=None,
             verbose=False
@@ -251,7 +249,7 @@ if __name__ == "__main__":
     test_with_optimization()
     test_mcs_modes()
     test_scoring_functions()
-    test_top_k_output()
+    test_all_poses_output()
     test_batch_processing()
     test_all_parameters()
 

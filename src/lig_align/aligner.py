@@ -111,15 +111,10 @@ class LigandAligner:
                               aligned_coords: torch.Tensor,
                               scores: torch.Tensor,
                               initial_scores: torch.Tensor = None,
-                              top_k: int = None,
+                              position_labels: List[int] = None,
                               output_path: str = "output.sdf"):
-        """
-        Select and save top-k (or all) poses sorted by Vina score.
-
-        Args:
-            top_k: Number of top poses to save (None = save all)
-        """
-        return final_selection(mol, representative_cids, aligned_coords, scores, initial_scores, top_k, output_path)
+        """Save all poses sorted by Vina score (best energy first)."""
+        return final_selection(mol, representative_cids, aligned_coords, scores, initial_scores, position_labels, output_path)
 
     def step6_refine_pose(self,
                           mol: Chem.Mol,
