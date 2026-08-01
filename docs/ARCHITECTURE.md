@@ -46,7 +46,7 @@ Required inputs:
 Primary entry points:
 
 - `scripts/run_pipeline.py`
-- `lig_align.run_pipeline()`
+- `anchor_dock.reference.run_pipeline()`
 
 ## Stage Details
 

@@ -92,7 +92,7 @@ def test_python_api_all_modes():
 
     import torch
 
-    from lig_align.aligner import LigandAligner
+    from anchor_dock.reference import LigandAligner
 
     # Load molecules
     ref_suppl = Chem.SDMolSupplier("examples/10gs/10gs_ligand.sdf")

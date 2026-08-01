@@ -13,12 +13,12 @@ from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
 from rdkit.Geometry import Point3D
 
+from ..core.masks import compute_intramolecular_mask
+from ..core.scoring import precompute_interaction_matrices
 from .aligner import LigandAligner
 from .io import load_pocket_bundle, process_query_ligand
-from .molecular.mcs import auto_select_mcs_mapping, find_mcs_with_positions
-from .molecular.relax import relax_pose_with_fixed_core
-from .scoring import compute_intramolecular_mask
-from .scoring.vina_scoring import precompute_interaction_matrices
+from .mcs import auto_select_mcs_mapping, find_mcs_with_positions
+from .relax import relax_pose_with_fixed_core
 
 
 def _resolve_mcs_mappings(
@@ -452,7 +452,7 @@ def run_batch(
         Failed queries return a dict with "error" key instead.
 
     Example:
-        >>> from lig_align import run_batch
+        >>> from anchor_dock.reference import run_batch
         >>> results = run_batch(
         ...     protein_pdb="pocket.pdb",
         ...     ref_ligand="reference.sdf",

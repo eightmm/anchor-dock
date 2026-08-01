@@ -15,7 +15,7 @@ sys.path.insert(0, '/home/jaemin/project/protein-ligand/lig-align')
 
 from rdkit import Chem
 
-from src.lig_align.molecular.mcs import find_mcs_with_positions
+from anchor_dock.reference import find_mcs_with_positions
 
 
 def test_all_modes():

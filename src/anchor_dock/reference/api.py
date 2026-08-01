@@ -1,27 +1,29 @@
 """Reference-ligand MCS anchoring strategy.
 
-The mature LigAlign pipeline remains the strategy implementation while its
-scoring, masks, kinematics and optimizer are supplied by ``anchor_dock.core``.
+The pipeline in this package constructs the anchored pose ensemble; scoring,
+masks, kinematics and the torsion optimizer come from ``anchor_dock.core``.
 """
 
 from __future__ import annotations
 
+from .pipeline import run_batch, run_pipeline
+
+SCORE_SEMANTICS = "nonbonded_pose_score_conditioned_on_reference_anchor"
+
 
 def dock_reference(*args, **kwargs):
-    from lig_align.pipeline import run_pipeline
     result = run_pipeline(*args, **kwargs)
     result.setdefault("mode", "reference")
-    result.setdefault("score_semantics", "nonbonded_pose_score_conditioned_on_reference_anchor")
+    result.setdefault("score_semantics", SCORE_SEMANTICS)
     return result
 
 
 def dock_reference_batch(*args, **kwargs):
-    from lig_align.pipeline import run_batch
     results = run_batch(*args, **kwargs)
     for result in results:
         if "error" not in result:
             result.setdefault("mode", "reference")
-            result.setdefault("score_semantics", "nonbonded_pose_score_conditioned_on_reference_anchor")
+            result.setdefault("score_semantics", SCORE_SEMANTICS)
     return results
 
 

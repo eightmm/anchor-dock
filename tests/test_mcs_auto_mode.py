@@ -5,7 +5,7 @@ from rdkit import Chem
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.lig_align.molecular.mcs import auto_select_mcs_mapping
+from anchor_dock.reference import auto_select_mcs_mapping
 
 
 def _mol(smiles: str):

@@ -68,7 +68,7 @@ Current batching note:
 For stepwise control, use `LigandAligner`.
 
 ```python
-from lig_align import LigandAligner
+from anchor_dock.reference import LigandAligner
 
 aligner = LigandAligner(device="cuda")
 mapping = aligner.step2_find_mcs(ref_mol, query_mol)

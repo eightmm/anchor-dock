@@ -3,8 +3,7 @@ from pathlib import Path
 
 from rdkit import Chem
 
-from lig_align.aligner import LigandAligner
-from lig_align.io import process_query_ligand
+from anchor_dock.reference import LigandAligner, process_query_ligand
 
 EXAMPLES = [
     (

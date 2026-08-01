@@ -179,7 +179,7 @@ class LigandKinematics(nn.Module):
 
 
 class BatchedLigandKinematics(LigandKinematics):
-    """Backward-compatible name retained for ``lig_align`` callers."""
+    """Alias retained for reference-mode callers that name the batched form."""
 
     def __init__(self, mol, ref_indices, init_coords, device, freeze_mcs: bool = True):
         super().__init__(mol, ref_indices, init_coords, device, freeze_anchor=freeze_mcs)

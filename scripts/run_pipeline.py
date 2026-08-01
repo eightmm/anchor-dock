@@ -1,6 +1,6 @@
 import argparse
 
-from lig_align.pipeline import run_pipeline
+from anchor_dock.reference import run_pipeline
 
 
 def main():

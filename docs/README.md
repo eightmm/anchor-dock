@@ -7,7 +7,7 @@
 - [API_REFERENCE.md](API_REFERENCE.md): Python entry points and script inventory
 - [ANCHOR_DOCK_ARCHITECTURE.md](ANCHOR_DOCK_ARCHITECTURE.md): the strategy/scoring boundary shared by both docking modes
 - [ARCHITECTURE.md](ARCHITECTURE.md): reference-mode pipeline stages and implementation notes
-- [MIGRATION.md](MIGRATION.md): mapping from the former `lig_align` and `cov_vina` APIs onto `anchor_dock`
+- [MIGRATION.md](MIGRATION.md): mapping from the removed `lig_align` and `cov_vina` namespaces onto `anchor_dock`
 
 ## Reading Order
 

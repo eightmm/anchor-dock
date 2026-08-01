@@ -13,9 +13,25 @@
 | `cov_vina.run_covalent_pipeline(...)` | `anchor_dock.dock_covalent(...)` |
 | `cov_vina.run_batch_docking(...)` | `anchor_dock.dock_covalent_batch(...)` |
 
-`cov_vina` has been removed. Every module in it was a re-export of `anchor_dock`, so the mappings above are the complete replacement.
+Both old namespaces have been removed; `anchor_dock` is the only import path.
 
-`lig_align` remains importable because it is not a shim. Its scoring, mask, kinematics, feature, and optimizer modules do re-export `anchor_dock.core`, but it still owns the reference-mode pipeline, MCS search, conformer generation, ligand I/O, and pose export that `anchor_dock.dock_reference` calls into.
+`cov_vina` was pure re-export, so the mappings above replace it exactly. `lig_align` held the real reference-mode implementation, which moved rather than disappeared:
+
+| Previous module | Now |
+|---|---|
+| `lig_align.pipeline` | `anchor_dock.reference.pipeline` |
+| `lig_align.aligner` | `anchor_dock.reference.aligner` |
+| `lig_align.molecular.mcs` | `anchor_dock.reference.mcs` |
+| `lig_align.molecular.conformer` | `anchor_dock.reference.conformers` |
+| `lig_align.molecular.relax` | `anchor_dock.reference.relax` |
+| `lig_align.io.input`, `lig_align.io.pocket` | `anchor_dock.reference.io` |
+| `lig_align.selection.final_selection` | `anchor_dock.reference.output` |
+| `lig_align.io.visualization` | `anchor_dock.reference.visualization` |
+| `lig_align.scoring`, `.alignment`, `.optimization`, `.molecular.features` | `anchor_dock.core` (these were already re-exports) |
+
+The move was verified to leave reference-mode output byte-identical across MCS modes, weight presets, and torsion optimization; `tests/test_reference_regression.py` keeps it that way.
+
+SDF property names still carry the `LigAlign_` prefix (`LigAlign_MCS_Mode`, `LigAlign_MMFF_Optimized`, and so on). Renaming them would break anyone parsing previously written poses, so they are left alone.
 
 ## Behavior retained
 

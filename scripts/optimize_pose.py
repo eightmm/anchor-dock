@@ -5,8 +5,7 @@ import torch
 from rdkit import Chem, RDLogger
 from rdkit.Chem import rdMolDescriptors
 
-from lig_align.aligner import LigandAligner
-from lig_align.io import load_pocket_bundle
+from anchor_dock.reference import LigandAligner, load_pocket_bundle
 
 
 def optimize_single_pose(protein_pdb: str, ligand_sdf: str, out_sdf: str, num_steps: int = 100, lr: float = 0.05, torsion_penalty: bool = True, weight_preset: str = 'vina', optimizer: str = 'adam'):

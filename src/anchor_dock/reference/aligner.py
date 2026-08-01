@@ -3,11 +3,12 @@ import torch
 from rdkit import Chem
 from rdkit.Geometry import Point3D
 
-from .molecular import compute_vina_features, generate_conformers_and_cluster
-from .molecular.mcs import find_mcs_with_positions
-from .optimization import optimize_torsions_vina
-from .scoring import vina_scoring
-from .selection import final_selection
+from ..core.features import compute_vina_features
+from ..core.optimization import optimize_torsions_vina
+from ..core.scoring import vina_scoring
+from .conformers import generate_conformers_and_cluster
+from .mcs import find_mcs_with_positions
+from .output import final_selection
 
 
 class LigandAligner:

@@ -11,7 +11,7 @@ def test_basic_usage():
     print("TEST 1: Basic Usage")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results = run_pipeline(
@@ -45,7 +45,7 @@ def test_with_optimization():
     print("TEST 2: With Optimization")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results = run_pipeline(
@@ -74,7 +74,7 @@ def test_mcs_modes():
     print("TEST 3: MCS Modes")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     modes = ["single", "multi", "cross"]
 
@@ -103,7 +103,7 @@ def test_scoring_functions():
     print("TEST 4: Scoring Functions")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     scoring_functions = ["vina", "vina_lp", "vinardo"]
     scores = {}
@@ -135,7 +135,7 @@ def test_all_poses_output():
 
     from rdkit import Chem
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results = run_pipeline(
@@ -165,7 +165,7 @@ def test_batch_processing():
     print("TEST 6: Batch Processing")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     molecules = {
         "Ibuprofen": "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
@@ -203,7 +203,7 @@ def test_all_parameters():
     print("TEST 7: All Parameters")
     print("="*60)
 
-    from lig_align import run_pipeline
+    from anchor_dock.reference import run_pipeline
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results = run_pipeline(

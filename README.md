@@ -50,47 +50,46 @@ results = dock_covalent_batch(
 
 ## Compatibility
 
-The `cov_vina` namespace has been removed; it contained no implementation of its
-own. Use `anchor_dock` instead:
+The `lig_align` and `cov_vina` namespaces have been removed. Everything lives
+under `anchor_dock`:
 
 ```python
+from anchor_dock import dock_reference, dock_reference_batch
 from anchor_dock import dock_covalent, dock_covalent_batch
+
+# the reference implementation, if you need it directly
+from anchor_dock.reference import LigandAligner, run_batch, run_pipeline
 ```
 
-`lig_align` still imports, because it still holds the reference-mode
-implementation:
-
-```python
-from lig_align import run_pipeline, run_batch
-```
-
-New code should use `anchor_dock` directly. See [docs/MIGRATION.md](docs/MIGRATION.md).
+See [docs/MIGRATION.md](docs/MIGRATION.md) for the full mapping.
 
 ## Shared architecture
 
 ```text
 anchor_dock/
 ├── core/          # scoring, features, masks, conformers, kinematics, optimizer, I/O
-├── reference/     # reference-ligand MCS strategy (delegates to lig_align.pipeline)
+├── reference/     # reference-ligand MCS strategy: pipeline, MCS, conformers, I/O, export
 └── covalent/      # warhead/residue strategy and adduct construction
-
-lig_align/         # reference-mode implementation + shims onto anchor_dock.core
 ```
 
 Both modes share one five-term Vina/Vinardo-style non-bonded score, interaction
 precomputation, pairwise exclusion mask builder, batched forward kinematics, and
-gradient optimizer: `lig_align.scoring`, `lig_align.alignment.kinematics`,
-`lig_align.molecular.features`, and `lig_align.optimization` are thin re-exports
-of `anchor_dock.core`.
+gradient optimizer, all from `anchor_dock.core`. Mode-specific code is limited to
+building the initial anchored pose ensemble and its constraints.
 
-The unification stops there. Conformer generation, query-ligand loading, and pose
-export still exist twice — `lig_align.molecular.conformer`, `lig_align.io`, and
-`lig_align.selection` for reference mode, `anchor_dock.core.conformers`,
-`anchor_dock.core.io`, and `anchor_dock.core.output` for covalent mode — and the
-two sets are not drop-in equivalents. They differ in MMFF relaxation of cluster
-representatives, in whether explicit hydrogens are added at load time, and in the
-SDF properties written per pose. Consolidating them changes pose geometry, so it
-is a deliberate open item rather than a refactor.
+One duplication is still deliberate. `anchor_dock.reference` keeps its own
+`conformers`, `io`, and `output` modules rather than reusing the `core`
+equivalents, because the two are not interchangeable:
+
+- reference MMFF-relaxes cluster representatives; `core.conformers` does not,
+  because MMFF is unreliable on covalent adduct topologies
+- reference attaches explicit hydrogens at load time, which its MCS and
+  rotatable-bond accounting assume; the covalent strategy adds them at embed time
+- reference writes the `MCS_Position` tag, which has no covalent counterpart
+
+Merging them would change pose geometry, so it is an open decision rather than a
+refactor. `tests/test_reference_regression.py` pins the current numbers so any
+attempt has to prove it.
 
 ## Score interpretation
 

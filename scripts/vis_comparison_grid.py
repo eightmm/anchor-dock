@@ -10,11 +10,11 @@ import torch
 from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem, rdMolDescriptors
 
-from lig_align.aligner import LigandAligner
-from lig_align.alignment import LigandKinematics
-from lig_align.io import load_pocket_bundle, process_query_ligand
-from lig_align.molecular import compute_vina_features
-from lig_align.scoring import compute_intramolecular_mask, vina_scoring
+from anchor_dock.core.features import compute_vina_features
+from anchor_dock.core.kinematics import LigandKinematics
+from anchor_dock.core.masks import compute_intramolecular_mask
+from anchor_dock.core.scoring import vina_scoring
+from anchor_dock.reference import LigandAligner, load_pocket_bundle, process_query_ligand
 
 RDLogger.DisableLog('rdApp.warning')
 
