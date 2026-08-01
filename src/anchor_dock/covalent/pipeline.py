@@ -28,7 +28,6 @@ from .adduct import create_adduct_template, get_protein_exclusion_atom_indices
 from .anchor import (
     REACTIVE_RESIDUES,
     AnchorPoint,
-    WarheadHit,
     check_warhead_residue_compatibility,
     create_covalent_coordmap,
     detect_warheads,

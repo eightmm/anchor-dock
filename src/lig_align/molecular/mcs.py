@@ -12,52 +12,6 @@ All are unified under find_mcs_with_positions() with different parameters.
 from rdkit import Chem
 from rdkit.Chem import rdFMCS, RWMol
 from typing import List, Tuple, Optional, Dict, Any
-import itertools
-
-
-def find_mcs(ref_mol: Chem.Mol, query_mol: Chem.Mol) -> List[Tuple[int, int]]:
-    """
-    Find the Maximum Common Substructure (MCS) between Reference and Query ligands.
-
-    Returns FIRST matching position (original behavior, backward compatible).
-
-    Args:
-        ref_mol: Reference molecule
-        query_mol: Query molecule
-
-    Returns:
-        List of matching atom index tuples: [(ref_idx, query_idx), ...]
-
-    Note:
-        If query can match multiple positions in reference (e.g., symmetric molecule),
-        this returns only the FIRST match. Use find_all_mcs_positions() for all matches.
-    """
-    ref_no_h = Chem.RemoveHs(ref_mol)
-    query_no_h = Chem.RemoveHs(query_mol)
-
-    mcs_res = rdFMCS.FindMCS([ref_no_h, query_no_h],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrderExact,
-                             ringMatchesRingOnly=True,
-                             timeout=10)
-
-    if mcs_res.canceled:
-        print("Warning: MCS search reached timeout limit.")
-
-    if not mcs_res.smartsString:
-        raise ValueError("No common substructure found between reference and query ligands.")
-
-    mcs_mol = Chem.MolFromSmarts(mcs_res.smartsString)
-
-    ref_match = ref_no_h.GetSubstructMatch(mcs_mol)
-    query_match = query_no_h.GetSubstructMatch(mcs_mol)
-
-    if not ref_match or not query_match:
-        raise ValueError("Failed to match MCS SMARTS back to original molecules.")
-
-    mapping = list(zip(ref_match, query_match))
-    print(f"Found MCS with {len(mapping)} matching atoms.")
-    return mapping
 
 
 def find_all_mcs_positions(ref_mol: Chem.Mol,

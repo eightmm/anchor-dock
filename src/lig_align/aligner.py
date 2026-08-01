@@ -2,7 +2,7 @@ import torch
 from rdkit import Chem
 from typing import List, Tuple, Optional, Dict
 
-from .molecular import generate_conformers_and_cluster, find_mcs, compute_vina_features
+from .molecular import generate_conformers_and_cluster, compute_vina_features
 from .molecular.mcs import find_mcs_with_positions
 from .alignment import batched_kabsch_alignment
 from .scoring import vina_scoring
