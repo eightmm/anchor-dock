@@ -3,7 +3,6 @@ Test the high-level run_pipeline() API function.
 """
 import os
 import tempfile
-import shutil
 
 
 def test_basic_usage():

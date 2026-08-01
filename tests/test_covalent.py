@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
 from rdkit import Chem
 
 from anchor_dock import dock_covalent

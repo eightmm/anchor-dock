@@ -4,7 +4,7 @@ import torch
 import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from lig_align.alignment.kinematics import (
+from anchor_dock.core.kinematics import (
     get_rotation_matrix,
     get_batched_rotation_matrix,
     LigandKinematics,

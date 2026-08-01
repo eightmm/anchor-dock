@@ -1,9 +1,8 @@
 """Unit tests for intramolecular interaction mask."""
 
 import torch
-import pytest
 from rdkit import Chem
-from lig_align.scoring.masks import compute_intramolecular_mask
+from anchor_dock.core.masks import compute_intramolecular_mask
 
 
 class TestIntramolecularMask:

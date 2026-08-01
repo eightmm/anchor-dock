@@ -2,7 +2,7 @@
 
 import torch
 import pytest
-from lig_align.scoring.vina_scoring import vina_scoring, precompute_interaction_matrices
+from anchor_dock.core.scoring import vina_scoring, precompute_interaction_matrices
 
 
 @pytest.fixture
