@@ -1,9 +1,10 @@
 [project]
-name = "lig-align"
-version = "0.1.0"
-description = "Reference-guided ligand pose prediction with MCS alignment, Vina scoring, and torsion optimization"
+name = "anchor-dock"
+version = "0.2.0"
+description = "Anchor- and constraint-guided ligand pose prediction with reference and covalent docking modes"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "MIT"
 dependencies = [
     "numpy>=2.4.2",
     "rdkit>=2025.9.5",
@@ -11,11 +12,23 @@ dependencies = [
     "torch>=2.10.0",
 ]
 
+[project.scripts]
+anchor-dock = "anchor_dock.cli:main"
+
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=82"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["anchor_dock*", "lig_align*", "cov_vina*"]
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
