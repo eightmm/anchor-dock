@@ -4,7 +4,6 @@ from typing import List, Tuple, Optional, Dict
 
 from .molecular import generate_conformers_and_cluster, compute_vina_features
 from .molecular.mcs import find_mcs_with_positions
-from .alignment import batched_kabsch_alignment
 from .scoring import vina_scoring
 from .selection import final_selection
 from .optimization import optimize_torsions_vina
@@ -15,7 +14,6 @@ class LigandAligner:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         else:
             self.device = torch.device(device)
-        print(f"Using device: {self.device}")
 
     def step1_generate_conformers(self,
                                   mol: Chem.Mol,
@@ -84,12 +82,6 @@ class LigandAligner:
         else:
             # Mode 2/3: Return all mappings
             return mappings
-
-    def step3_batched_kabsch_alignment(self, 
-                                       ref_coords: torch.Tensor, 
-                                       query_ensemble_coords: torch.Tensor, 
-                                       mapping: List[Tuple[int, int]]) -> torch.Tensor:
-        return batched_kabsch_alignment(ref_coords, query_ensemble_coords, mapping, self.device)
 
     def compute_vina_features(self, mol: Chem.Mol) -> dict:
         return compute_vina_features(mol, self.device)

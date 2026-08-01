@@ -50,11 +50,18 @@ results = dock_covalent_batch(
 
 ## Compatibility
 
-Existing code remains valid:
+The `cov_vina` namespace has been removed; it contained no implementation of its
+own. Use `anchor_dock` instead:
+
+```python
+from anchor_dock import dock_covalent, dock_covalent_batch
+```
+
+`lig_align` still imports, because it still holds the reference-mode
+implementation:
 
 ```python
 from lig_align import run_pipeline, run_batch
-from cov_vina import run_covalent_pipeline, run_batch_docking
 ```
 
 New code should use `anchor_dock` directly. See [docs/MIGRATION.md](docs/MIGRATION.md).
@@ -68,7 +75,6 @@ anchor_dock/
 └── covalent/      # warhead/residue strategy and adduct construction
 
 lig_align/         # reference-mode implementation + shims onto anchor_dock.core
-cov_vina/          # backward-compatible covalent API (re-exports only)
 ```
 
 Both modes share one five-term Vina/Vinardo-style non-bonded score, interaction
