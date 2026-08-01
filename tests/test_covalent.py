@@ -31,12 +31,35 @@ def cys_anchor() -> AnchorPoint:
     ("smiles", "warhead_type"),
     [
         ("C=CC(=O)N", "acrylamide"),
-        ("CC=O", "aldehyde"),
-        ("O=C(C(=O)N)C", "alpha_ketoamide"),
-        ("OCC1CO1", "epoxide"),
-        ("N#Cc1ccccc1", "aryl_nitrile"),
+        ("C=CC(=O)O", "acrylic_acid"),
+        ("C=CC(=O)OC", "acrylate"),
+        ("C=CC(=O)C", "enone"),
+        ("C=CS(=O)(=O)N", "vinyl_sulfonamide"),
+        ("C=CS(=O)(=O)C", "vinyl_sulfone"),
+        ("O=C1C=CC(=O)N1", "maleimide"),
         ("ClCC(=O)N", "chloroacetamide"),
-        ("B(O)O", "boronic_acid"),
+        ("BrCC(=O)N", "bromoacetamide"),
+        ("ICC(=O)N", "iodoacetamide"),
+        ("FCC(=O)N", "fluoroacetamide"),
+        ("ClC(F)C(=O)N", "chlorofluoroacetamide"),
+        ("CC1CO1", "epoxide"),
+        ("CC1CN1", "aziridine"),
+        ("CC1CS1", "thiirane"),
+        ("N#Cc1ccccc1", "aryl_nitrile"),
+        ("N#CCC", "alkyl_nitrile"),
+        ("C#CC(=O)N", "propiolamide"),
+        ("CC#CC(=O)N", "propargylamide"),
+        ("N#CC=CC(=O)N", "cyanoacrylamide"),
+        ("CSSC", "disulfide"),
+        ("FS(=O)(=O)c1ccccc1", "sulfonyl_fluoride"),
+        ("CC(=O)C(=O)N", "alpha_ketoamide"),
+        ("CC=O", "aldehyde"),
+        ("CN=C=S", "isothiocyanate"),
+        ("CC(=O)On1c(=O)cccc1", "nhs_ester"),
+        ("CC(=O)OC(F)(F)F", "tfe_ester"),
+        ("CC(=O)F", "acyl_fluoride"),
+        ("CB(O)O", "boronic_acid"),
+        ("CP(=O)(O)O", "phosphonate"),
     ],
 )
 def test_warhead_detection_and_sanitized_adduct(smiles: str, warhead_type: str, cys_anchor: AnchorPoint) -> None:
@@ -47,6 +70,7 @@ def test_warhead_detection_and_sanitized_adduct(smiles: str, warhead_type: str, 
     assert cb_idx is not None
     assert adduct.GetBondBetweenAtoms(nuc_idx, reactive_idx) is not None
     assert Chem.MolToSmiles(adduct)
+    assert len(Chem.GetMolFrags(adduct)) == 1
 
 
 def test_pocket_extraction_preserves_pdb_metadata(cys_pdb: Path) -> None:
