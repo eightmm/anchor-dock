@@ -5,9 +5,9 @@
 Main entry point:
 
 ```python
-from lig_align import run_pipeline
+from anchor_dock import dock_reference
 
-results = run_pipeline(
+results = dock_reference(
     protein_pdb="protein.pdb",
     ref_ligand="ref.sdf",
     query_ligand="SMILES",

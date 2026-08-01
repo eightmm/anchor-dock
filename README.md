@@ -64,14 +64,27 @@ New code should use `anchor_dock` directly. See [docs/MIGRATION.md](docs/MIGRATI
 ```text
 anchor_dock/
 ├── core/          # scoring, features, masks, conformers, kinematics, optimizer, I/O
-├── reference/     # reference-ligand MCS strategy
+├── reference/     # reference-ligand MCS strategy (delegates to lig_align.pipeline)
 └── covalent/      # warhead/residue strategy and adduct construction
 
-lig_align/         # backward-compatible reference API
-cov_vina/          # backward-compatible covalent API
+lig_align/         # reference-mode implementation + shims onto anchor_dock.core
+cov_vina/          # backward-compatible covalent API (re-exports only)
 ```
 
-Both modes use the same five-term Vina/Vinardo-style non-bonded score, interaction precomputation, pairwise exclusion masks, batched forward kinematics, and gradient optimization. Mode-specific code is limited to generating the initial anchored pose ensemble and constraints.
+Both modes share one five-term Vina/Vinardo-style non-bonded score, interaction
+precomputation, pairwise exclusion mask builder, batched forward kinematics, and
+gradient optimizer: `lig_align.scoring`, `lig_align.alignment.kinematics`,
+`lig_align.molecular.features`, and `lig_align.optimization` are thin re-exports
+of `anchor_dock.core`.
+
+The unification stops there. Conformer generation, query-ligand loading, and pose
+export still exist twice — `lig_align.molecular.conformer`, `lig_align.io`, and
+`lig_align.selection` for reference mode, `anchor_dock.core.conformers`,
+`anchor_dock.core.io`, and `anchor_dock.core.output` for covalent mode — and the
+two sets are not drop-in equivalents. They differ in MMFF relaxation of cluster
+representatives, in whether explicit hydrogens are added at load time, and in the
+SDF properties written per pose. Consolidating them changes pose geometry, so it
+is a deliberate open item rather than a refactor.
 
 ## Score interpretation
 

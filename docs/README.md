@@ -5,10 +5,12 @@
 - [../README.md](../README.md): project overview and shortest path to first run
 - [USAGE.md](USAGE.md): environment setup, CLI usage, testing, and common workflows
 - [API_REFERENCE.md](API_REFERENCE.md): Python entry points and script inventory
-- [ARCHITECTURE.md](ARCHITECTURE.md): pipeline stages and implementation notes
+- [ANCHOR_DOCK_ARCHITECTURE.md](ANCHOR_DOCK_ARCHITECTURE.md): the strategy/scoring boundary shared by both docking modes
+- [ARCHITECTURE.md](ARCHITECTURE.md): reference-mode pipeline stages and implementation notes
+- [MIGRATION.md](MIGRATION.md): mapping from the former `lig_align` and `cov_vina` APIs
 
 ## Reading Order
 
 - New user: `README.md` -> `USAGE.md`
-- Developer onboarding: `README.md` -> `ARCHITECTURE.md` -> `API_REFERENCE.md`
-- Method review: `ARCHITECTURE.md` -> `API_REFERENCE.md`
+- Developer onboarding: `README.md` -> `ANCHOR_DOCK_ARCHITECTURE.md` -> `ARCHITECTURE.md` -> `API_REFERENCE.md`
+- Method review: `ANCHOR_DOCK_ARCHITECTURE.md` -> `ARCHITECTURE.md` -> `API_REFERENCE.md`

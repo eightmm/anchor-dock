@@ -13,7 +13,7 @@
 | `cov_vina.run_covalent_pipeline(...)` | `anchor_dock.dock_covalent(...)` |
 | `cov_vina.run_batch_docking(...)` | `anchor_dock.dock_covalent_batch(...)` |
 
-The old namespaces remain importable and delegate to the unified implementation.
+The old namespaces remain importable. `cov_vina` re-exports `anchor_dock` throughout. `lig_align` is mixed: its scoring, mask, kinematics, feature, and optimizer modules re-export `anchor_dock.core`, but it still owns the reference-mode pipeline, MCS search, conformer generation, ligand I/O, and pose export that `anchor_dock.dock_reference` calls into.
 
 ## Behavior retained
 
