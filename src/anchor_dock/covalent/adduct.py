@@ -29,6 +29,38 @@ def _replace_bond(editable: Chem.RWMol, atom_a: int, atom_b: int, bond_type: Che
         editable.AddBond(atom_a, atom_b, bond_type)
 
 
+def _branch_indices(editable: Chem.RWMol, root_idx: int, start_idx: int) -> set[int]:
+    """Return the atom branch reached from ``start_idx`` without crossing ``root_idx``."""
+    branch: set[int] = set()
+    stack = [start_idx]
+    while stack:
+        atom_idx = stack.pop()
+        if atom_idx == root_idx or atom_idx in branch:
+            continue
+        branch.add(atom_idx)
+        stack.extend(
+            neighbor.GetIdx()
+            for neighbor in editable.GetAtomWithIdx(atom_idx).GetNeighbors()
+            if neighbor.GetIdx() != root_idx and neighbor.GetIdx() not in branch
+        )
+    return branch
+
+
+def _find_single_bond_neighbor(
+    editable: Chem.RWMol,
+    reactive_idx: int,
+    atomic_number: int,
+) -> int | None:
+    for bond in editable.GetAtomWithIdx(reactive_idx).GetBonds():
+        neighbor_idx = bond.GetOtherAtomIdx(reactive_idx)
+        if (
+            bond.GetBondType() == Chem.BondType.SINGLE
+            and editable.GetAtomWithIdx(neighbor_idx).GetAtomicNum() == atomic_number
+        ):
+            return neighbor_idx
+    return None
+
+
 def _reduce_first_bond(
     editable: Chem.RWMol,
     reactive_idx: int,
@@ -93,25 +125,29 @@ def create_adduct_template(
         ):
             raise ValueError("Could not reduce isothiocyanate C=N bond")
     elif warhead.warhead_type == "disulfide":
-        if not _reduce_first_bond(
-            editable, original_reactive, Chem.BondType.SINGLE, Chem.BondType.SINGLE,
-            allowed_atomic_numbers={16},
-        ):
-            raise ValueError("Could not identify disulfide bond")
-        # Exchange requires the distal sulfur fragment to leave. Remove the matched distal S-C side when unambiguous.
-        reactive = editable.GetAtomWithIdx(original_reactive)
-        sulfur_neighbors = [n.GetIdx() for n in reactive.GetNeighbors() if n.GetAtomicNum() == 16]
-        if sulfur_neighbors:
-            _replace_bond(editable, original_reactive, sulfur_neighbors[0], None)
+        distal_sulfur = _find_single_bond_neighbor(editable, original_reactive, 16)
+        if distal_sulfur is None:
+            raise ValueError("Could not identify disulfide leaving branch")
+        remove_indices.extend(_branch_indices(editable, original_reactive, distal_sulfur))
     elif warhead.warhead_type == "boronic_acid":
         editable.GetAtomWithIdx(original_reactive).SetFormalCharge(-1)
-    elif warhead.warhead_type in {"phosphonate", "nhs_ester", "tfe_ester"}:
-        # Hypervalent P and acyl substitution are represented as an attached adduct.
-        pass
+    elif warhead.warhead_type == "phosphonate":
+        leaving_oxygen = _find_single_bond_neighbor(editable, original_reactive, 8)
+        if leaving_oxygen is None:
+            raise ValueError("Could not identify phosphonate hydroxyl leaving group")
+        remove_indices.extend(_branch_indices(editable, original_reactive, leaving_oxygen))
+    elif warhead.warhead_type in {"nhs_ester", "tfe_ester"}:
+        leaving_oxygen = _find_single_bond_neighbor(editable, original_reactive, 8)
+        if leaving_oxygen is None:
+            raise ValueError(f"Could not identify ester leaving group for {warhead.warhead_type}")
+        remove_indices.extend(_branch_indices(editable, original_reactive, leaving_oxygen))
     elif not positions:
         raise ValueError(f"Unsupported adduct transform for {warhead.warhead_type}")
 
-    for atom_idx in sorted(remove_indices, reverse=True):
+    remove_indices = sorted(set(remove_indices), reverse=True)
+    if original_reactive in remove_indices:
+        raise ValueError("Adduct transform attempted to remove the reactive atom")
+    for atom_idx in remove_indices:
         editable.RemoveAtom(atom_idx)
     shift = sum(idx < original_reactive for idx in remove_indices)
     reactive_idx = original_reactive - shift
