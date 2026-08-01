@@ -30,9 +30,15 @@ jobs:
         run: uv run pytest -q
       - name: Build wheel
         run: uv build --wheel
+      - name: Pack source snapshot
+        run: |
+          tar -czf anchor-dock-source.tar.gz \
+            .github src docs tests scripts examples reports \
+            README.md LICENSE pyproject.toml uv.lock
       - uses: actions/upload-artifact@v4
         with:
           name: anchor-dock-build
           path: |
             uv.lock
             dist/*.whl
+            anchor-dock-source.tar.gz
