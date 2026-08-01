@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 from rdkit import Chem
@@ -99,7 +98,7 @@ class AnchorPoint:
     coord: np.ndarray
     bond_vector: np.ndarray
     bond_length: float
-    cb_coord: Optional[np.ndarray] = None
+    cb_coord: np.ndarray | None = None
 
 
 def detect_warheads(mol: Chem.Mol) -> list[WarheadHit]:

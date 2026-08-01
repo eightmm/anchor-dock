@@ -10,9 +10,11 @@ All with the same function, just different parameters!
 """
 
 import sys
+
 sys.path.insert(0, '/home/jaemin/project/protein-ligand/lig-align')
 
 from rdkit import Chem
+
 from src.lig_align.molecular.mcs import find_mcs_with_positions
 
 
@@ -33,7 +35,7 @@ def test_all_modes():
     query_mol = Chem.MolFromSmiles(query_smiles)
     query_mol = Chem.AddHs(query_mol)
 
-    print(f"\nTest molecules:")
+    print("\nTest molecules:")
     print(f"  Ref:   {ref_smiles} (symmetric)")
     print(f"  Query: {query_smiles} (symmetric)")
 

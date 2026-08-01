@@ -1,19 +1,17 @@
-import os
 import argparse
-import torch
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation, PillowWriter
 
-from rdkit import Chem
-from rdkit import RDLogger
+import matplotlib.pyplot as plt
+import torch
+from matplotlib.animation import FuncAnimation, PillowWriter
+from rdkit import Chem, RDLogger
 from rdkit.Chem import rdMolDescriptors
 
 from lig_align.aligner import LigandAligner
 from lig_align.alignment import LigandKinematics
 from lig_align.io import load_pocket_bundle
-from lig_align.scoring import vina_scoring, compute_intramolecular_mask
 from lig_align.io.visualization import draw_molecule_3d
+from lig_align.scoring import compute_intramolecular_mask, vina_scoring
+
 
 def main():
     parser = argparse.ArgumentParser(description="Create a GIF of a single SDF pose being optimized")
@@ -37,7 +35,6 @@ def main():
 
     # 1. Loading
     pocket_bundle = load_pocket_bundle(args.protein, device, aligner.compute_vina_features)
-    pocket_mol = pocket_bundle.mol
     ligand_mol = Chem.SDMolSupplier(args.ligand)[0]
     ligand_mol = Chem.AddHs(ligand_mol, addCoords=True)
     

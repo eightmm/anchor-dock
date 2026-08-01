@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 import torch

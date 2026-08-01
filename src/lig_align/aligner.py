@@ -1,12 +1,14 @@
+
 import torch
 from rdkit import Chem
-from typing import List, Tuple, Optional, Dict
+from rdkit.Geometry import Point3D
 
-from .molecular import generate_conformers_and_cluster, compute_vina_features
+from .molecular import compute_vina_features, generate_conformers_and_cluster
 from .molecular.mcs import find_mcs_with_positions
+from .optimization import optimize_torsions_vina
 from .scoring import vina_scoring
 from .selection import final_selection
-from .optimization import optimize_torsions_vina
+
 
 class LigandAligner:
     def __init__(self, device: str = None):
@@ -19,7 +21,7 @@ class LigandAligner:
                                   mol: Chem.Mol,
                                   num_confs: int = 1000,
                                   rmsd_threshold: float = 1.0,
-                                  coordMap: Optional[Dict[int, 'rdkit.Geometry.Point3D']] = None) -> Tuple[Chem.Mol, List[int]]:
+                                  coordMap: dict[int, Point3D] | None = None) -> tuple[Chem.Mol, list[int]]:
         """
         Generate conformers and cluster by RMSD threshold.
 
@@ -38,8 +40,8 @@ class LigandAligner:
     def step2_find_mcs(self, ref_mol: Chem.Mol, query_mol: Chem.Mol,
                        return_all_positions: bool = False,
                        cross_match: bool = False,
-                       min_fragment_size: Optional[int] = None,
-                       max_fragments: int = 3) -> List[List[Tuple[int, int]]]:
+                       min_fragment_size: int | None = None,
+                       max_fragments: int = 3) -> list[list[tuple[int, int]]]:
         """
         Find MCS between reference and query with three modes:
 
@@ -99,18 +101,18 @@ class LigandAligner:
 
     def step5_final_selection(self,
                               mol: Chem.Mol,
-                              representative_cids: List[int],
+                              representative_cids: list[int],
                               aligned_coords: torch.Tensor,
                               scores: torch.Tensor,
                               initial_scores: torch.Tensor = None,
-                              position_labels: List[int] = None,
+                              position_labels: list[int] = None,
                               output_path: str = "output.sdf"):
         """Save all poses sorted by Vina score (best energy first)."""
         return final_selection(mol, representative_cids, aligned_coords, scores, initial_scores, position_labels, output_path)
 
     def step6_refine_pose(self,
                           mol: Chem.Mol,
-                          ref_indices: List[int],
+                          ref_indices: list[int],
                           init_coords: torch.Tensor,
                           pocket_coords: torch.Tensor,
                           query_features: dict,

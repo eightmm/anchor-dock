@@ -1,8 +1,10 @@
 import io
+
 from PIL import Image
 from rdkit import Chem
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
+
 
 def get_2d_image(mol, highlight_atoms, align_ref=None, match_pairs=None):
     """
@@ -12,14 +14,14 @@ def get_2d_image(mol, highlight_atoms, align_ref=None, match_pairs=None):
     mol_copy = Chem.Mol(mol)
     try:
         mol_copy.RemoveAllConformers()
-    except:
+    except Exception:
         pass
-        
+
     if align_ref and match_pairs:
         ref_copy = Chem.Mol(align_ref)
         try:
             ref_copy.RemoveAllConformers()
-        except:
+        except Exception:
             pass
         rdDepictor.Compute2DCoords(ref_copy)
         
@@ -30,7 +32,7 @@ def get_2d_image(mol, highlight_atoms, align_ref=None, match_pairs=None):
             
         try:
             rdDepictor.Compute2DCoords(mol_copy, coordMap=coord_map)
-        except:
+        except Exception:
             rdDepictor.Compute2DCoords(mol_copy)
     else:
         rdDepictor.Compute2DCoords(mol_copy)

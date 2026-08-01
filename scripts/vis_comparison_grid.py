@@ -3,21 +3,18 @@ Create 2x2 comparison grid visualizations for different optimization methods.
 """
 
 import argparse
-import os
-import torch
+
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit.Chem import rdMolDescriptors
-from rdkit import RDLogger
+import torch
+from rdkit import Chem, RDLogger
+from rdkit.Chem import AllChem, rdMolDescriptors
 
 from lig_align.aligner import LigandAligner
 from lig_align.alignment import LigandKinematics
-from lig_align.scoring import vina_scoring, compute_intramolecular_mask
-from lig_align.molecular import compute_vina_features
 from lig_align.io import load_pocket_bundle, process_query_ligand
+from lig_align.molecular import compute_vina_features
+from lig_align.scoring import compute_intramolecular_mask, vina_scoring
 
 RDLogger.DisableLog('rdApp.warning')
 
@@ -60,7 +57,7 @@ def optimize_pose(mol, ref_indices, init_coords, pocket_coords, query_features, 
     # Check if molecule has rotatable bonds
     test_model = LigandKinematics(mol, ref_indices, init_coords, device, freeze_mcs=freeze_mcs)
     if test_model.num_torsions == 0:
-        print(f"  No rotatable bonds - skipping optimization")
+        print("  No rotatable bonds - skipping optimization")
         return init_coords.unsqueeze(0), torch.tensor([0.0])
 
     # Setup model and optimizer
@@ -124,7 +121,7 @@ def create_2x2_comparison(query_smiles, output_path, protein_pdb=None, ref_sdf=N
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     aligner = LigandAligner(device=device)
 
-    print(f"Loading data...")
+    print("Loading data...")
     print(f"  Protein: {protein_pdb}")
     print(f"  Reference: {ref_sdf}")
 
@@ -142,7 +139,6 @@ def create_2x2_comparison(query_smiles, output_path, protein_pdb=None, ref_sdf=N
 
     # Find MCS
     mapping = aligner.step2_find_mcs(ref_mol, query_mol)
-    ref_indices = [m[0] for m in mapping]
     query_indices = [m[1] for m in mapping]
     print(f"  MCS size: {len(mapping)} atoms")
 
@@ -159,15 +155,14 @@ def create_2x2_comparison(query_smiles, output_path, protein_pdb=None, ref_sdf=N
     init_coords = torch.tensor(query_mol.GetConformer().GetPositions(),
                               dtype=torch.float32, device=device)
 
-    # Get reference and pocket coordinates
-    ref_coords = torch.tensor(ref_conf.GetPositions(), dtype=torch.float32, device=device)
+    # Get pocket coordinates
     pocket_coords = pocket_bundle.coords
 
     # Compute features
     query_features = compute_vina_features(query_mol, device)
     pocket_features = pocket_bundle.features
 
-    print(f"\nRunning 4 optimization methods...")
+    print("\nRunning 4 optimization methods...")
 
     # Method 1: Fixed MCS + Vina
     print("  1/4 Fixed MCS + Vina...")

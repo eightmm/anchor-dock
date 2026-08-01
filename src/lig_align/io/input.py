@@ -1,5 +1,6 @@
 from rdkit import Chem
 
+
 def process_query_ligand(query_arg: str):
     """
     Parses a query ligand from either a SMILES string or a path to an SDF file.

@@ -1,16 +1,16 @@
+
 import torch
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from rdkit.ML.Cluster import Butina
-from typing import List, Tuple, Optional, Dict
 from rdkit.Geometry import Point3D
+from rdkit.ML.Cluster import Butina
 
 
 def generate_conformers_and_cluster(mol: Chem.Mol,
                                     device: torch.device,
                                     num_confs: int = 1000,
                                     rmsd_threshold: float = 2.0,
-                                    coordMap: Optional[Dict[int, 'rdkit.Geometry.Point3D']] = None) -> Tuple[Chem.Mol, List[int]]:
+                                    coordMap: dict[int, Point3D] | None = None) -> tuple[Chem.Mol, list[int]]:
     """
     Generate multiple conformers and cluster them to get a diverse representative set.
 

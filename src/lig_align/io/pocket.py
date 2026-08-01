@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import os
-from typing import Callable, Dict, Tuple
+from collections.abc import Callable
+from dataclasses import dataclass
 
 import torch
 from rdkit import Chem
@@ -17,10 +17,10 @@ class PocketBundle:
     features: dict
 
 
-_POCKET_CACHE: Dict[Tuple[str, int, int, str], PocketBundle] = {}
+_POCKET_CACHE: dict[tuple[str, int, int, str], PocketBundle] = {}
 
 
-def _cache_key(protein_pdb: str, device: torch.device) -> Tuple[str, int, int, str]:
+def _cache_key(protein_pdb: str, device: torch.device) -> tuple[str, int, int, str]:
     abs_path = os.path.abspath(protein_pdb)
     stat = os.stat(abs_path)
     return abs_path, stat.st_mtime_ns, stat.st_size, str(device)

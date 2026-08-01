@@ -6,19 +6,19 @@ with all CLI options available as parameters.
 """
 import os
 import time
+from typing import Literal
+
 import torch
-from typing import Optional, List, Tuple, Literal
-from rdkit import Chem
+from rdkit import Chem, RDLogger
 from rdkit.Chem import AllChem
-from rdkit import RDLogger
 from rdkit.Geometry import Point3D
 
 from .aligner import LigandAligner
+from .io import load_pocket_bundle, process_query_ligand
+from .molecular.mcs import auto_select_mcs_mapping, find_mcs_with_positions
+from .molecular.relax import relax_pose_with_fixed_core
 from .scoring import compute_intramolecular_mask
 from .scoring.vina_scoring import precompute_interaction_matrices
-from .io import load_pocket_bundle, process_query_ligand
-from .molecular.mcs import find_mcs_with_positions, auto_select_mcs_mapping
-from .molecular.relax import relax_pose_with_fixed_core
 
 
 def _resolve_mcs_mappings(
@@ -29,7 +29,7 @@ def _resolve_mcs_mappings(
     min_fragment_size: int,
     max_fragments: int,
     verbose: bool,
-) -> Tuple[str, List[List[Tuple[int, int]]]]:
+) -> tuple[str, list[list[tuple[int, int]]]]:
     """Resolve MCS mode and return all mappings to try."""
     if mcs_mode == "auto":
         auto_choice = auto_select_mcs_mapping(
@@ -74,7 +74,7 @@ def _resolve_mcs_mappings(
 
 
 def _generate_and_score_for_mapping(
-    mapping: List[Tuple[int, int]],
+    mapping: list[tuple[int, int]],
     position_idx: int,
     query_mol: Chem.Mol,
     ref_mol: Chem.Mol,
@@ -85,9 +85,9 @@ def _generate_and_score_for_mapping(
     rmsd_threshold: float,
     mmff_optimize: bool,
     weight_preset: str,
-    num_rotatable_bonds: Optional[int],
+    num_rotatable_bonds: int | None,
     verbose: bool,
-) -> Tuple[Chem.Mol, List[int], torch.Tensor, torch.Tensor]:
+) -> tuple[Chem.Mol, list[int], torch.Tensor, torch.Tensor]:
     """Generate conformers, relax, and score for a single MCS mapping.
 
     Returns:
@@ -182,7 +182,7 @@ def run_pipeline(
     weight_preset: Literal["vina", "vina_lp", "vinardo"] = "vina",
     torsion_penalty: bool = True,
     # Device
-    device: Optional[str] = None,
+    device: str | None = None,
     verbose: bool = True
 ) -> dict:
     """
@@ -348,7 +348,7 @@ def run_pipeline(
             all_opt = torch.cat(all_scores)
             diffs = all_opt - all_init
             best_idx = torch.argmin(all_opt).item()
-            print(f"Optimization complete!")
+            print("Optimization complete!")
             print(f"  Best score: {all_opt[best_idx]:.3f} kcal/mol (delta = {diffs[best_idx]:.3f})")
             print(f"  Average improvement: {diffs.mean():.3f} kcal/mol")
 
@@ -429,11 +429,11 @@ def run_pipeline(
 def run_batch(
     protein_pdb: str,
     ref_ligand: str,
-    query_ligands: List[str],
+    query_ligands: list[str],
     output_dir: str = "output_predictions",
     verbose: bool = True,
     **kwargs,
-) -> List[dict]:
+) -> list[dict]:
     """
     Run the pipeline on multiple query ligands, sharing pocket loading
     and aligner initialization across all queries.

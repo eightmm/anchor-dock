@@ -1,14 +1,15 @@
+
 import torch
 from rdkit import Chem
 from rdkit.Geometry import Point3D
-from typing import List
+
 
 def final_selection(mol: Chem.Mol,
-                    representative_cids: List[int],
+                    representative_cids: list[int],
                     aligned_coords: torch.Tensor,
                     scores: torch.Tensor,
                     initial_scores: torch.Tensor = None,
-                    position_labels: List[int] = None,
+                    position_labels: list[int] = None,
                     output_path: str = "output.sdf") -> torch.Tensor:
     """
     Sort all poses by energy (ascending) and save to SDF.
@@ -28,7 +29,7 @@ def final_selection(mol: Chem.Mol,
     selected_indices = torch.argsort(scores)
     print(f"Saving all {len(selected_indices)} poses sorted by energy...")
 
-    print(f"\nTop 5 energies:")
+    print("\nTop 5 energies:")
     for rank in range(min(5, len(selected_indices))):
         idx_int = int(selected_indices[rank].item())
         orig_cid = representative_cids[idx_int]

@@ -3,7 +3,9 @@ Test all three MCS modes via both CLI and Python API.
 """
 import subprocess
 import sys
+
 from rdkit import Chem
+
 
 def test_mode1_single_cli():
     """Test Mode 1 (single position) via CLI"""
@@ -88,8 +90,9 @@ def test_python_api_all_modes():
     print("TEST 4: All Modes via Python API")
     print("="*60)
 
-    from lig_align.aligner import LigandAligner
     import torch
+
+    from lig_align.aligner import LigandAligner
 
     # Load molecules
     ref_suppl = Chem.SDMolSupplier("examples/10gs/10gs_ligand.sdf")

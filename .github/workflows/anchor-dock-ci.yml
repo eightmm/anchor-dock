@@ -24,6 +24,8 @@ jobs:
         run: uv lock --check
       - name: Sync frozen environment
         run: uv sync --frozen --group dev
+      - name: Lint
+        run: uv run ruff check src/ scripts/ tests/
       - name: Test
         run: uv run pytest -q
       - name: Build wheel

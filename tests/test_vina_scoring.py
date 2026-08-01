@@ -1,8 +1,9 @@
 """Unit tests for Vina scoring functions."""
 
-import torch
 import pytest
-from anchor_dock.core.scoring import vina_scoring, precompute_interaction_matrices
+import torch
+
+from anchor_dock.core.scoring import precompute_interaction_matrices, vina_scoring
 
 
 @pytest.fixture

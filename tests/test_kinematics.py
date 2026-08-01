@@ -1,14 +1,15 @@
 """Unit tests for forward kinematics."""
 
-import torch
 import pytest
+import torch
 from rdkit import Chem
 from rdkit.Chem import AllChem
+
 from anchor_dock.core.kinematics import (
-    get_rotation_matrix,
-    get_batched_rotation_matrix,
-    LigandKinematics,
     BatchedLigandKinematics,
+    LigandKinematics,
+    get_batched_rotation_matrix,
+    get_rotation_matrix,
 )
 
 

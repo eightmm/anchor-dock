@@ -4,15 +4,14 @@ import time
 
 import torch
 from rdkit import Chem, RDLogger
-from rdkit.Chem import AllChem
-from rdkit.Chem import rdMolDescriptors
+from rdkit.Chem import AllChem, rdMolDescriptors
 from rdkit.ML.Cluster import Butina
 
 from lig_align.aligner import LigandAligner
+from lig_align.alignment import LigandKinematics
 from lig_align.io import load_pocket_bundle, process_query_ligand
 from lig_align.molecular.relax import relax_pose_with_fixed_core
 from lig_align.optimization import optimize_torsions_vina
-from lig_align.alignment import LigandKinematics
 from lig_align.scoring import compute_intramolecular_mask
 
 

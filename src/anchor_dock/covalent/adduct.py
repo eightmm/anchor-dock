@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from rdkit import Chem
-import torch
 import numpy as np
+import torch
+from rdkit import Chem
 
 from .anchor import AnchorPoint, WarheadHit
 

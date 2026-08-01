@@ -32,7 +32,18 @@ include = ["anchor_dock*", "lig_align*"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
+    "ruff>=0.14",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+# F catches real defects, I and UP are mechanically fixable. E501 is excluded
+# because the numeric kernels read better as wide expressions than wrapped ones.
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

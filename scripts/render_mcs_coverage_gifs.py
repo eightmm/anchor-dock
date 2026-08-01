@@ -6,7 +6,6 @@ from rdkit import Chem
 from lig_align.aligner import LigandAligner
 from lig_align.io import process_query_ligand
 
-
 EXAMPLES = [
     (
         "query_low_acemetacin",

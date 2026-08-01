@@ -1,24 +1,17 @@
-import os
-import io
 import argparse
-import torch
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation, PillowWriter
-from PIL import Image
 
-from rdkit import Chem
-from rdkit.Chem import AllChem
-from rdkit.Chem import rdDepictor
-from rdkit.Chem.Draw import rdMolDraw2D
-from rdkit import RDLogger
+import matplotlib.pyplot as plt
+import torch
+from matplotlib.animation import FuncAnimation, PillowWriter
+from rdkit import Chem, RDLogger
 
 from lig_align.aligner import LigandAligner
 from lig_align.alignment import LigandKinematics
-from lig_align.scoring import vina_scoring, compute_intramolecular_mask
 from lig_align.io import load_pocket_bundle, process_query_ligand
-from lig_align.io.visualization import get_2d_image, draw_molecule_3d
+from lig_align.io.visualization import draw_molecule_3d, get_2d_image
 from lig_align.molecular.relax import relax_pose_with_fixed_core
+from lig_align.scoring import compute_intramolecular_mask, vina_scoring
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -51,8 +44,8 @@ def main():
     # 1. Loading
     ref_mol = Chem.SDMolSupplier(ref_sdf)[0]
     pocket_bundle = load_pocket_bundle(protein_pdb, device, aligner.compute_vina_features)
-    pocket_mol = pocket_bundle.mol
-    
+
+
     query_mol, _ = process_query_ligand(query_smiles)
     
     # 2. MCS & Coords mapping
@@ -142,7 +135,7 @@ def main():
     
     ax_topleft.imshow(ref_img)
     ax_topleft.axis('off')
-    ax_topleft.set_title(f"Reference Molecule\nGold Highlight: MCS Anchor", fontsize=14, fontweight='bold')
+    ax_topleft.set_title("Reference Molecule\nGold Highlight: MCS Anchor", fontsize=14, fontweight='bold')
     
     ax_topright.imshow(query_img)
     ax_topright.axis('off')

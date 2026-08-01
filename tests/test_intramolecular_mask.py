@@ -2,6 +2,7 @@
 
 import torch
 from rdkit import Chem
+
 from anchor_dock.core.masks import compute_intramolecular_mask
 
 

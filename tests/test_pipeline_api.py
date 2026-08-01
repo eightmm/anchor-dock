@@ -33,7 +33,7 @@ def test_basic_usage():
         # Verify output file exists
         assert os.path.exists(results["output_file"])
 
-        print(f"\n✓ Basic usage test passed")
+        print("\n✓ Basic usage test passed")
         print(f"  Best score: {results['best_score']:.2f} kcal/mol")
         print(f"  Runtime: {results['runtime']:.2f}s")
         print(f"  MCS size: {results['mcs_size']} atoms")
@@ -63,7 +63,7 @@ def test_with_optimization():
         assert os.path.exists(results["output_file"])
         assert "predicted_poses.sdf" in results["output_file"]
 
-        print(f"\n✓ Optimization test passed")
+        print("\n✓ Optimization test passed")
         print(f"  Optimized best score: {results['best_score']:.2f} kcal/mol")
         print(f"  Saved {results['num_poses']} optimized poses")
 
@@ -94,7 +94,7 @@ def test_mcs_modes():
             assert os.path.exists(results["output_file"])
             print(f"  ✓ Mode '{mode}': {results['mcs_positions']} position(s), score={results['best_score']:.2f}")
 
-    print(f"\n✓ All MCS modes test passed")
+    print("\n✓ All MCS modes test passed")
 
 
 def test_scoring_functions():
@@ -124,7 +124,7 @@ def test_scoring_functions():
             scores[sf] = results['best_score']
             print(f"  ✓ {sf}: {results['best_score']:.2f} kcal/mol")
 
-    print(f"\n✓ All scoring functions test passed")
+    print("\n✓ All scoring functions test passed")
 
 
 def test_all_poses_output():
@@ -133,8 +133,9 @@ def test_all_poses_output():
     print("TEST 5: All Poses Output (sorted by energy)")
     print("="*60)
 
-    from lig_align import run_pipeline
     from rdkit import Chem
+
+    from lig_align import run_pipeline
 
     with tempfile.TemporaryDirectory() as tmpdir:
         results = run_pipeline(
@@ -155,7 +156,7 @@ def test_all_poses_output():
 
         print(f"  ✓ Saved {len(mols)} poses, all sorted by energy")
 
-    print(f"\n✓ All poses output test passed")
+    print("\n✓ All poses output test passed")
 
 
 def test_batch_processing():
@@ -237,10 +238,10 @@ def test_all_parameters():
         )
 
         assert os.path.exists(results["output_file"])
-        print(f"  ✓ All parameters accepted and processed")
+        print("  ✓ All parameters accepted and processed")
         print(f"  Best score: {results['best_score']:.2f} kcal/mol")
 
-    print(f"\n✓ All parameters test passed")
+    print("\n✓ All parameters test passed")
 
 
 if __name__ == "__main__":

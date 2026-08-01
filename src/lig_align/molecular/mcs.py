@@ -9,14 +9,15 @@ Supports:
 All are unified under find_mcs_with_positions() with different parameters.
 """
 
+from typing import Any
+
 from rdkit import Chem
-from rdkit.Chem import rdFMCS, RWMol
-from typing import List, Tuple, Optional, Dict, Any
+from rdkit.Chem import RWMol, rdFMCS
 
 
 def find_all_mcs_positions(ref_mol: Chem.Mol,
                            query_mol: Chem.Mol,
-                           min_atoms: int = 3) -> List[List[Tuple[int, int]]]:
+                           min_atoms: int = 3) -> list[list[tuple[int, int]]]:
     """
     Find ALL possible MCS alignments when query matches multiple positions in reference.
 
@@ -93,7 +94,7 @@ def find_all_mcs_positions(ref_mol: Chem.Mol,
     return all_mappings
 
 
-def _deduplicate_mappings(mappings: List[List[Tuple[int, int]]]) -> List[List[Tuple[int, int]]]:
+def _deduplicate_mappings(mappings: list[list[tuple[int, int]]]) -> list[list[tuple[int, int]]]:
     """
     Remove duplicate mappings (same ref atoms, possibly different order).
 
@@ -119,7 +120,7 @@ def _deduplicate_mappings(mappings: List[List[Tuple[int, int]]]) -> List[List[Tu
 def _find_multi_fragment_mcs(ref_mol: Chem.Mol,
                              query_mol: Chem.Mol,
                              min_fragment_size: int = 5,
-                             max_fragments: int = 3) -> List[Tuple[str, int]]:
+                             max_fragments: int = 3) -> list[tuple[str, int]]:
     """
     Find multiple MCS fragments iteratively by masking matched atoms.
 
@@ -176,8 +177,8 @@ def _find_multi_fragment_mcs(ref_mol: Chem.Mol,
 
 def _generate_cross_combinations(ref_mol: Chem.Mol,
                                  query_mol: Chem.Mol,
-                                 fragments: List[Tuple[str, int]],
-                                 allow_partial: bool) -> List[List[Tuple[int, int]]]:
+                                 fragments: list[tuple[str, int]],
+                                 allow_partial: bool) -> list[list[tuple[int, int]]]:
     """
     Generate all valid cross-combinations of fragment alignments.
 
@@ -211,7 +212,7 @@ def _generate_cross_combinations(ref_mol: Chem.Mol,
     combinations = []
 
     def generate_combos(frag_idx: int,
-                       current_combo: List[Tuple[Tuple[int, ...], Tuple[int, ...]]],
+                       current_combo: list[tuple[tuple[int, ...], tuple[int, ...]]],
                        used_ref_atoms: set,
                        used_query_atoms: set):
         if frag_idx == len(fragments):
@@ -269,9 +270,9 @@ def find_mcs_with_positions(ref_mol: Chem.Mol,
                             return_all: bool = False,
                             min_atoms: int = 3,
                             cross_match: bool = False,
-                            min_fragment_size: Optional[int] = None,
+                            min_fragment_size: int | None = None,
                             max_fragments: int = 3,
-                            allow_partial: bool = True) -> List[List[Tuple[int, int]]]:
+                            allow_partial: bool = True) -> list[list[tuple[int, int]]]:
     """
     Unified MCS finder supporting single/multi-position and cross-matching.
 
@@ -350,7 +351,7 @@ def auto_select_mcs_mapping(ref_mol: Chem.Mol,
                             min_atoms: int = 3,
                             min_fragment_size: int = 5,
                             max_fragments: int = 3,
-                            allow_partial: bool = True) -> Dict[str, Any]:
+                            allow_partial: bool = True) -> dict[str, Any]:
     """
     Automatically choose between single, multi, and cross MCS modes.
 
