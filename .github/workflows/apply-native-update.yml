@@ -1,11 +1,28 @@
-name: Stage native AnchorDock update
+name: Inspect staged AnchorDock archive
 
 on:
-  workflow_dispatch:
+  push:
+    branches: ["agent/native-batch-scoring-engine"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  hold:
-    if: false
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - run: echo staged
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - name: Inspect archive
+        run: |
+          stat -c 'archive_size=%s' .anchor-native-update.tar.gz
+          sha256sum .anchor-native-update.tar.gz
+          python - <<'PY'
+          from pathlib import Path
+          data = Path('.anchor-native-update.tar.gz').read_bytes()
+          print(f'prefix_hex={data[:16].hex()}')
+          print(f'suffix_hex={data[-32:].hex()}')
+          PY
