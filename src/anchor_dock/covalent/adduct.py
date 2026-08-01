@@ -172,13 +172,12 @@ def get_protein_exclusion_atom_indices(
     anchor: AnchorPoint,
     n_hop_exclude: int = 0,
 ) -> set[int]:
-    conformer = pocket_mol.GetConformer()
-    closest, distance = None, float("inf")
-    for atom in pocket_mol.GetAtoms():
-        current = np.linalg.norm(np.asarray(conformer.GetAtomPosition(atom.GetIdx()), dtype=float) - anchor.coord)
-        if current < distance:
-            closest, distance = atom.GetIdx(), current
-    if closest is None or distance > 0.5:
+    positions = pocket_mol.GetConformer().GetPositions()
+    if positions.shape[0] == 0:
+        return set()
+    distances = np.linalg.norm(positions - anchor.coord, axis=1)
+    closest = int(distances.argmin())
+    if distances[closest] > 0.5:
         return set()
     result = {closest}
     for _ in range(n_hop_exclude):

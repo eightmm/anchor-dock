@@ -100,9 +100,10 @@ def _align_anchor_atoms(
     """Rigidly align each conformer anchor frame to receptor coordinates."""
     for conformer_id in conformer_ids:
         conformer = mol.GetConformer(conformer_id)
-        current = np.asarray([conformer.GetAtomPosition(idx) for idx in anchor_indices], dtype=float)
+        positions = conformer.GetPositions()
+        current = positions[anchor_indices]
         if len(anchor_indices) == 1:
-            aligned = np.asarray(conformer.GetPositions(), dtype=float) + (target_positions[0] - current[0])
+            aligned = positions + (target_positions[0] - current[0])
         else:
             current_center = current.mean(axis=0)
             target_center = target_positions.mean(axis=0)
@@ -112,7 +113,7 @@ def _align_anchor_atoms(
             if np.linalg.det(vt.T @ u.T) < 0:
                 correction[-1, -1] = -1
             rotation = vt.T @ correction @ u.T
-            aligned = (np.asarray(conformer.GetPositions(), dtype=float) - current_center) @ rotation.T + target_center
+            aligned = (positions - current_center) @ rotation.T + target_center
         for atom_idx, xyz in enumerate(aligned):
             conformer.SetAtomPosition(atom_idx, Point3D(*map(float, xyz)))
 

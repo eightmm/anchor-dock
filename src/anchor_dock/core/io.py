@@ -108,12 +108,13 @@ def extract_pocket_around_residue(
     if not target_atoms:
         raise ValueError(f"Residue {residue_spec} not found")
 
-    target_coords = np.asarray([conformer.GetAtomPosition(idx) for idx in target_atoms], dtype=float)
+    positions = conformer.GetPositions()
+    target_coords = positions[target_atoms]
     selected: set[int] = set()
     for (name, number, chain, hetero), atom_indices in residue_members.items():
         if hetero and not include_heteroatoms:
             continue
-        coords = np.asarray([conformer.GetAtomPosition(idx) for idx in atom_indices], dtype=float)
+        coords = positions[atom_indices]
         minimum = np.linalg.norm(coords[:, None, :] - target_coords[None, :, :], axis=-1).min()
         if minimum <= cutoff:
             selected.update(atom_indices)

@@ -160,7 +160,7 @@ def find_reactive_residues(pocket_mol: Chem.Mol, residue_spec: str | None = None
         key = (info.GetResidueName().strip(), info.GetResidueNumber(), info.GetChainId().strip())
         residues.setdefault(key, {})[info.GetName().strip()] = atom.GetIdx()
 
-    conformer = pocket_mol.GetConformer()
+    positions = pocket_mol.GetConformer().GetPositions()
     anchors: list[AnchorPoint] = []
     for (name, number, chain), atom_map in residues.items():
         if target_name is not None and name != target_name:
@@ -172,11 +172,11 @@ def find_reactive_residues(pocket_mol: Chem.Mol, residue_spec: str | None = None
         config = REACTIVE_RESIDUES.get(name)
         if config is None or config.atom_name not in atom_map:
             continue
-        coord = np.asarray(conformer.GetAtomPosition(atom_map[config.atom_name]), dtype=float)
+        coord = positions[atom_map[config.atom_name]].copy()
         cb_coord = None
         direction = np.array([0.0, 0.0, 1.0], dtype=float)
         if "CB" in atom_map:
-            cb_coord = np.asarray(conformer.GetAtomPosition(atom_map["CB"]), dtype=float)
+            cb_coord = positions[atom_map["CB"]].copy()
             vector = coord - cb_coord
             if np.linalg.norm(vector) > 1e-8:
                 direction = vector / np.linalg.norm(vector)
