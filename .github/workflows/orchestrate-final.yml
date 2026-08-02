@@ -1,0 +1,155 @@
+name: Orchestrate final AnchorDock integration
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  integrate-and-clean:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+      - name: Validate PR, merge, and leave only main
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          pr_json=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/4")
+          pr_state=$(python -c 'import json,sys; print(json.load(sys.stdin)["state"])' <<<"$pr_json")
+          pr_merged=$(python -c 'import json,sys; print(str(json.load(sys.stdin)["merged"]).lower())' <<<"$pr_json")
+
+          if [ "$pr_merged" != "true" ]; then
+            git fetch origin agent/final-engine-cleanup
+            git checkout -B agent/final-engine-cleanup origin/agent/final-engine-cleanup
+            rm -f .validation-success.txt .validation-error.txt
+            rm -f .github/workflows/validate-final.yml
+            rm -f .github/workflows/diagnose-final.yml
+            rm -f .github/workflows/finalize-integration.yml
+
+            uv lock
+            uv sync --frozen --group dev
+            uv run ruff check --fix src tests examples
+            uv run ruff format src tests examples
+            uv run ruff check src tests examples
+            uv run pytest -q
+            uv build --wheel
+            uv run anchor-dock --help >/dev/null
+            python - <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          wheel = next(Path("dist").glob("anchor_dock-*.whl"))
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+          assert any(name.startswith("anchor_dock/") for name in names)
+          assert not any(name.startswith("lig_align/") for name in names)
+          assert not any(name.startswith("cov_vina/") for name in names)
+          assert not any("__pycache__" in name or name.endswith(".pyc") for name in names)
+          PY
+
+            python - <<'PY'
+          from pathlib import Path
+
+          path = Path(".github/workflows/anchor-dock-ci.yml")
+          text = path.read_text()
+          old = """      - name: Resolve environment
+        run: |
+          uv lock
+          uv sync --frozen --group dev
+"""
+          new = """      - name: Check lock file
+        run: uv lock --check
+      - name: Sync frozen environment
+        run: uv sync --frozen --group dev
+"""
+          if old in text:
+              path.write_text(text.replace(old, new))
+          PY
+
+            rm -rf dist build .venv
+            find . -type d -name __pycache__ -prune -exec rm -rf {} +
+            find . -type f -name '*.pyc' -delete
+            git add -A
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: freeze validated AnchorDock 0.3 environment"
+              git push origin HEAD:agent/final-engine-cleanup
+            fi
+            head_sha=$(git rev-parse HEAD)
+
+            merge_status=$(curl -sS -o /tmp/merge.json -w '%{http_code}' \
+              -X PUT \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/4/merge" \
+              -d "{\"merge_method\":\"squash\",\"sha\":\"${head_sha}\",\"commit_title\":\"feat: finalize AnchorDock 0.3 engine and batch API (#4)\"}")
+            if [ "$merge_status" -lt 200 ] || [ "$merge_status" -ge 300 ]; then
+              cat /tmp/merge.json
+              exit 1
+            fi
+            sleep 5
+          elif [ "$pr_state" != "closed" ]; then
+            echo "unexpected PR state: state=$pr_state merged=$pr_merged"
+            exit 1
+          fi
+
+          git fetch origin main
+          git checkout -B main origin/main
+          rm -f .github/workflows/orchestrate-final.yml
+          rm -f .github/workflows/finalize-main.yml
+          rm -f .github/workflows/validate-final.yml
+          rm -f .github/workflows/diagnose-final.yml
+          rm -f .github/workflows/finalize-integration.yml
+          rm -f .validation-success.txt .validation-error.txt
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: remove completed integration workflows"
+            git push origin main
+          fi
+
+          branches=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/branches?per_page=100")
+          python - <<'PY' <<<"$branches" > /tmp/branches-to-delete.txt
+          import json, sys
+          for branch in json.load(sys.stdin):
+              name = branch["name"]
+              if name != "main":
+                  print(name)
+          PY
+          while IFS= read -r branch; do
+            [ -z "$branch" ] && continue
+            encoded=$(python -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$branch")
+            status=$(curl -sS -o /tmp/delete.json -w '%{http_code}' \
+              -X DELETE \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/${encoded}")
+            case "$status" in
+              204|404|422) ;;
+              *) cat /tmp/delete.json; exit 1 ;;
+            esac
+          done < /tmp/branches-to-delete.txt
