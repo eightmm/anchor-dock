@@ -1,4 +1,4 @@
-"""Interaction masks shared by reference and covalent docking."""
+"""Interaction masks shared by all AnchorDock strategies."""
 
 from __future__ import annotations
 
@@ -7,32 +7,34 @@ from collections.abc import Iterable
 import torch
 from rdkit import Chem
 
+from .topology import build_rigid_topology
+
 
 def compute_intramolecular_mask(
     mol: Chem.Mol,
     device: torch.device | str,
     exclude_atom_indices: Iterable[int] | None = None,
 ) -> torch.Tensor:
-    """Return an ``[N, N]`` mask of non-local intramolecular interactions.
+    """Return variable non-local atom pairs for intramolecular scoring.
 
-    1-2, 1-3 and same-ring pairs are excluded. Optional atom indices can be
-    removed entirely, which is useful for protein-derived atoms attached to a
-    covalent ligand adduct.
+    The mask excludes 1-2, 1-3 and 1-4 pairs and all pairs inside one rigid
+    frame. Those distances do not change under torsional optimization and should
+    not contribute to the pose-search objective.
     """
     device = torch.device(device)
     graph_distance = Chem.GetDistanceMatrix(mol)
-    mask = torch.from_numpy(graph_distance > 2).to(device=device, dtype=torch.bool)
+    mask = torch.from_numpy(graph_distance > 3).to(device=device, dtype=torch.bool)
 
-    for ring in mol.GetRingInfo().AtomRings():
-        ring_idx = torch.tensor(ring, dtype=torch.long, device=device)
-        mask[ring_idx[:, None], ring_idx[None, :]] = False
+    topology = build_rigid_topology(mol)
+    frame_ids = torch.tensor(topology.atom_to_frame, dtype=torch.long, device=device)
+    mask &= frame_ids[:, None] != frame_ids[None, :]
 
     if exclude_atom_indices:
-        valid = [idx for idx in exclude_atom_indices if 0 <= idx < mol.GetNumAtoms()]
+        valid = sorted({int(idx) for idx in exclude_atom_indices if 0 <= int(idx) < mol.GetNumAtoms()})
         if valid:
-            idx = torch.tensor(valid, dtype=torch.long, device=device)
-            mask[idx, :] = False
-            mask[:, idx] = False
+            indices = torch.tensor(valid, dtype=torch.long, device=device)
+            mask[indices, :] = False
+            mask[:, indices] = False
 
     mask.fill_diagonal_(False)
     return mask

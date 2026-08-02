@@ -2,7 +2,7 @@ name: AnchorDock CI
 
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main, "agent/**", "codex/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -19,22 +19,30 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install uv
-        run: python -m pip install --upgrade uv
+        run: python -m pip install uv==0.10.3
       - name: Check lock file
         run: uv lock --check
       - name: Sync frozen environment
         run: uv sync --frozen --group dev
       - name: Lint
-        run: uv run ruff check src/ scripts/ tests/
+        run: uv run --frozen ruff check src tests examples
       - name: Test
-        run: uv run pytest -q
+        run: uv run --frozen pytest -q
       - name: Build wheel
         run: uv build --wheel
-      - name: Pack source snapshot
+      - name: Test installed wheel and CLI
         run: |
-          tar -czf anchor-dock-source.tar.gz \
-            .github src docs tests scripts examples reports \
-            README.md LICENSE pyproject.toml uv.lock
+          wheel="$(realpath "$(find dist -maxdepth 1 -name 'anchor_dock-*.whl' -print -quit)")"
+          test -n "$wheel"
+          smoke_dir="$(mktemp -d)"
+          cd "$smoke_dir"
+          uv run --isolated --no-project --with "$wheel" python -c \
+            'import importlib.metadata, importlib.util, anchor_dock; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.3.0"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_free", "dock_batch")); assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
+          for command in reference covalent free batch; do
+            uv run --isolated --no-project --with "$wheel" anchor-dock "$command" --help
+          done
+      - name: Pack source snapshot
+        run: git archive --format=tar.gz --output=anchor-dock-source.tar.gz HEAD
       - uses: actions/upload-artifact@v4
         with:
           name: anchor-dock-build

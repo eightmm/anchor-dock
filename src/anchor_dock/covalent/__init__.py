@@ -1,17 +1,25 @@
-"""Covalent residue-warhead anchoring strategy."""
+"""Covalent residue-warhead docking."""
 
-from .anchor import AnchorPoint, WarheadHit, detect_warheads, find_reactive_residues
-from .batch import dock_covalent_batch, run_batch_docking
-from .pipeline import dock_covalent, load_pocket_for_caching, run_covalent_pipeline
+from .._compat import dock_covalent
+
+
+def run_covalent_pipeline(*args, **kwargs):
+    from .._compat import run_covalent_pipeline as compat
+
+    return compat(*args, **kwargs)
+
+
+def dock_covalent_batch(*args, **kwargs):
+    from .._compat import dock_covalent_batch as compat
+
+    return compat(*args, **kwargs)
+
+
+run_batch_docking = dock_covalent_batch
 
 __all__ = [
-    "AnchorPoint",
-    "WarheadHit",
-    "detect_warheads",
     "dock_covalent",
     "dock_covalent_batch",
-    "find_reactive_residues",
-    "load_pocket_for_caching",
     "run_batch_docking",
     "run_covalent_pipeline",
 ]

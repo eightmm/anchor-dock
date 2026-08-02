@@ -1,422 +1,812 @@
-"""
-Maximum Common Substructure (MCS) detection with multi-position and cross-matching support.
+"""Deterministic MCS mapping for reference-guided docking."""
 
-Supports:
-1. Single-position (fast, original behavior)
-2. Multi-position (all ref positions for single query MCS)
-3. Cross-matching (multiple query fragments × multiple ref positions)
+from __future__ import annotations
 
-All are unified under find_mcs_with_positions() with different parameters.
-"""
-
-from typing import Any
+import heapq
+from collections.abc import Iterator
+from dataclasses import dataclass
 
 from rdkit import Chem
-from rdkit.Chem import RWMol, rdFMCS
+from rdkit.Chem import rdFMCS
+
+Mapping = list[tuple[int, int]]
+
+_MAX_SUBSTRUCT_MATCHES = 4096
+_MAX_ALTERNATIVE_COMPONENT_PAIRS = 16
+_MAX_ALTERNATIVE_CUTS = 8
+_MAX_ALTERNATIVE_COMPONENTS_PER_MOLECULE = 16
+_MAX_ALTERNATIVE_PACKING_NODES = 100_000
 
 
-def find_all_mcs_positions(ref_mol: Chem.Mol,
-                           query_mol: Chem.Mol,
-                           min_atoms: int = 3) -> list[list[tuple[int, int]]]:
-    """
-    Find ALL possible MCS alignments when query matches multiple positions in reference.
-
-    Args:
-        ref_mol: Reference molecule
-        query_mol: Query molecule
-        min_atoms: Minimum MCS size to consider (default: 3)
-
-    Returns:
-        List of mappings, where each mapping is [(ref_idx, query_idx), ...]
-        Returns empty list if no valid MCS found.
-
-    Example:
-        Reference: Ph-CH2-Ph (two benzene rings)
-        Query:     Ph (one benzene)
-
-        Returns:
-            [
-                [(0,0), (1,1), (2,2), (3,3), (4,4), (5,5)],  # First ring
-                [(7,0), (8,1), (9,2), (10,3), (11,4), (12,5)]  # Second ring
-            ]
-    """
-    ref_no_h = Chem.RemoveHs(ref_mol)
-    query_no_h = Chem.RemoveHs(query_mol)
-
-    # Step 1: Find MCS pattern
-    mcs_res = rdFMCS.FindMCS([ref_no_h, query_no_h],
-                             atomCompare=rdFMCS.AtomCompare.CompareElements,
-                             bondCompare=rdFMCS.BondCompare.CompareOrderExact,
-                             ringMatchesRingOnly=True,
-                             timeout=10)
-
-    if mcs_res.canceled:
-        print("Warning: MCS search reached timeout limit.")
-
-    if not mcs_res.smartsString:
-        print("Warning: No common substructure found.")
-        return []
-
-    mcs_mol = Chem.MolFromSmarts(mcs_res.smartsString)
-
-    if mcs_mol.GetNumAtoms() < min_atoms:
-        print(f"Warning: MCS too small ({mcs_mol.GetNumAtoms()} atoms)")
-        return []
-
-    # Step 2: Get ALL substructure matches in reference
-    ref_matches = ref_no_h.GetSubstructMatches(mcs_mol, uniquify=True)
-
-    # Step 3: Get query match (should be unique since query is smaller)
-    query_matches = query_no_h.GetSubstructMatches(mcs_mol, uniquify=True)
-
-    if len(query_matches) == 0:
-        print("Warning: Failed to match MCS back to query molecule.")
-        return []
-
-    # Use first query match as canonical
-    query_match = query_matches[0]
-
-    # Step 4: Create mappings for each reference match
-    all_mappings = []
-    for ref_match in ref_matches:
-        if len(ref_match) != len(query_match):
-            continue
-
-        mapping = list(zip(ref_match, query_match))
-        all_mappings.append(mapping)
-
-    # Deduplicate
-    all_mappings = _deduplicate_mappings(all_mappings)
-
-    print(f"Found {len(all_mappings)} possible MCS alignment position(s) "
-          f"({len(query_match)} atoms each)")
-
-    return all_mappings
+@dataclass(frozen=True)
+class MCSSelection:
+    mode: str
+    mappings: tuple[tuple[tuple[int, int], ...], ...]
+    reason: str
+    simple_size: int
+    cross_size: int
+    candidate_complete: bool = True
+    max_size_proven: bool = True
+    candidate_limit: int = 64
 
 
-def _deduplicate_mappings(mappings: list[list[tuple[int, int]]]) -> list[list[tuple[int, int]]]:
-    """
-    Remove duplicate mappings (same ref atoms, possibly different order).
+@dataclass(frozen=True)
+class _MCSFragment:
+    pattern: Chem.Mol
+    reference_seed: tuple[int, ...]
+    query_seed: tuple[int, ...]
 
-    Args:
-        mappings: List of mappings
 
-    Returns:
-        Deduplicated list of mappings
-    """
-    unique_mappings = []
-    seen_ref_atoms = set()
+@dataclass(frozen=True)
+class _CutComponent:
+    molecule: Chem.Mol
+    original_indices: tuple[int, ...]
 
+
+def _mcs_parameters(timeout: int, *, match_chirality: bool = False) -> rdFMCS.MCSParameters:
+    parameters = rdFMCS.MCSParameters()
+    parameters.Timeout = max(1, int(timeout))
+    parameters.AtomTyper = rdFMCS.AtomCompare.CompareElements
+    parameters.BondTyper = rdFMCS.BondCompare.CompareOrderExact
+    parameters.AtomCompareParameters.RingMatchesRingOnly = True
+    parameters.AtomCompareParameters.CompleteRingsOnly = True
+    parameters.AtomCompareParameters.MatchValences = True
+    parameters.AtomCompareParameters.MatchChiralTag = match_chirality
+    parameters.BondCompareParameters.RingMatchesRingOnly = True
+    parameters.BondCompareParameters.CompleteRingsOnly = True
+    parameters.BondCompareParameters.MatchStereo = match_chirality
+    return parameters
+
+
+def _canonical_mapping(mapping: Mapping) -> tuple[tuple[int, int], ...]:
+    return tuple(sorted((int(ref_idx), int(query_idx)) for ref_idx, query_idx in mapping))
+
+
+def _deduplicate_mappings(
+    mappings: list[Mapping],
+    max_mappings: int,
+    *,
+    preserve_order: bool = False,
+) -> list[Mapping]:
+    unique: dict[tuple[tuple[int, int], ...], Mapping] = {}
     for mapping in mappings:
-        ref_atoms = tuple(sorted([m[0] for m in mapping]))
+        canonical = _canonical_mapping(mapping)
+        unique.setdefault(canonical, list(canonical))
+    ordered = list(unique.values())
+    if not preserve_order:
+        ordered.sort(key=lambda mapping: (-len(mapping), _canonical_mapping(mapping)))
+    return ordered[:max_mappings]
 
-        if ref_atoms not in seen_ref_atoms:
-            seen_ref_atoms.add(ref_atoms)
-            unique_mappings.append(mapping)
 
-    return unique_mappings
+def _candidate_budget(max_mappings: int) -> int:
+    return min(_MAX_SUBSTRUCT_MATCHES, max(64, max_mappings * 8))
 
 
-def _find_multi_fragment_mcs(ref_mol: Chem.Mol,
-                             query_mol: Chem.Mol,
-                             min_fragment_size: int = 5,
-                             max_fragments: int = 3) -> list[tuple[str, int]]:
+def _validate_max_mappings(max_mappings: int) -> None:
+    if max_mappings <= 0:
+        raise ValueError("max_mappings must be positive")
+    if max_mappings > _MAX_SUBSTRUCT_MATCHES:
+        raise ValueError(f"max_mappings must be <= {_MAX_SUBSTRUCT_MATCHES}")
+
+
+def _iter_occurrence_pairs(
+    reference_matches: tuple[tuple[int, ...], ...],
+    query_matches: tuple[tuple[int, ...], ...],
+) -> Iterator[tuple[tuple[int, ...], tuple[int, ...]]]:
+    """Yield occurrence pairs with early breadth on both molecules."""
+    if not reference_matches or not query_matches:
+        return
+    width = max(len(reference_matches), len(query_matches))
+    seen: set[tuple[int, int]] = set()
+    for offset in range(width):
+        for index in range(width):
+            pair = (index % len(reference_matches), (index + offset) % len(query_matches))
+            if pair in seen:
+                continue
+            seen.add(pair)
+            yield reference_matches[pair[0]], query_matches[pair[1]]
+            if len(seen) == len(reference_matches) * len(query_matches):
+                return
+    for reference_index, reference_match in enumerate(reference_matches):
+        for query_index, query_match in enumerate(query_matches):
+            if (reference_index, query_index) not in seen:
+                yield reference_match, query_match
+
+
+def _pattern_mapping_candidates(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    pattern: Chem.Mol,
+    *,
+    match_chirality: bool,
+    max_candidates: int,
+) -> tuple[list[Mapping], bool]:
+    """Enumerate occurrence pairs modulo common pattern automorphisms.
+
+    ``uniquify=True`` identifies distinct atom-set occurrences in each target.
+    Applying every bounded self-automorphism of the MCS pattern to one side then
+    recovers symmetry-related atom correspondences without constructing the
+    redundant all-automorphism Cartesian product.
     """
-    Find multiple MCS fragments iteratively by masking matched atoms.
+    pattern.UpdatePropertyCache(strict=False)
+    Chem.FastFindRings(pattern)
+    match_limit = max_candidates + 1
+    reference_matches_raw = reference.GetSubstructMatches(
+        pattern,
+        uniquify=True,
+        useChirality=match_chirality,
+        maxMatches=match_limit,
+    )
+    query_matches_raw = query.GetSubstructMatches(
+        pattern,
+        uniquify=True,
+        useChirality=match_chirality,
+        maxMatches=match_limit,
+    )
+    automorphisms_raw = pattern.GetSubstructMatches(
+        pattern,
+        uniquify=False,
+        useChirality=match_chirality,
+        useQueryQueryMatches=True,
+        maxMatches=match_limit,
+    )
+    identity = tuple(range(pattern.GetNumAtoms()))
+    reference_matches = tuple(sorted(set(reference_matches_raw)))[:max_candidates]
+    query_matches = tuple(sorted(set(query_matches_raw)))[:max_candidates]
+    automorphisms = tuple(sorted(set(automorphisms_raw) or {identity}, key=lambda value: (value != identity, value)))[
+        :max_candidates
+    ]
 
-    Args:
-        ref_mol: Reference molecule
-        query_mol: Query molecule
-        min_fragment_size: Minimum atoms for a fragment to be considered
-        max_fragments: Maximum number of fragments to find
-
-    Returns:
-        List of (mcs_smarts, fragment_size) for each fragment found
-    """
-    ref_no_h = Chem.RemoveHs(ref_mol)
-    query_no_h = Chem.RemoveHs(query_mol)
-
-    fragments = []
-
-    ref_copy = RWMol(ref_no_h)
-    query_copy = RWMol(query_no_h)
-
-    for frag_idx in range(max_fragments):
-        # Find MCS on remaining (non-masked) atoms
-        mcs_res = rdFMCS.FindMCS([ref_copy, query_copy],
-                                 atomCompare=rdFMCS.AtomCompare.CompareElements,
-                                 bondCompare=rdFMCS.BondCompare.CompareOrderExact,
-                                 ringMatchesRingOnly=True,
-                                 timeout=10)
-
-        if mcs_res.canceled or not mcs_res.smartsString:
-            break
-
-        mcs_mol = Chem.MolFromSmarts(mcs_res.smartsString)
-        mcs_size = mcs_mol.GetNumAtoms()
-
-        if mcs_size < min_fragment_size:
-            break
-
-        fragments.append((mcs_res.smartsString, mcs_size))
-
-        # Mask matched atoms (change to dummy atom type 0)
-        ref_matches = ref_copy.GetSubstructMatches(mcs_mol)
-        query_matches = query_copy.GetSubstructMatches(mcs_mol)
-
-        if not ref_matches or not query_matches:
-            break
-
-        for atom_idx in ref_matches[0]:
-            ref_copy.GetAtomWithIdx(atom_idx).SetAtomicNum(0)
-        for atom_idx in query_matches[0]:
-            query_copy.GetAtomWithIdx(atom_idx).SetAtomicNum(0)
-
-    return fragments
+    unique: dict[tuple[tuple[int, int], ...], Mapping] = {}
+    for automorphism in automorphisms:
+        for reference_match, query_match in _iter_occurrence_pairs(reference_matches, query_matches):
+            mapping = [
+                (reference_match[index], query_match[automorphism[index]]) for index in range(pattern.GetNumAtoms())
+            ]
+            canonical = _canonical_mapping(mapping)
+            unique.setdefault(canonical, list(canonical))
+            if len(unique) >= max_candidates:
+                return list(unique.values()), True
+    maybe_truncated = any(
+        len(matches) > max_candidates for matches in (reference_matches_raw, query_matches_raw, automorphisms_raw)
+    )
+    return list(unique.values()), maybe_truncated
 
 
-def _generate_cross_combinations(ref_mol: Chem.Mol,
-                                 query_mol: Chem.Mol,
-                                 fragments: list[tuple[str, int]],
-                                 allow_partial: bool) -> list[list[tuple[int, int]]]:
-    """
-    Generate all valid cross-combinations of fragment alignments.
+def _simple_mcs_search(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_atoms: int,
+    timeout: int,
+    max_mappings: int,
+    match_chirality: bool,
+) -> tuple[list[Mapping], bool]:
+    _validate_max_mappings(max_mappings)
+    reference_heavy = Chem.RemoveHs(reference)
+    query_heavy = Chem.RemoveHs(query)
+    result = rdFMCS.FindMCS(
+        [reference_heavy, query_heavy],
+        _mcs_parameters(timeout, match_chirality=match_chirality),
+    )
+    if result.canceled:
+        raise TimeoutError(f"contiguous MCS search timed out after {timeout}s; partial result discarded")
+    if not result.smartsString:
+        return [], True
+    pattern = Chem.MolFromSmarts(result.smartsString)
+    if pattern is None or pattern.GetNumAtoms() < min_atoms:
+        return [], True
+    mappings, maybe_truncated = _pattern_mapping_candidates(
+        reference_heavy,
+        query_heavy,
+        pattern,
+        match_chirality=match_chirality,
+        max_candidates=_candidate_budget(max_mappings),
+    )
+    selected = _deduplicate_mappings(mappings, max_mappings, preserve_order=True)
+    complete = not maybe_truncated and len(mappings) <= max_mappings
+    return selected, complete
 
-    Args:
-        ref_mol: Reference molecule
-        query_mol: Query molecule
-        fragments: List of (smarts, size) for each MCS fragment
-        allow_partial: If True, allow using subset of fragments
 
-    Returns:
-        List of mappings, each mapping is [(ref_idx, query_idx), ...]
-    """
-    if not fragments:
-        return []
-
-    ref_no_h = Chem.RemoveHs(ref_mol)
-    query_no_h = Chem.RemoveHs(query_mol)
-
-    # Find all positions for each fragment in both molecules
-    ref_positions = []
-    query_positions = []
-
-    for smarts, size in fragments:
-        frag_mol = Chem.MolFromSmarts(smarts)
-        ref_pos = list(ref_no_h.GetSubstructMatches(frag_mol, uniquify=True))
-        query_pos = list(query_no_h.GetSubstructMatches(frag_mol, uniquify=True))
-        ref_positions.append(ref_pos)
-        query_positions.append(query_pos)
-
-    # Generate all valid combinations recursively
-    combinations = []
-
-    def generate_combos(frag_idx: int,
-                       current_combo: list[tuple[tuple[int, ...], tuple[int, ...]]],
-                       used_ref_atoms: set,
-                       used_query_atoms: set):
-        if frag_idx == len(fragments):
-            if current_combo:
-                combinations.append(current_combo[:])
-            return
-
-        # Option 1: Skip this fragment (if partial allowed)
-        if allow_partial:
-            generate_combos(frag_idx + 1, current_combo, used_ref_atoms, used_query_atoms)
-
-        # Option 2: Assign this fragment
-        for ref_pos in ref_positions[frag_idx]:
-            for query_pos in query_positions[frag_idx]:
-                # Check for atom conflicts
-                ref_atoms = set(ref_pos)
-                query_atoms = set(query_pos)
-
-                if ref_atoms & used_ref_atoms or query_atoms & used_query_atoms:
-                    continue  # Overlapping atoms - skip
-
-                # Valid assignment
-                current_combo.append((ref_pos, query_pos))
-                generate_combos(frag_idx + 1, current_combo,
-                              used_ref_atoms | ref_atoms,
-                              used_query_atoms | query_atoms)
-                current_combo.pop()
-
-    generate_combos(0, [], set(), set())
-
-    # Convert combinations to standard mapping format
-    mappings = []
-    seen_atom_sets = set()
-
-    for combo in combinations:
-        mapping = []
-        for ref_pos, query_pos in combo:
-            for ref_idx, query_idx in zip(ref_pos, query_pos):
-                mapping.append((ref_idx, query_idx))
-
-        # Deduplicate
-        atom_set = frozenset(mapping)
-        if atom_set not in seen_atom_sets:
-            seen_atom_sets.add(atom_set)
-            mappings.append(mapping)
-
-    # Sort by size (largest first)
-    mappings.sort(key=len, reverse=True)
-
+def find_simple_mcs_mappings(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_atoms: int = 3,
+    timeout: int = 10,
+    max_mappings: int = 64,
+    match_chirality: bool = False,
+) -> list[Mapping]:
+    """Find all unique placements of the largest contiguous MCS in both molecules."""
+    mappings, _ = _simple_mcs_search(
+        reference,
+        query,
+        min_atoms=min_atoms,
+        timeout=timeout,
+        max_mappings=max_mappings,
+        match_chirality=match_chirality,
+    )
     return mappings
 
 
-def find_mcs_with_positions(ref_mol: Chem.Mol,
-                            query_mol: Chem.Mol,
-                            return_all: bool = False,
-                            min_atoms: int = 3,
-                            cross_match: bool = False,
-                            min_fragment_size: int | None = None,
-                            max_fragments: int = 3,
-                            allow_partial: bool = True) -> list[list[tuple[int, int]]]:
+def _find_disjoint_fragments(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_fragment_size: int,
+    max_fragments: int,
+    timeout: int,
+    match_chirality: bool,
+) -> list[_MCSFragment]:
+    reference_copy = Chem.RWMol(Chem.RemoveHs(reference))
+    query_copy = Chem.RWMol(Chem.RemoveHs(query))
+    reference_original_indices = list(range(reference_copy.GetNumAtoms()))
+    query_original_indices = list(range(query_copy.GetNumAtoms()))
+    fragments: list[_MCSFragment] = []
+    parameters = _mcs_parameters(timeout, match_chirality=match_chirality)
+
+    for _ in range(max_fragments):
+        result = rdFMCS.FindMCS([reference_copy, query_copy], parameters)
+        if result.canceled:
+            raise TimeoutError(f"cross MCS search timed out after {timeout}s; partial result discarded")
+        if not result.smartsString:
+            break
+        pattern = Chem.MolFromSmarts(result.smartsString)
+        if pattern is None or pattern.GetNumAtoms() < min_fragment_size:
+            break
+        reference_matches = reference_copy.GetSubstructMatches(
+            pattern,
+            uniquify=True,
+            useChirality=match_chirality,
+            maxMatches=1,
+        )
+        query_matches = query_copy.GetSubstructMatches(
+            pattern,
+            uniquify=True,
+            useChirality=match_chirality,
+            maxMatches=1,
+        )
+        if not reference_matches or not query_matches:
+            break
+        reference_seed = tuple(reference_original_indices[index] for index in reference_matches[0])
+        query_seed = tuple(query_original_indices[index] for index in query_matches[0])
+        fragments.append(_MCSFragment(pattern, reference_seed, query_seed))
+        # Remove consumed atoms from the search copies. Element/isotope masking
+        # is not reliable in rdFMCS: masked atoms can be selected again and the
+        # generated SMARTS may then fail to match the other molecule. Original
+        # indices are recovered later by matching each fragment to the untouched
+        # input molecules.
+        for editable, original_indices, match in (
+            (reference_copy, reference_original_indices, reference_matches[0]),
+            (query_copy, query_original_indices, query_matches[0]),
+        ):
+            for atom_idx in sorted(match, reverse=True):
+                editable.RemoveAtom(atom_idx)
+                del original_indices[atom_idx]
+            editable.UpdatePropertyCache(strict=False)
+            Chem.FastFindRings(editable)
+    return fragments
+
+
+def _single_cut_components(
+    molecule: Chem.Mol,
+    other: Chem.Mol,
+    *,
+    min_atoms: int,
+) -> list[_CutComponent]:
+    """Return large components exposed by cutting unmatched articulation atoms.
+
+    Cross-fragment anchors commonly sit on opposite sides of a linker whose
+    element is absent from the other ligand.  Removing only those unmatched
+    articulation atoms gives a small, deterministic set of alternative
+    connected search regions without enumerating arbitrary molecular cuts.
     """
-    Unified MCS finder supporting single/multi-position and cross-matching.
+    other_elements = {atom.GetAtomicNum() for atom in other.GetAtoms()}
+    adjacency = {
+        atom.GetIdx(): tuple(neighbor.GetIdx() for neighbor in atom.GetNeighbors()) for atom in molecule.GetAtoms()
+    }
+    discovery = [-1] * molecule.GetNumAtoms()
+    low = [-1] * molecule.GetNumAtoms()
+    parent = [-1] * molecule.GetNumAtoms()
+    subtree_size = [0] * molecule.GetNumAtoms()
+    clock = 0
+    ranked_cuts: list[tuple[tuple[int, int, int], int]] = []
 
-    This is the ONE function you need for all MCS alignment scenarios:
-    - Single position (fast, original)
-    - Multi-position (symmetric ref)
-    - Cross-matching (symmetric ref AND query)
+    for fragment_indices in Chem.GetMolFrags(molecule):
+        fragment_size = len(fragment_indices)
+        if fragment_size < 2 * min_atoms + 1:
+            continue
+        root = fragment_indices[0]
+        discovery[root] = clock
+        low[root] = clock
+        clock += 1
+        subtree_size[root] = 1
+        # Explicit frames avoid Python's recursion limit for large molecules.
+        stack: list[tuple[int, int]] = [(root, 0)]
+        while stack:
+            atom_idx, neighbor_offset = stack[-1]
+            neighbors = adjacency[atom_idx]
+            if neighbor_offset < len(neighbors):
+                neighbor_idx = neighbors[neighbor_offset]
+                stack[-1] = (atom_idx, neighbor_offset + 1)
+                if discovery[neighbor_idx] < 0:
+                    parent[neighbor_idx] = atom_idx
+                    discovery[neighbor_idx] = clock
+                    low[neighbor_idx] = clock
+                    clock += 1
+                    subtree_size[neighbor_idx] = 1
+                    stack.append((neighbor_idx, 0))
+                elif neighbor_idx != parent[atom_idx]:
+                    low[atom_idx] = min(low[atom_idx], discovery[neighbor_idx])
+                continue
 
-    Args:
-        ref_mol: Reference molecule
-        query_mol: Query molecule
-        return_all: If True, return all positions. If False, return only first.
-        min_atoms: Minimum MCS size for simple mode (default: 3)
-        cross_match: If True, enable cross-matching (multi-fragment)
-        min_fragment_size: Min atoms per fragment for cross-match (default: min_atoms)
-        max_fragments: Max fragments to find for cross-match (default: 3)
-        allow_partial: Allow partial fragment matching for cross-match (default: True)
+            stack.pop()
+            parent_idx = parent[atom_idx]
+            if parent_idx >= 0:
+                subtree_size[parent_idx] += subtree_size[atom_idx]
+                low[parent_idx] = min(low[parent_idx], low[atom_idx])
+            atom = molecule.GetAtomWithIdx(atom_idx)
+            if atom.GetAtomicNum() in other_elements or atom.GetDegree() < 2:
+                continue
+            separated_sizes = [
+                subtree_size[neighbor_idx]
+                for neighbor_idx in neighbors
+                if parent[neighbor_idx] == atom_idx and low[neighbor_idx] >= discovery[atom_idx]
+            ]
+            remainder = fragment_size - 1 - sum(separated_sizes)
+            component_sizes = separated_sizes + ([remainder] if remainder else [])
+            qualifying = sorted((size for size in component_sizes if size >= min_atoms), reverse=True)
+            if len(qualifying) < 2:
+                continue
+            # Prefer cuts exposing the largest two useful regions.  The index
+            # tie-break keeps the bounded selection deterministic.
+            rank = (-sum(qualifying[:2]), -qualifying[1], atom_idx)
+            ranked_cuts.append((rank, atom_idx))
 
-    Returns:
-        List of mappings. Each mapping is [(ref_idx, query_idx), ...]
-
-    Examples:
-        >>> # Mode 1: Single position (original, fastest)
-        >>> mappings = find_mcs_with_positions(ref, query, return_all=False)
-        >>> mapping = mappings[0]  # One mapping
-
-        >>> # Mode 2: Multi-position (symmetric ref)
-        >>> mappings = find_mcs_with_positions(ref, query, return_all=True)
-        >>> # Returns all positions where query matches ref
-
-        >>> # Mode 3: Cross-matching (symmetric ref AND query)
-        >>> mappings = find_mcs_with_positions(ref, query, cross_match=True,
-        ...                                   min_fragment_size=5, max_fragments=2)
-        >>> # Returns all cross-combinations of multi-fragment alignments
-    """
-    if cross_match:
-        # Mode 3: Cross-matching multi-fragment MCS
-        if min_fragment_size is None:
-            min_fragment_size = max(min_atoms, 5)  # Default to 5 for fragments
-
-        print(f"Finding cross-matching MCS (min_fragment={min_fragment_size}, "
-              f"max_fragments={max_fragments}, partial={allow_partial})...")
-
-        fragments = _find_multi_fragment_mcs(ref_mol, query_mol,
-                                             min_fragment_size, max_fragments)
-
-        if not fragments:
-            print("  No fragments found")
-            return []
-
-        print(f"  Found {len(fragments)} fragment(s):")
-        for i, (smarts, size) in enumerate(fragments):
-            print(f"    Fragment {i+1}: {size} atoms")
-
-        mappings = _generate_cross_combinations(ref_mol, query_mol, fragments, allow_partial)
-
-        print(f"  Generated {len(mappings)} unique combination(s)")
-
-        return mappings
-
-    else:
-        # Mode 1 & 2: Simple single/multi-position MCS
-        all_mappings = find_all_mcs_positions(ref_mol, query_mol, min_atoms)
-
-        if not all_mappings:
-            return []
-
-        if return_all:
-            return all_mappings
-        else:
-            return [all_mappings[0]]
+    selected_cuts = [atom_idx for _, atom_idx in sorted(ranked_cuts)[:_MAX_ALTERNATIVE_CUTS]]
+    unique: dict[tuple[int, ...], _CutComponent] = {}
+    for removed_index in selected_cuts:
+        editable = Chem.RWMol(molecule)
+        editable.RemoveAtom(removed_index)
+        editable.UpdatePropertyCache(strict=False)
+        Chem.FastFindRings(editable)
+        atom_mappings: list[tuple[int, ...]] = []
+        try:
+            component_molecules = Chem.GetMolFrags(
+                editable,
+                asMols=True,
+                sanitizeFrags=True,
+                fragsMolAtomMapping=atom_mappings,
+            )
+        except Exception:
+            continue
+        if len(component_molecules) < 2:
+            continue
+        original_indices = list(range(molecule.GetNumAtoms()))
+        del original_indices[removed_index]
+        for component, current_indices in zip(component_molecules, atom_mappings, strict=True):
+            if component.GetNumAtoms() < min_atoms:
+                continue
+            original = tuple(original_indices[index] for index in current_indices)
+            unique.setdefault(original, _CutComponent(component, original))
+        if len(unique) >= _MAX_ALTERNATIVE_COMPONENTS_PER_MOLECULE:
+            break
+    return sorted(
+        unique.values(),
+        key=lambda component: (-component.molecule.GetNumAtoms(), component.original_indices),
+    )[:_MAX_ALTERNATIVE_COMPONENTS_PER_MOLECULE]
 
 
-def auto_select_mcs_mapping(ref_mol: Chem.Mol,
-                            query_mol: Chem.Mol,
-                            min_atoms: int = 3,
-                            min_fragment_size: int = 5,
-                            max_fragments: int = 3,
-                            allow_partial: bool = True) -> dict[str, Any]:
-    """
-    Automatically choose between single, multi, and cross MCS modes.
+def _alternative_fragment_candidates(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_fragment_size: int,
+    timeout: int,
+    match_chirality: bool,
+    candidate_budget: int,
+) -> tuple[list[Mapping], bool]:
+    """Find bounded alternative fragments exposed by unmatched linker cuts."""
+    reference_components = _single_cut_components(reference, query, min_atoms=min_fragment_size)
+    query_components = _single_cut_components(query, reference, min_atoms=min_fragment_size)
+    pair_count = len(reference_components) * len(query_components)
 
-    Decision rule:
-    - If there are multiple simple placements for the same largest MCS, choose `multi`.
-    - Otherwise, if cross-matching produces a larger total mapping than simple MCS, choose `cross`.
-    - Otherwise, choose `single`.
-    """
-    simple_mappings = find_all_mcs_positions(ref_mol, query_mol, min_atoms=min_atoms)
-    if not simple_mappings:
-        raise ValueError("No MCS found between reference and query")
+    def pair_key(pair: tuple[_CutComponent, _CutComponent]) -> tuple[object, ...]:
+        return (
+            -min(pair[0].molecule.GetNumAtoms(), pair[1].molecule.GetNumAtoms()),
+            pair[0].original_indices,
+            pair[1].original_indices,
+        )
 
-    best_simple = simple_mappings[0]
-    best_simple_size = len(best_simple)
+    component_pairs = heapq.nsmallest(
+        _MAX_ALTERNATIVE_COMPONENT_PAIRS,
+        (
+            (reference_component, query_component)
+            for reference_component in reference_components
+            for query_component in query_components
+        ),
+        key=pair_key,
+    )
+    pair_search_complete = pair_count <= _MAX_ALTERNATIVE_COMPONENT_PAIRS
+    unique: dict[tuple[tuple[int, int], ...], Mapping] = {}
+    for reference_component, query_component in component_pairs:
+        result = rdFMCS.FindMCS(
+            [reference_component.molecule, query_component.molecule],
+            _mcs_parameters(timeout, match_chirality=match_chirality),
+        )
+        if result.canceled:
+            raise TimeoutError(f"alternative cross MCS search timed out after {timeout}s; partial result discarded")
+        if not result.smartsString:
+            continue
+        pattern = Chem.MolFromSmarts(result.smartsString)
+        if pattern is None or pattern.GetNumAtoms() < min_fragment_size:
+            continue
+        local_mappings, local_truncated = _pattern_mapping_candidates(
+            reference_component.molecule,
+            query_component.molecule,
+            pattern,
+            match_chirality=match_chirality,
+            max_candidates=candidate_budget,
+        )
+        pair_search_complete &= not local_truncated
+        for local_mapping in local_mappings:
+            mapping = [
+                (
+                    reference_component.original_indices[reference_index],
+                    query_component.original_indices[query_index],
+                )
+                for reference_index, query_index in local_mapping
+            ]
+            canonical = _canonical_mapping(mapping)
+            unique.setdefault(canonical, list(canonical))
+            if len(unique) >= candidate_budget:
+                return list(unique.values()), False
+    return list(unique.values()), pair_search_complete
 
-    if len(simple_mappings) > 1:
-        return {
-            "mode": "multi",
-            "mapping": best_simple,
-            "mappings": simple_mappings,
-            "reason": f"found {len(simple_mappings)} symmetry-equivalent placements for the same MCS",
-            "stats": {
-                "simple_positions": len(simple_mappings),
-                "simple_size": best_simple_size,
-                "cross_size": None,
-                "cross_positions": 0,
-            },
-        }
 
-    cross_mappings = find_mcs_with_positions(
-        ref_mol,
-        query_mol,
-        cross_match=True,
-        min_atoms=min_atoms,
+def _best_disjoint_fragment_mapping(
+    candidates: list[Mapping],
+    *,
+    max_fragments: int,
+) -> Mapping:
+    """Select a maximum-size bounded packing from connected fragment mappings."""
+    ordered = _deduplicate_mappings(candidates, len(candidates))
+    best: Mapping = []
+    visited_nodes = 0
+    exhausted = False
+
+    def visit(
+        start: int,
+        selected_count: int,
+        current: Mapping,
+        used_reference: set[int],
+        used_query: set[int],
+    ) -> None:
+        nonlocal best, visited_nodes, exhausted
+        visited_nodes += 1
+        if visited_nodes > _MAX_ALTERNATIVE_PACKING_NODES:
+            exhausted = True
+            return
+        current_canonical = _canonical_mapping(current)
+        best_canonical = _canonical_mapping(best)
+        if len(current_canonical) > len(best_canonical) or (
+            len(current_canonical) == len(best_canonical) and current_canonical < best_canonical
+        ):
+            best = list(current_canonical)
+        if selected_count >= max_fragments or exhausted:
+            return
+        remaining_slots = max_fragments - selected_count
+        optimistic = len(current) + sum(len(mapping) for mapping in ordered[start : start + remaining_slots])
+        if optimistic < len(best):
+            return
+        for index in range(start, len(ordered)):
+            mapping = ordered[index]
+            reference_atoms = {reference_index for reference_index, _ in mapping}
+            query_atoms = {query_index for _, query_index in mapping}
+            if reference_atoms & used_reference or query_atoms & used_query:
+                continue
+            visit(
+                index + 1,
+                selected_count + 1,
+                current + mapping,
+                used_reference | reference_atoms,
+                used_query | query_atoms,
+            )
+            if exhausted:
+                return
+
+    visit(0, 0, [], set(), set())
+    if exhausted:
+        raise RuntimeError(
+            "alternative cross MCS fragment packing exceeded its bounded node budget; partial packing discarded"
+        )
+    return best
+
+
+def _iter_fragment_subsets(
+    fragments: list[_MCSFragment],
+    *,
+    allow_partial: bool,
+) -> Iterator[tuple[int, ...]]:
+    """Yield non-empty fragment subsets by decreasing possible anchor size."""
+    count = len(fragments)
+    full_mask = (1 << count) - 1
+    if not allow_partial:
+        yield tuple(range(count))
+        return
+    weights = [fragment.pattern.GetNumAtoms() for fragment in fragments]
+    heap: list[tuple[int, int]] = [(-sum(weights), full_mask)]
+    seen = {full_mask}
+    while heap:
+        _, mask = heapq.heappop(heap)
+        subset = tuple(index for index in range(count) if mask & (1 << index))
+        yield subset
+        for index in subset:
+            child = mask & ~(1 << index)
+            if child == 0 or child in seen:
+                continue
+            seen.add(child)
+            size = sum(weights[item] for item in range(count) if child & (1 << item))
+            heapq.heappush(heap, (-size, child))
+
+
+def _cross_mcs_search(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_fragment_size: int = 5,
+    max_fragments: int = 3,
+    timeout: int = 10,
+    max_mappings: int = 64,
+    allow_partial: bool = True,
+    match_chirality: bool = False,
+) -> tuple[list[Mapping], bool]:
+    """Combine non-overlapping MCS fragments with bounded combinatorics."""
+    _validate_max_mappings(max_mappings)
+    reference_heavy = Chem.RemoveHs(reference)
+    query_heavy = Chem.RemoveHs(query)
+    fragments = _find_disjoint_fragments(
+        reference,
+        query,
         min_fragment_size=min_fragment_size,
         max_fragments=max_fragments,
-        allow_partial=allow_partial,
+        timeout=timeout,
+        match_chirality=match_chirality,
     )
+    if not fragments:
+        return [], True
 
-    best_cross = cross_mappings[0] if cross_mappings else None
-    best_cross_size = len(best_cross) if best_cross else 0
+    placement_budget = _candidate_budget(max_mappings)
+    placements: list[list[Mapping]] = []
+    placements_maybe_truncated = False
+    seed_mapping: Mapping = []
+    packing_candidates: list[Mapping] = []
+    for fragment in fragments:
+        reference_seed_matches = reference_heavy.GetSubstructMatches(
+            fragment.pattern,
+            uniquify=False,
+            useChirality=match_chirality,
+            maxMatches=_MAX_SUBSTRUCT_MATCHES + 1,
+        )
+        query_seed_matches = query_heavy.GetSubstructMatches(
+            fragment.pattern,
+            uniquify=False,
+            useChirality=match_chirality,
+            maxMatches=_MAX_SUBSTRUCT_MATCHES + 1,
+        )
+        if fragment.reference_seed not in reference_seed_matches or fragment.query_seed not in query_seed_matches:
+            raise RuntimeError("cross MCS fragment seed could not be validated in the input molecules")
+        fragment_seed = list(zip(fragment.reference_seed, fragment.query_seed, strict=True))
+        seed_mapping.extend(fragment_seed)
+        packing_candidates.append(fragment_seed)
+        candidates, maybe_truncated = _pattern_mapping_candidates(
+            reference_heavy,
+            query_heavy,
+            fragment.pattern,
+            match_chirality=match_chirality,
+            max_candidates=placement_budget,
+        )
+        placements.append(candidates)
+        placements_maybe_truncated |= maybe_truncated
 
-    if best_cross and best_cross_size > best_simple_size:
-        return {
-            "mode": "cross",
-            "mapping": best_cross,
-            "mappings": cross_mappings,
-            "reason": f"multi-fragment cross-matching expanded the anchor from {best_simple_size} to {best_cross_size} atoms",
-            "stats": {
-                "simple_positions": len(simple_mappings),
-                "simple_size": best_simple_size,
-                "cross_size": best_cross_size,
-                "cross_positions": len(cross_mappings),
-            },
-        }
+    seed_canonical = _canonical_mapping(seed_mapping)
+    if len({pair[0] for pair in seed_canonical}) != len(seed_canonical) or len(
+        {pair[1] for pair in seed_canonical}
+    ) != len(seed_canonical):
+        raise RuntimeError("cross MCS fragment seeds overlap in the input molecules")
+    unique: dict[tuple[tuple[int, int], ...], Mapping] = {seed_canonical: list(seed_canonical)}
+    if allow_partial:
+        alternative_candidates, _ = _alternative_fragment_candidates(
+            reference_heavy,
+            query_heavy,
+            min_fragment_size=min_fragment_size,
+            timeout=timeout,
+            match_chirality=match_chirality,
+            candidate_budget=placement_budget,
+        )
+        packing_candidates.extend(alternative_candidates)
+        alternative_mapping = _best_disjoint_fragment_mapping(
+            packing_candidates,
+            max_fragments=max_fragments,
+        )
+        if alternative_mapping:
+            alternative_canonical = _canonical_mapping(alternative_mapping)
+            unique.setdefault(alternative_canonical, list(alternative_canonical))
+    node_budget = min(1_000_000, max(10_000, max_mappings * 4096))
+    visited_nodes = 0
+    exhausted_budget = False
 
-    return {
-        "mode": "single",
-        "mapping": best_simple,
-        "mappings": [best_simple],
-        "reason": "found one dominant contiguous MCS without symmetry ambiguity",
-        "stats": {
-            "simple_positions": len(simple_mappings),
-            "simple_size": best_simple_size,
-            "cross_size": best_cross_size if best_cross else None,
-            "cross_positions": len(cross_mappings),
-        },
-    }
+    def visit_subset(
+        subset: tuple[int, ...],
+        offset: int,
+        current: Mapping,
+        used_reference: set[int],
+        used_query: set[int],
+    ) -> None:
+        nonlocal visited_nodes, exhausted_budget
+        visited_nodes += 1
+        if visited_nodes > node_budget:
+            exhausted_budget = True
+            return
+        if len(unique) >= max_mappings or exhausted_budget:
+            return
+        if offset == len(subset):
+            canonical = _canonical_mapping(current)
+            unique.setdefault(canonical, list(canonical))
+            return
+        for mapping in placements[subset[offset]]:
+            reference_atoms = {reference_idx for reference_idx, _ in mapping}
+            query_atoms = {query_idx for _, query_idx in mapping}
+            if reference_atoms & used_reference or query_atoms & used_query:
+                continue
+            visit_subset(
+                subset,
+                offset + 1,
+                current + mapping,
+                used_reference | reference_atoms,
+                used_query | query_atoms,
+            )
+            if len(unique) >= max_mappings or exhausted_budget:
+                return
+
+    for subset in _iter_fragment_subsets(fragments, allow_partial=allow_partial):
+        visit_subset(subset, 0, [], set(), set())
+        if len(unique) >= max_mappings:
+            break
+        if exhausted_budget:
+            break
+
+    if exhausted_budget or (placements_maybe_truncated and len(unique) < max_mappings):
+        raise RuntimeError(
+            "cross MCS symmetry search exceeded its bounded candidate budget "
+            f"(visited_nodes={visited_nodes}, node_budget={node_budget}, "
+            f"placement_options={[len(options) for options in placements]}); "
+            "reduce max_fragments or use single/multi mode"
+        )
+    # Alternative fragment discovery is bounded and therefore does not prove
+    # exhaustive coverage of all connected common-subgraph packings.
+    complete = False
+    return _deduplicate_mappings(list(unique.values()), max_mappings), complete
+
+
+def find_cross_mcs_mappings(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    min_fragment_size: int = 5,
+    max_fragments: int = 3,
+    timeout: int = 10,
+    max_mappings: int = 64,
+    allow_partial: bool = True,
+    match_chirality: bool = False,
+) -> list[Mapping]:
+    """Combine non-overlapping MCS fragments with bounded combinatorics."""
+    mappings, _ = _cross_mcs_search(
+        reference,
+        query,
+        min_fragment_size=min_fragment_size,
+        max_fragments=max_fragments,
+        timeout=timeout,
+        max_mappings=max_mappings,
+        allow_partial=allow_partial,
+        match_chirality=match_chirality,
+    )
+    return mappings
+
+
+def select_mcs_mappings(
+    reference: Chem.Mol,
+    query: Chem.Mol,
+    *,
+    mode: str = "auto",
+    min_atoms: int = 3,
+    min_fragment_size: int = 5,
+    max_fragments: int = 3,
+    timeout: int = 10,
+    max_mappings: int = 64,
+    match_chirality: bool = False,
+) -> MCSSelection:
+    """Select single, multi or cross mappings using all candidate families."""
+    if min_atoms <= 0:
+        raise ValueError("min_atoms must be positive")
+    if min_fragment_size <= 0:
+        raise ValueError("min_fragment_size must be positive")
+    if max_fragments <= 0:
+        raise ValueError("max_fragments must be positive")
+    if timeout <= 0:
+        raise ValueError("timeout must be positive")
+    _validate_max_mappings(max_mappings)
+    requested = mode.lower()
+    if requested not in {"auto", "single", "multi", "cross"}:
+        raise ValueError("mode must be auto, single, multi or cross")
+    simple, simple_complete = _simple_mcs_search(
+        reference,
+        query,
+        min_atoms=min_atoms,
+        timeout=timeout,
+        max_mappings=max_mappings,
+        match_chirality=match_chirality,
+    )
+    if not simple:
+        raise ValueError("no MCS found between reference and query")
+    if requested in {"auto", "cross"}:
+        cross, cross_complete = _cross_mcs_search(
+            reference,
+            query,
+            min_fragment_size=min_fragment_size,
+            max_fragments=max_fragments,
+            timeout=timeout,
+            max_mappings=max_mappings,
+            match_chirality=match_chirality,
+        )
+    else:
+        cross, cross_complete = [], True
+    simple_size = len(simple[0])
+    cross_size = len(cross[0]) if cross else 0
+
+    if requested == "single":
+        selected, resolved, reason = simple[:1], "single", "explicit contiguous MCS"
+        candidate_complete = simple_complete
+        max_size_proven = True
+    elif requested == "multi":
+        selected, resolved, reason = simple, "multi", f"{len(simple)} contiguous placements"
+        candidate_complete = simple_complete
+        max_size_proven = True
+    elif requested == "cross":
+        if not cross:
+            raise ValueError("cross MCS search produced no valid fragment combination")
+        selected, resolved, reason = cross, "cross", f"{len(cross)} disjoint-fragment combinations"
+        candidate_complete = cross_complete
+        max_size_proven = False
+    elif requested == "auto":
+        if cross and cross_size > simple_size:
+            selected, resolved = cross, "cross"
+            reason = f"cross mapping increased anchor size from {simple_size} to {cross_size} atoms"
+            candidate_complete = cross_complete
+            max_size_proven = False
+        elif len(simple) > 1:
+            selected, resolved = simple, "multi"
+            reason = f"largest contiguous MCS has {len(simple)} unique placements"
+            candidate_complete = simple_complete and cross_complete
+            max_size_proven = cross_complete
+        else:
+            selected, resolved, reason = simple[:1], "single", "one dominant contiguous MCS"
+            candidate_complete = simple_complete and cross_complete
+            max_size_proven = cross_complete
+    if not candidate_complete:
+        if requested in {"auto", "cross"} and not cross_complete:
+            reason += "; bounded cross-fragment candidate search"
+        if resolved != "cross" and not simple_complete:
+            reason += f"; contiguous candidate set capped at {max_mappings}"
+    if not max_size_proven:
+        reason += "; global cross-fragment maximum not proven"
+    return MCSSelection(
+        resolved,
+        tuple(_canonical_mapping(mapping) for mapping in selected),
+        reason,
+        simple_size,
+        cross_size,
+        candidate_complete,
+        max_size_proven,
+        max_mappings,
+    )

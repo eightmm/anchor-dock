@@ -1,4 +1,4 @@
-"""Batched forward kinematics for differentiable ligand torsion refinement."""
+"""Differentiable rigid-frame and torsion kinematics."""
 
 from __future__ import annotations
 
@@ -10,18 +10,27 @@ import torch
 import torch.nn as nn
 from rdkit import Chem
 
-
-def get_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
-    """Rodrigues rotation matrix for one axis and angle."""
-    return get_batched_rotation_matrix(axis.reshape(1, 3), theta.reshape(1))[0]
+from .topology import build_rigid_topology, component_side
 
 
 def get_batched_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
-    """Rodrigues rotation matrices for ``axis=[B,3]`` and ``theta=[B]``."""
-    axis = axis / torch.linalg.vector_norm(axis, dim=1, keepdim=True).clamp_min(1e-12)
-    x, y, z = axis.unbind(dim=1)
-    sin_t = torch.sin(theta)
-    cos_t = torch.cos(theta)
+    """Rodrigues matrices for ``axis=[B,3]`` and ``theta=[B]``.
+
+    Degenerate axes produce an identity rotation rather than a scaled cosine
+    matrix. This matters for coincident atom coordinates during failed embeds.
+    """
+    if axis.ndim != 2 or axis.shape[-1] != 3 or theta.ndim != 1 or axis.shape[0] != theta.shape[0]:
+        raise ValueError("axis and theta must have shapes [B,3] and [B]")
+    norm = torch.linalg.vector_norm(axis, dim=1, keepdim=True)
+    valid = norm.squeeze(1) > 1e-12
+    fallback = torch.zeros_like(axis)
+    fallback[:, 0] = 1.0
+    unit = torch.where(valid[:, None], axis / norm.clamp_min(1e-12), fallback)
+    angle = torch.where(valid, theta, torch.zeros_like(theta))
+
+    x, y, z = unit.unbind(dim=1)
+    sin_t = torch.sin(angle)
+    cos_t = torch.cos(angle)
     one_minus = 1.0 - cos_t
     return torch.stack(
         [
@@ -39,113 +48,126 @@ def get_batched_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torc
     ).reshape(-1, 3, 3)
 
 
-def _descendants(tree: dict[int, list[tuple[int, int, int]]], frames: list[list[int]], frame: int) -> list[int]:
-    result: list[int] = []
-    for child, _, _ in tree[frame]:
-        result.extend(frames[child])
-        result.extend(_descendants(tree, frames, child))
-    return result
+def get_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torch.Tensor:
+    """Rodrigues rotation matrix for one axis and angle."""
+    return get_batched_rotation_matrix(axis.reshape(1, 3), theta.reshape(1))[0]
+
+
+def _depth_order(
+    num_frames: int,
+    directed_edges: list[tuple[int, int, int, int, list[int]]],
+) -> list[tuple[int, int, int, int, list[int]]]:
+    """Order directed frame edges from fixed roots toward terminal branches."""
+    outgoing: list[list[int]] = [[] for _ in range(num_frames)]
+    indegree = [0] * num_frames
+    for edge_idx, (parent, child, _, _, _) in enumerate(directed_edges):
+        outgoing[parent].append(edge_idx)
+        indegree[child] += 1
+
+    roots = deque(idx for idx, degree in enumerate(indegree) if degree == 0)
+    depth = [0] * num_frames
+    while roots:
+        frame = roots.popleft()
+        for edge_idx in outgoing[frame]:
+            child = directed_edges[edge_idx][1]
+            depth[child] = max(depth[child], depth[frame] + 1)
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                roots.append(child)
+    return sorted(directed_edges, key=lambda item: (depth[item[1]], item[1], item[2], item[3]))
 
 
 def build_kinematic_topology(
     mol: Chem.Mol,
-    anchor_indices: Iterable[int],
+    anchor_indices: Iterable[int] = (),
     freeze_anchor: bool = True,
 ) -> dict[str, Any]:
-    """Split a molecule into rigid frames connected by rotatable bonds."""
-    num_atoms = mol.GetNumAtoms()
-    anchor_set = {int(idx) for idx in anchor_indices}
-    if not anchor_set:
-        anchor_set = {0}
+    """Build torsion actions that never move requested anchor atoms.
 
-    pattern = Chem.MolFromSmarts("[!$(*#*)&!D1]-&!@[!$(*#*)&!D1]")
-    rotatable = [set(match) for match in mol.GetSubstructMatches(pattern)] if pattern else []
-    if freeze_anchor:
-        rotatable = [pair for pair in rotatable if not pair.issubset(anchor_set)]
+    For every rotatable bond the two graph sides are inspected. If anchors lie
+    on both sides, that torsion is disabled. If anchors lie on only one side,
+    the opposite side is rotated. This is stricter than choosing one anchor-rich
+    root frame and correctly handles distributed MCS anchors.
+    """
+    topology = build_rigid_topology(mol)
+    num_frames = len(topology.frames)
+    valid_anchors = {int(idx) for idx in anchor_indices if 0 <= int(idx) < mol.GetNumAtoms()}
+    if not valid_anchors and mol.GetNumAtoms():
+        valid_anchors = {0}
+    anchor_frames = {topology.atom_to_frame[idx] for idx in valid_anchors}
+    default_root = min(anchor_frames) if anchor_frames else 0
+    all_frames = set(range(num_frames))
 
-    adjacency: dict[int, list[int]] = {idx: [] for idx in range(num_atoms)}
-    rotatable_keys = {frozenset(pair) for pair in rotatable}
-    for bond in mol.GetBonds():
-        u, v = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
-        if frozenset((u, v)) not in rotatable_keys:
-            adjacency[u].append(v)
-            adjacency[v].append(u)
+    directed: list[tuple[int, int, int, int, list[int]]] = []
+    disabled: list[tuple[int, int]] = []
+    for edge_idx, (left_frame, right_frame, left_atom, right_atom) in enumerate(topology.frame_edges):
+        left_side = component_side(num_frames, topology.frame_edges, edge_idx, left_frame)
+        right_side = all_frames - left_side
+        left_has_anchor = bool(anchor_frames & left_side)
+        right_has_anchor = bool(anchor_frames & right_side)
 
-    frames: list[list[int]] = []
-    atom_to_frame: dict[int, int] = {}
-    visited: set[int] = set()
-    for start in range(num_atoms):
-        if start in visited:
+        if freeze_anchor and left_has_anchor and right_has_anchor:
+            disabled.append(tuple(sorted((left_atom, right_atom))))
             continue
-        frame: list[int] = []
-        queue = deque([start])
-        visited.add(start)
-        while queue:
-            atom_idx = queue.popleft()
-            frame.append(atom_idx)
-            atom_to_frame[atom_idx] = len(frames)
-            for neighbor in adjacency[atom_idx]:
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append(neighbor)
-        frames.append(frame)
+        if left_has_anchor and not right_has_anchor:
+            parent, child = left_frame, right_frame
+            parent_atom, child_atom = left_atom, right_atom
+            rotated_frames = right_side
+        elif right_has_anchor and not left_has_anchor:
+            parent, child = right_frame, left_frame
+            parent_atom, child_atom = right_atom, left_atom
+            rotated_frames = left_side
+        elif default_root in left_side:
+            parent, child = left_frame, right_frame
+            parent_atom, child_atom = left_atom, right_atom
+            rotated_frames = right_side
+        else:
+            parent, child = right_frame, left_frame
+            parent_atom, child_atom = right_atom, left_atom
+            rotated_frames = left_side
 
-    root = max(range(len(frames)), key=lambda idx: len(set(frames[idx]) & anchor_set))
-    tree: dict[int, list[tuple[int, int, int]]] = {idx: [] for idx in range(len(frames))}
-    queue = deque([root])
-    visited_frames = {root}
-    edges: list[tuple[int, int, int]] = []
-    while queue:
-        current = queue.popleft()
-        for atom_idx in frames[current]:
-            for neighbor_atom in mol.GetAtomWithIdx(atom_idx).GetNeighbors():
-                neighbor_idx = neighbor_atom.GetIdx()
-                neighbor_frame = atom_to_frame[neighbor_idx]
-                if neighbor_frame == current or neighbor_frame in visited_frames:
-                    continue
-                tree[current].append((neighbor_frame, atom_idx, neighbor_idx))
-                edges.append((atom_idx, neighbor_idx, neighbor_frame))
-                visited_frames.add(neighbor_frame)
-                queue.append(neighbor_frame)
+        atoms_to_rotate = sorted(atom for frame in rotated_frames for atom in topology.frames[frame])
+        if freeze_anchor and valid_anchors.intersection(atoms_to_rotate):
+            raise RuntimeError("internal topology error: a frozen anchor was assigned to a rotating side")
+        directed.append((parent, child, parent_atom, child_atom, atoms_to_rotate))
 
-    atoms_to_rotate = [frames[child] + _descendants(tree, frames, child) for _, _, child in edges]
+    directed = _depth_order(num_frames, directed)
     return {
-        "num_atoms": num_atoms,
-        "frames": frames,
-        "tree": tree,
-        "parent_atoms": [edge[0] for edge in edges],
-        "child_atoms": [edge[1] for edge in edges],
-        "child_frames": [edge[2] for edge in edges],
-        "atoms_to_rotate": atoms_to_rotate,
-        "num_torsions": len(edges),
+        "num_atoms": mol.GetNumAtoms(),
+        "frames": [list(frame) for frame in topology.frames],
+        "atom_to_frame": list(topology.atom_to_frame),
+        "parent_frames": [item[0] for item in directed],
+        "child_frames": [item[1] for item in directed],
+        "parent_atoms": [item[2] for item in directed],
+        "child_atoms": [item[3] for item in directed],
+        "atoms_to_rotate": [item[4] for item in directed],
+        "disabled_torsions": disabled,
+        "num_torsions": len(directed),
     }
 
 
 class LigandKinematics(nn.Module):
-    """Single implementation for both ``[N,3]`` and ``[B,N,3]`` inputs."""
+    """Forward kinematics for one pose or a batch of poses of one topology."""
 
     def __init__(
         self,
         mol: Chem.Mol,
-        ref_indices: Iterable[int],
+        anchor_indices: Iterable[int],
         init_coords: torch.Tensor,
         device: torch.device | str,
+        *,
         freeze_anchor: bool = True,
-        freeze_mcs: bool | None = None,
     ) -> None:
         super().__init__()
-        if freeze_mcs is not None:
-            freeze_anchor = freeze_mcs
         self.device = torch.device(device)
-        topology = build_kinematic_topology(mol, ref_indices, freeze_anchor)
+        topology = build_kinematic_topology(mol, anchor_indices, freeze_anchor=freeze_anchor)
         self.num_atoms = topology["num_atoms"]
         self.num_torsions = topology["num_torsions"]
         self.parent_atoms = topology["parent_atoms"]
         self.child_atoms = topology["child_atoms"]
-        self.child_frames = topology["child_frames"]
+        self.disabled_torsions = topology["disabled_torsions"]
         self.atoms_to_rotate = [
-            torch.tensor(indices, dtype=torch.long, device=self.device)
-            for indices in topology["atoms_to_rotate"]
+            torch.tensor(indices, dtype=torch.long, device=self.device) for indices in topology["atoms_to_rotate"]
         ]
 
         coords = init_coords.to(device=self.device, dtype=torch.float32)
@@ -156,17 +178,19 @@ class LigandKinematics(nn.Module):
             self.is_batched = True
         else:
             raise ValueError(f"init_coords must be [N,3] or [B,N,3], got {tuple(coords.shape)}")
+        if coords.shape[1:] != (self.num_atoms, 3):
+            raise ValueError(f"coordinate shape {tuple(coords.shape)} does not match {self.num_atoms} atoms")
         self.register_buffer("base_coords", coords.clone())
         self.thetas = nn.Parameter(torch.zeros(coords.shape[0], self.num_torsions, device=self.device))
 
     def forward(self) -> torch.Tensor:
         coords = self.base_coords.clone()
         for torsion_idx in range(self.num_torsions):
-            parent = self.parent_atoms[torsion_idx]
-            child = self.child_atoms[torsion_idx]
             rotated_atoms = self.atoms_to_rotate[torsion_idx]
             if rotated_atoms.numel() == 0:
                 continue
+            parent = self.parent_atoms[torsion_idx]
+            child = self.child_atoms[torsion_idx]
             origin = coords[:, parent, :]
             axis = coords[:, child, :] - origin
             rotation = get_batched_rotation_matrix(axis, self.thetas[:, torsion_idx])
@@ -176,10 +200,3 @@ class LigandKinematics(nn.Module):
             next_coords[:, rotated_atoms, :] = rotated
             coords = next_coords
         return coords if self.is_batched else coords[0]
-
-
-class BatchedLigandKinematics(LigandKinematics):
-    """Alias retained for reference-mode callers that name the batched form."""
-
-    def __init__(self, mol, ref_indices, init_coords, device, freeze_mcs: bool = True):
-        super().__init__(mol, ref_indices, init_coords, device, freeze_anchor=freeze_mcs)

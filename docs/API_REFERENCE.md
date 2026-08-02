@@ -1,100 +1,104 @@
-# API Reference
+# API reference
 
-## High-Level Python API
-
-Main entry point:
+AnchorDock 0.3 exposes four high-level operations from `anchor_dock`:
 
 ```python
-from anchor_dock import dock_reference
+from anchor_dock import dock_reference, dock_covalent, dock_free, dock_batch
+```
 
-results = dock_reference(
-    protein_pdb="protein.pdb",
-    ref_ligand="ref.sdf",
-    query_ligand="SMILES",
-    output_dir="output",
+## Reference (selected options)
+
+```python
+dock_reference(
+    protein_pdb,
+    reference_ligand,
+    query_ligand,
+    output_dir="output_predictions",
+    *,
     num_confs=1000,
     rmsd_threshold=1.0,
+    mcs_mode="auto",              # auto | single | multi | cross
+    min_mcs_atoms=3,
+    min_fragment_size=5,
+    max_fragments=3,
+    max_mappings=64,
+    mcs_timeout=10,
+    match_chirality=False,
+    relax=True,
+    optimize=False,
+    optimizer="adam",             # adam | adamw | lbfgs
+    freeze_anchor=True,
+    scorer="vina",                # vina | vinardo | softdock | nn.Module
+    top_k=None,
+    random_seed=42,
+    device=None,
+)
+```
+
+Every successful mapping is pooled. Pattern automorphisms preserve symmetry-related correspondences. Results expose attempted, selected, and failed mappings, exact atom-index spaces, `mcs_candidate_complete`, `mcs_max_size_proven`, and the configured candidate limit. A nonempty bounded cross search, including one considered by `auto`, prevents a claim of global completeness or maximum-size proof.
+
+## Covalent (selected options)
+
+```python
+dock_covalent(
+    protein_pdb,
+    query_ligand,
+    reactive_residue=None,
+    output_dir="output_predictions",
+    *,
+    num_confs=1000,
+    rotation_scan_step=30,
+    rotation_top_k=50,
+    optimize=False,
+    scorer="vina",
+    top_k=None,
+    warhead_index=0,
+    strict_compatibility=False,
+)
+```
+
+Automatic residue selection succeeds only for one unambiguous supported nucleophile. The output is an adduct-conditioned pose ranking, not a reaction energy. Scoring uses a copy-on-write product-state type for the bonded receptor atom; results record the base and product typing versions, structured change, reactant fingerprint, and exact scoring-structure fingerprint.
+
+Omitting `optimize` at the top-level compatibility entry point currently runs with `False` and emits a `FutureWarning`; pass it explicitly.
+
+## Free local search (selected options)
+
+```python
+dock_free(
+    protein_pdb,
+    query_ligand,
+    output_dir="anchor_dock_free",
+    *,
+    center=None,
+    box_size=(20.0, 20.0, 20.0),
+    num_confs=64,
+    num_starts=128,
     optimize=True,
-    optimizer="lbfgs",
-    verbose=True,
+    scorer="softdock",
+    top_k=20,
 )
 ```
 
-Typical return keys:
+Free mode uses seeded Haar-uniform SO(3) starts for multistart local optimization; it is not Vina global search.
 
-```python
-{
-    "output_file": "output/predicted_pose_top3.sdf",
-    "num_poses": 3,
-    "best_score": -6.038,
-    "runtime": 23.5,
-    "num_conformers": 1000,
-    "num_representatives": 22,
-    "mcs_size": 10,
-    "mcs_positions": 1,
-    "canonical_smiles": "CC(C)Cc1ccc(C(C)C(=O)O)cc1",
-    "device": "cuda",
-}
-```
+## Batch
 
-## Key Parameters
+`dock_batch` accepts homogeneous ligand sources or mixed `DockingJob` objects. Input content, metadata, effective options, scorer state/config/name/units, resolved device, NumPy/RDKit/Torch versions, and output artifact content are checked before resume. Recursive directory discovery excludes the output subtree, while source/output and reserved-manifest collisions fail before output is replaced. See [BATCH.md](BATCH.md).
 
-```text
-protein_pdb        Protein PDB path
-ref_ligand         Reference SDF path
-query_ligand       Query SMILES or SDF path
-output_dir         Output directory
-num_confs          Number of conformers to generate
-rmsd_threshold     RMSD clustering threshold
-mcs_mode           auto | single | multi | cross
-optimize           Enable torsion optimization
-optimizer          adam | adamw | lbfgs
-opt_steps          Number of optimization steps
-opt_lr             Optimization learning rate
-opt_batch_size     Number of poses processed per optimization batch (default: 128)
-freeze_mcs         Keep MCS atoms fixed during optimization
-weight_preset      vina | vina_lp | vinardo
-torsion_penalty    Apply torsional entropy penalty (default: True)
-verbose            Print progress
-```
+## Results and output
 
-Current batching note:
+Successful reference, covalent, and free calls return a dictionary containing mode/version, output, pose counts, best score/search energy, scorer identity, receptor/source fingerprints, intramolecular reference, runtime, and device. `search_parameters` records the effective search options; reconstruction also requires the adjacent input, scorer, version, fingerprint, and device fields. Torsion and optimization fields distinguish requested, actually applied, and improved behavior. `dock_batch` adds job and artifact fingerprints plus `batch_runtime_identity`.
 
-- `opt_batch_size` currently batches multiple poses of the same molecule
-- it is not yet a fully vectorized mixed-molecule optimizer
+SDF properties use only the versioned `AnchorDock_*` schema, including:
 
-## Low-Level API
+- `AnchorDock_Version`, `AnchorDock_Output_Schema`;
+- `AnchorDock_Rank`, `AnchorDock_Pose_ID`;
+- `AnchorDock_Scorer`, `AnchorDock_Scorer_Fingerprint`;
+- `AnchorDock_Score`, `AnchorDock_Search_Energy`, `AnchorDock_Score_Units`, `AnchorDock_Score_Semantics`.
+- `AnchorDock_Receptor_Structure_Fingerprint`, `AnchorDock_Receptor_Source_Fingerprint`;
+- covalent `AnchorDock_Receptor_Reactant_Structure_Fingerprint` and `AnchorDock_Covalent_Receptor_Typing_*` fields;
+- `AnchorDock_Intramolecular_Reference`, torsion/optimization truth fields, and `AnchorDock_Search_Parameters`.
 
-For stepwise control, use `LigandAligner`.
+Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied.
 
-```python
-from anchor_dock.reference import LigandAligner
-
-aligner = LigandAligner(device="cuda")
-mapping = aligner.step2_find_mcs(ref_mol, query_mol)
-query_mol, rep_cids = aligner.step1_generate_conformers(
-    query_mol,
-    num_confs=1000,
-    rmsd_threshold=1.0,
-)
-aligned = aligner.step3_batched_kabsch_alignment(ref_coords, query_coords, mapping)
-scores = aligner.step4_vina_scoring(aligned, pocket_coords, query_feat, pocket_feat)
-optimized = aligner.step6_refine_pose(
-    query_mol,
-    mcs_indices,
-    aligned,
-    pocket_coords,
-    query_feat,
-    pocket_feat,
-    num_steps=100,
-    batch_size=8,
-)
-```
-
-## Script Inventory
-
-- `scripts/run_pipeline.py`: end-to-end pose generation
-- `scripts/optimize_pose.py`: optimize a single input pose
-- `scripts/vis_comparison_grid.py`: generate comparison panels across optimization settings
-- `scripts/vis_opt_gif.py`: make optimization animations
-- `scripts/vis_ref_opt_gif.py`: compare reference-guided optimization trajectories
+The advanced shared engine is available as `DockingEngine`. Removed 0.2 façade classes and internal cache hooks are not public API.

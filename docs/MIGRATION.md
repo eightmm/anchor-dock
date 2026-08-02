@@ -1,49 +1,40 @@
-# Migration to AnchorDock
+# Migrating from 0.2 to 0.3
 
-## Repository and package identity
+AnchorDock 0.3 is one engine and one import namespace: `anchor_dock`. The old `lig_align` and `cov_vina` packages and their low-level façade modules were removed.
 
-`lig-mcs-align` is now AnchorDock. The distribution name is `anchor-dock` and the primary import namespace is `anchor_dock`.
+## One-release call adapters
 
-## API mapping
+The following unambiguous calls still execute through the 0.3 engine and emit one `FutureWarning` per call:
 
-| Previous API | Preferred AnchorDock API |
+| 0.2 call | 0.3 destination |
 |---|---|
-| `lig_align.run_pipeline(...)` | `anchor_dock.dock_reference(...)` |
-| `lig_align.run_batch(...)` | `anchor_dock.dock_reference_batch(...)` |
-| `cov_vina.run_covalent_pipeline(...)` | `anchor_dock.dock_covalent(...)` |
-| `cov_vina.run_batch_docking(...)` | `anchor_dock.dock_covalent_batch(...)` |
+| `run_reference_pipeline`, `reference.run_pipeline` | `dock_reference` |
+| `run_covalent_pipeline` | `dock_covalent` |
+| `dock_reference_batch`, `reference.run_batch` | `dock_batch(mode="reference")` |
+| `dock_covalent_batch`, `run_batch_docking` | `dock_batch(mode="covalent")` |
+| `ref_ligand` | `reference_ligand` |
+| `mmff_optimize` | `relax` |
+| `freeze_mcs` | `freeze_anchor` |
+| `weight_preset="vina"` or `"vinardo"` | `scorer` |
+| `save_all_poses=False` / `True` | `top_k=3` / `None` |
 
-Both old namespaces have been removed; `anchor_dock` is the only import path.
+Passing both an old and new keyword fails with `ValueError`. The old reference/covalent default directory and filenames remain for this adapter release.
+Legacy high-level positional options after `output_dir` are also bound using the 0.2 parameter order and warn; new code should pass every option by keyword.
 
-`cov_vina` was pure re-export, so the mappings above replace it exactly. `lig_align` held the real reference-mode implementation, which moved rather than disappeared:
+## Intentional hard breaks
 
-| Previous module | Now |
-|---|---|
-| `lig_align.pipeline` | `anchor_dock.reference.pipeline` |
-| `lig_align.aligner` | `anchor_dock.reference.aligner` |
-| `lig_align.molecular.mcs` | `anchor_dock.reference.mcs` |
-| `lig_align.molecular.conformer` | `anchor_dock.reference.conformers` |
-| `lig_align.molecular.relax` | `anchor_dock.reference.relax` |
-| `lig_align.io.input`, `lig_align.io.pocket` | `anchor_dock.reference.io` |
-| `lig_align.selection.final_selection` | `anchor_dock.reference.output` |
-| `lig_align.io.visualization` | `anchor_dock.reference.visualization` |
-| `lig_align.scoring`, `.alignment`, `.optimization`, `.molecular.features` | `anchor_dock.core` (these were already re-exports) |
+- 0.3 never invokes the 0.2 scorer, atom typer, optimizer, or output writer.
+- `LigAlign_*`, `CovVina_*`, `Vina_Score`, and `Rank` tags are replaced by `AnchorDock_*` fields.
+- Scores changed because atom typing, radii, cutoff, pair exclusions, intramolecular reference, and reporting changed. Do not compare 0.2 and 0.3 numbers as one scale.
+- `vina_lp` had no validated provenance and now fails explicitly.
+- `LigandAligner`, `final_selection`, manual pocket-cache hooks, and the old `scripts/` entry points were removed. Use the four high-level APIs or `DockingEngine`.
+- Batch directories, signatures, resume manifests, and error payloads follow the 0.3 batch contract; aliases translate calls, not old on-disk layouts.
+- Multi-component ligands/references now fail explicitly. Apply a documented desalting policy before calling AnchorDock if that is scientifically intended.
 
-The move was verified to leave reference-mode output byte-identical across MCS modes, weight presets, and torsion optimization; `tests/test_reference_regression.py` keeps it that way.
+## Covalent default
 
-SDF property names still carry the `LigAlign_` prefix (`LigAlign_MCS_Mode`, `LigAlign_MMFF_Optimized`, and so on). Renaming them would break anyone parsing previously written poses, so they are left alone.
+For this transition release, omitting covalent `optimize` preserves the 0.2 value `False` and emits a warning. Pass `optimize=True` or `False` explicitly. The CLI equivalent is `--optimize` or `--no-optimize`.
 
-## Behavior retained
+## Output migration
 
-Reference mode retains MCS `auto`, `single`, `multi`, and `cross` modes, optional MMFF relaxation, all-position pooling, differentiable Vina scoring, and torsion optimization.
-
-Covalent mode retains automatic warhead detection, CYS/SER/THR/TYR/LYS/HIS anchors, adduct-first conformer generation, anchor-axis rotation scanning, pair exclusions near the formed bond, pocket caching, and batch execution.
-
-## Intentional corrections
-
-- One scoring implementation now serves both modes.
-- Single- and multi-pose kinematics use one implementation.
-- Pair masks accept either `[N,M]`, `[1,N,M]`, or `[B,N,M]` shapes consistently.
-- PDB residue metadata is copied explicitly when extracting a pocket.
-- Covalent scoring excludes pseudo protein atoms and the duplicated receptor nucleophile without deleting the reactive ligand atom's interactions with the rest of the pocket.
-- Covalent outputs state that scores are non-bonded pose scores conditioned on an already-formed adduct.
+Read scores with `AnchorDock_Score`, distinguish the objective with `AnchorDock_Search_Energy`, and persist scorer/receptor/source fingerprints, intramolecular reference, requested/applied torsion and optimization fields, `AnchorDock_Search_Parameters`, version, and output schema. Covalent results also distinguish the reactant receptor fingerprint from the product-state scoring fingerprint and record the versioned receptor typing change.

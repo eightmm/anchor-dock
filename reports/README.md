@@ -1,15 +1,15 @@
 # Reports
 
-This directory collects the current progress summary and reusable visual assets for the 10gs example set.
+This directory archives the pre-0.3 progress summary and visual assets for the 10gs example set. Its old scores, metadata names, and runtime measurements are historical evidence, not the 0.3 output contract or a current benchmark.
 
-## Current Summary
+## Archived summary
 
-- [progress.md](progress.md): current progress, capabilities, results, and runtime notes
+- [progress.md](progress.md): captured capabilities, results, and runtime notes
 
 ## Useful Cross-Links
 
-- [Full pipeline diagram](../docs/ARCHITECTURE.md#pipeline-summary): end-to-end flow of the current method
-- [MCS decision rule](../docs/ARCHITECTURE.md#mcs-decision-rule): how `auto` chooses `single`, `multi`, or `cross`
+- [Current architecture](../docs/ARCHITECTURE.md): the 0.3 design and invariants
+- [Current reference strategy](../docs/ARCHITECTURE.md#reference-strategy): 0.3 MCS execution
 
 ## Available Visual Assets
 
@@ -21,7 +21,3 @@ Primary GIFs already in the repository:
 - `examples/10gs/visualizations/mcs_q1_free.gif`
 - `examples/10gs/visualizations/coverage/`
 - `examples/10gs/predictions/`
-
-## Benchmark Utilities
-
-- `scripts/benchmark_runtime.py`: reproducible runtime and batch-behavior benchmark

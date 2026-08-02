@@ -1,162 +1,78 @@
-# Usage Guide
+# Usage
 
-This document holds practical setup and execution details that are too verbose for the top-level README.
-
-## Installation
+## Install
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv sync
+uv sync --frozen --group dev
 ```
 
-If `uv sync` is not suitable for your environment, install the dependencies declared in [pyproject.toml](/home/jaemin/project/protein-ligand/lig-align/pyproject.toml).
+Python 3.12 or newer is required.
 
-## Main CLI
+## CLI
 
-Primary entry point:
+Reference-guided docking:
 
 ```bash
-uv run python scripts/run_pipeline.py \
-  -p examples/10gs/10gs_pocket.pdb \
-  -r examples/10gs/10gs_ligand.sdf \
-  -q "CCO" \
-  -o output/
+uv run anchor-dock reference \
+  --protein examples/10gs/10gs_pocket.pdb \
+  --reference examples/10gs/10gs_ligand.sdf \
+  --query "CC(=O)Nc1ccc(O)cc1" \
+  --mcs-mode auto \
+  --output output_predictions
 ```
 
-Required arguments:
-
-```text
--p, --protein        Protein pocket PDB file
--r, --ref_ligand     Reference ligand SDF file
--q, --query_ligand   Query ligand as SMILES or SDF path
-```
-
-Common optional arguments:
-
-```text
--o, --out_dir             Output directory
--n, --num_confs           Number of conformers to generate
---rmsd_threshold          RMSD threshold for clustering
---mcs_mode                auto | single | multi | cross
---optimize                Enable gradient optimization
---opt_batch_size          Number of poses optimized together (default: 128)
---optimizer               adam | adamw | lbfgs
---weight_preset           vina | vina_lp | vinardo
---free_mcs                Allow MCS atoms to move during optimization
---no_torsion_penalty      Disable the default Vina torsional entropy penalty
-```
-
-## Common Workflows
-
-### Basic Prediction
+Covalent docking:
 
 ```bash
-uv run python scripts/run_pipeline.py \
-  -p examples/10gs/10gs_pocket.pdb \
-  -r examples/10gs/10gs_ligand.sdf \
-  -q "CCO" \
-  -o output/
+uv run anchor-dock covalent \
+  --protein protein.pdb \
+  --query "C=CC(=O)NCC" \
+  --reactive-residue CYS145:A \
+  --optimize
 ```
 
-### Recommended Optimized Run
+Free local search:
 
 ```bash
-uv run python scripts/run_pipeline.py \
-  -p protein.pdb \
-  -r ref_ligand.sdf \
-  -q "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O" \
-  -n 1000 \
-  --rmsd_threshold 1.0 \
-  --optimize \
-  --optimizer lbfgs
+uv run anchor-dock free \
+  --protein pocket.pdb \
+  --query "CCO" \
+  --center 12 -3 8 \
+  --box-size 20 20 20
 ```
 
-Scoring note:
-
-- `Vina` scores include the standard torsional entropy penalty by default
-- use `--no_torsion_penalty` only when you explicitly want interaction-only scores
-- `opt_batch_size=128` is now the default for same-molecule multi-pose optimization on GPU
-- reduce it if your ligand leaves many representative poses or if GPU memory becomes limiting
-
-### MCS Mode Guidance
-
-- `auto`
-  - recommended default
-  - chooses `multi` for symmetry-equivalent placements
-  - chooses `cross` only when multi-fragment matching increases total mapped atoms
-  - otherwise uses `single`
-- `single`
-  - use for the fastest and most conservative contiguous-core match
-- `multi`
-  - use when the reference is symmetric and you want all equivalent placements enumerated
-  - current pipeline still continues with the first candidate after enumeration
-- `cross`
-  - use when one contiguous MCS is too restrictive and multiple fragments matter
-  - current pipeline still continues with the first generated combination
-
-### Query From SDF
+Batch execution:
 
 ```bash
-uv run python scripts/run_pipeline.py \
-  -p protein.pdb \
-  -r ref_ligand.sdf \
-  -q query_ligand.sdf \
-  -o output_sdf/
+uv run anchor-dock batch examples/batch/jobs.jsonl \
+  --output screen \
+  --resume
 ```
 
-### Optimize Existing Pose Only
+Each command prints JSON. A batch command exits nonzero when any recorded result failed. Run `anchor-dock <mode> --help` for all options.
+
+The legacy flags `--weight-preset`, `--no-mmff`, and `--free-mcs` warn and translate for one release. `vina_lp` fails instead of being silently remapped.
+
+## MCS modes
+
+- `auto`: choose cross-fragment anchors only when they cover more atoms; otherwise preserve all distinct contiguous placements when needed.
+- `single`: one deterministic largest contiguous placement.
+- `multi`: bounded distinct contiguous occurrences and symmetry correspondences.
+- `cross`: bounded non-overlapping fragment combinations, including alternative linker-cut packings.
+
+MCS timeouts and hard node-budget exhaustion discard partial results and fail. Configured candidate/decomposition caps instead return deterministic bounded candidates with false proof flags. Mapping failures retain mapping pairs, original selection index, and seed. `MCS_Candidate_Complete`, `MCS_Max_Size_Proven`, and `MCS_Candidate_Limit` distinguish exhaustive candidate sets from deterministic capped subsets. Because fragment decomposition is bounded, any nonempty cross search—including `auto` that ultimately resolves to `single` or `multi`—records the overall proof flags as false even when all placements of its chosen patterns were enumerated. `max_mappings` is limited to 4096.
+
+## Reading output
+
+Use `AnchorDock_Score` for sorted reported scores and `AnchorDock_Search_Energy` for the objective. Keep scorer/receptor/source fingerprints, units, semantics, intramolecular reference, package/schema version, and `Search_Parameters`. Requested/applied torsion and optimization fields are separate. Covalent output records atom-pair bond-target source/bounds, 1–3 geometry, the reactant receptor fingerprint, and the versioned product-state nucleophile typing change.
+
+Free mode samples seeded Haar-uniform SO(3) starting orientations. Ligands and references must be single connected components; salts and mixtures fail explicitly.
+
+## Verification
 
 ```bash
-uv run python scripts/optimize_pose.py \
-  -p protein.pdb \
-  -l ligand.sdf \
-  -o optimized.sdf \
-  --steps 200 \
-  --optimizer lbfgs
-```
-
-## Example Assets
-
-Sample inputs and visual outputs live under `examples/10gs`.
-
-Useful files:
-
-- `examples/10gs/10gs_pocket.pdb`
-- `examples/10gs/10gs_ligand.sdf`
-- `examples/10gs/visualizations/test_run.gif`
-- `examples/10gs/visualizations/test_ref_run.gif`
-- `examples/10gs/visualizations/coverage/`
-- `examples/10gs/predictions/`
-
-## Relaxation And Score Metadata
-
-Each exported SDF can include run metadata that explains what happened during placement and optimization.
-
-Important fields:
-
-- `LigAlign_MCS_Mode`: the mode actually used after `auto` resolution
-- `LigAlign_MCS_Mode_Requested`: the mode requested by the user
-- `LigAlign_MMFF_Requested`: whether relaxation was requested
-- `LigAlign_MMFF_Optimized`: whether relaxation actually ran successfully
-- `LigAlign_Relaxation_Summary`: why relaxation was applied, skipped, or fell back
-- `Vina_Score_Initial`: score before gradient optimization
-- `Vina_Score_Final`: score after optimization or final ranking pass
-- `Vina_Score_Delta`: final minus initial score
-
-Practical interpretation:
-
-- if `LigAlign_MMFF_Requested=True` and `LigAlign_MMFF_Optimized=False`, the pipeline judged that relaxation was not safe or not meaningful for that pose
-- if `Vina_Score_Delta` is negative, optimization improved the score
-- if `Vina_Score_Delta` is near zero, either the pose was already near a local minimum or there were no useful torsional moves available
-
-## Testing
-
-Run the existing tests with `uv` so the same environment definition is reused.
-
-```bash
-uv run python tests/test_mcs_modes_cli.py
-uv run python tests/test_pipeline_api.py
-uv run python tests/test_unified_mcs_api.py
-uv run python tests/test_mcs_auto_mode.py
+uv lock --check
+uv run --frozen ruff check src tests examples
+uv run --frozen pytest -q
+uv build --wheel
 ```

@@ -1,37 +1,64 @@
-"""Shared AnchorDock computational core."""
+"""Scorer-independent computational core."""
 
 from .conformers import generate_conformers_and_cluster
-from .features import compute_vina_features
+from .engine import DockingEngine, PreparedDockingProblem
+from .features import ATOM_TYPING_VERSION, compute_atom_features, infer_xs_atom_types
 from .io import (
-    PocketBundle,
-    clear_pocket_cache,
+    ReceptorContext,
+    choose_device,
+    clear_receptor_cache,
     extract_pocket_around_residue,
-    load_pocket_bundle,
-    process_query_ligand,
+    load_ligand,
+    load_receptor_context,
+    load_reference_ligand,
+    receptor_context_from_mol,
 )
-from .kinematics import BatchedLigandKinematics, LigandKinematics, get_batched_rotation_matrix, get_rotation_matrix
+from .kinematics import LigandKinematics, build_kinematic_topology, get_batched_rotation_matrix, get_rotation_matrix
 from .masks import compute_intramolecular_mask
-from .optimization import optimize_torsions_vina
-from .output import final_selection, write_ranked_poses
-from .scoring import VINA_WEIGHTS, precompute_interaction_matrices, vina_scoring
+from .optimization import FreePoseModel, OptimizationStats, optimize_pose_module, optimize_torsions
+from .output import write_ranked_poses
+from .scoring import (
+    NeuralScorerAdapter,
+    PairwiseScorer,
+    PreparedScorer,
+    RawScoreComponents,
+    ScoreComponents,
+    ScoringConfig,
+    pair_terms,
+    resolve_scorer,
+)
 
 __all__ = [
-    "BatchedLigandKinematics",
+    "ATOM_TYPING_VERSION",
+    "DockingEngine",
+    "FreePoseModel",
     "LigandKinematics",
-    "PocketBundle",
-    "VINA_WEIGHTS",
-    "clear_pocket_cache",
+    "NeuralScorerAdapter",
+    "OptimizationStats",
+    "PairwiseScorer",
+    "PreparedDockingProblem",
+    "PreparedScorer",
+    "RawScoreComponents",
+    "ReceptorContext",
+    "ScoreComponents",
+    "ScoringConfig",
+    "build_kinematic_topology",
+    "choose_device",
+    "clear_receptor_cache",
+    "compute_atom_features",
     "compute_intramolecular_mask",
-    "compute_vina_features",
     "extract_pocket_around_residue",
-    "final_selection",
     "generate_conformers_and_cluster",
     "get_batched_rotation_matrix",
     "get_rotation_matrix",
-    "load_pocket_bundle",
-    "optimize_torsions_vina",
-    "precompute_interaction_matrices",
-    "process_query_ligand",
-    "vina_scoring",
+    "infer_xs_atom_types",
+    "load_ligand",
+    "load_receptor_context",
+    "load_reference_ligand",
+    "optimize_pose_module",
+    "optimize_torsions",
+    "pair_terms",
+    "receptor_context_from_mol",
+    "resolve_scorer",
     "write_ranked_poses",
 ]

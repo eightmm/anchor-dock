@@ -1,8 +1,12 @@
-# Progress
+# Archived pre-0.3 progress report
+
+> Historical record only. The current AnchorDock 0.3 engine, score semantics,
+> metadata schema, and runtime behavior differ; see the repository README and
+> `docs/`.
 
 ## Summary
 
-This report focuses on what the current LigAlign pipeline does, what kinds of reference-guided behavior it can show, and what the latest visualization set demonstrates.
+At the time of capture, this report described what the LigAlign pipeline did and what its visualization set demonstrated.
 
 Core idea:
 
@@ -13,8 +17,8 @@ Core idea:
 
 Architecture reference:
 
-- [Full pipeline diagram](../docs/ARCHITECTURE.md#pipeline-summary)
-- [MCS decision rule](../docs/ARCHITECTURE.md#mcs-decision-rule)
+- [Current architecture](../docs/ARCHITECTURE.md)
+- [Current reference strategy](../docs/ARCHITECTURE.md#reference-strategy)
 - [Full architecture note](../docs/ARCHITECTURE.md)
 
 Quick flow:
@@ -27,7 +31,7 @@ Quick flow:
 
 ## How It Works
 
-Current pipeline flow:
+Captured pipeline flow:
 
 1. find an MCS between reference and query
 2. use the reference MCS coordinates as an anchor for query conformer generation
@@ -37,17 +41,17 @@ Current pipeline flow:
 6. optimize torsions against the pocket score
 7. export poses and score metadata
 
-Current runtime behavior:
+Captured runtime behavior:
 
 - `mcs_mode=auto` chooses between `single`, `multi`, and `cross`
 - relaxation safely skips trivial fixed-core cases
 - output SDFs record selected mode, relaxation status, and score deltas
-- current batched optimization supports multiple poses of the same molecule, not mixed-molecule batches
+- the captured batched optimizer supported multiple poses of the same molecule, not mixed-molecule batches
 - reported `Vina` scores now follow the standard formula by default, including the torsional penalty term
 
 ## What This Setup Can Show
 
-The current asset set is useful for four questions:
+The archived asset set is useful for four questions:
 
 1. What does a representative optimization trajectory look like?
 2. What changes when the run is explicitly reference-guided?
@@ -183,7 +187,7 @@ Main takeaway:
 
 ### GPU Batch Scaling
 
-The main runtime result is the GPU scaling behavior of the current same-molecule multi-pose optimizer.
+The main archived runtime result is the GPU scaling behavior of the then-current same-molecule multi-pose optimizer.
 
 Conditions:
 
@@ -215,19 +219,19 @@ Interpretation:
 - `batch_size=32` reduced runtime by about `13.6x` relative to `batch_size=1`
 - peak allocated VRAM rose from `19.5 MB` to `61.3 MB`, which is small relative to the observed speedup
 - early stopping remained useful across all batch sizes, typically reducing the mean step count from about `200` to about `150`
-- the current implementation is therefore compute-limited rather than VRAM-limited for this workload
+- the captured implementation was therefore compute-limited rather than VRAM-limited for this workload
 
 Operational decision:
 
 - the default `opt_batch_size` is now set to `128`
-- this is intended for the current same-molecule batched optimizer on GPU
+- this measurement applied to the captured same-molecule batched optimizer on GPU
 - users should reduce it manually when a query yields many representative poses or when working in tighter GPU-memory environments
 - this report directly validates scaling up to `32`; the `128` default is an operating choice rather than a measured optimum
 
-## Current Limitations
+## Limitations at capture time
 
-- batching currently covers multiple poses of the same molecule, not mixed-molecule batches
-- `multi` and `cross` still enumerate alternatives but continue with the first candidate
+- batching covered multiple poses of the same molecule, not mixed-molecule batches
+- the captured `multi` and `cross` modes enumerated alternatives but continued with the first candidate
 - runtime variance remains sensitive to how many representative poses survive clustering
 - the `opt_batch_size=128` default has not yet been benchmarked in this report beyond `32`
 
