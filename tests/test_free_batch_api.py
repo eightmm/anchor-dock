@@ -4,6 +4,7 @@ import gzip
 import io
 import json
 import os
+import warnings
 from pathlib import Path
 
 import pytest
@@ -962,3 +963,63 @@ def test_manifest_paths_are_resolved_relative_to_manifest(tmp_path: Path) -> Non
     assert isinstance(item, DockingJob)
     assert Path(item.protein_pdb) == inputs / "protein.pdb"
     assert Path(item.reference_ligand) == inputs / "reference.sdf"
+
+
+def test_invalid_direct_docking_job_mode_is_preflight_failure(monkeypatch, tmp_path: Path) -> None:
+    def unreachable_dispatch(job, output_dir, options):
+        del job, output_dir, options
+        pytest.fail("dispatch must not run for an invalid direct DockingJob mode")
+
+    monkeypatch.setattr("anchor_dock.batch._dispatch", unreachable_dispatch)
+    job = DockingJob("fre", "CCO", protein_pdb="protein.pdb", id="typo-mode")
+    results = dock_batch([job], output_dir=tmp_path / "invalid-mode", on_error="record")
+    assert results[0]["success"] is False
+    assert "mode must be reference, covalent or free" in results[0]["error"]
+    summary = json.loads((tmp_path / "invalid-mode" / "summary.json").read_text())
+    assert summary["errors"] == 1
+    assert summary["successful"] == 0
+
+
+def test_invalid_direct_docking_job_mode_raises_under_on_error_raise(tmp_path: Path) -> None:
+    job = DockingJob("fre", "CCO", protein_pdb="protein.pdb", id="typo-mode")
+    with pytest.raises(ValueError, match="mode must be reference, covalent or free"):
+        dock_batch([job], output_dir=tmp_path / "invalid-mode-raise", on_error="raise")
+
+
+def test_dispatch_defensively_rejects_invalid_mode(tmp_path: Path) -> None:
+    from anchor_dock.batch import _dispatch
+
+    bad_job = DockingJob("fre", "CCO", protein_pdb="protein.pdb", id="typo-mode")
+    with pytest.raises(ValueError, match="unsupported docking mode"):
+        _dispatch(bad_job, tmp_path / "dispatch", {})
+
+
+def test_covalent_dispatch_uses_canonical_pipeline_without_compat_warning(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import anchor_dock._compat as compat
+    import anchor_dock.covalent as covalent_package
+    import anchor_dock.covalent.pipeline as covalent_pipeline
+    from anchor_dock.batch import _dispatch
+
+    captured: dict[str, object] = {}
+
+    def fake_canonical(protein_pdb, ligand, reactive_residue, output_dir, **options):
+        del protein_pdb, ligand, reactive_residue
+        captured["options"] = options
+        return _pose_result(Path(output_dir), "covalent")
+
+    def unreachable_compat(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        pytest.fail("canonical covalent batch dispatch must not cross the 0.2 compatibility wrapper")
+
+    monkeypatch.setattr(covalent_pipeline, "dock_covalent", fake_canonical)
+    monkeypatch.setattr(compat, "dock_covalent", unreachable_compat)
+    monkeypatch.setattr(covalent_package, "dock_covalent", unreachable_compat)
+
+    job = DockingJob.covalent("C=CC(=O)N", protein_pdb="p.pdb", reactive_residue="CYS1:A")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        _dispatch(job, tmp_path / "covalent-dispatch", {})
+    assert "optimize" not in captured["options"]

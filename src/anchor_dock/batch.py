@@ -896,6 +896,8 @@ def _materialize_job(
     reactive_residue: str | None,
 ) -> DockingJob:
     if isinstance(item, DockingJob):
+        if item.mode not in {"reference", "covalent", "free"}:
+            raise ValueError("mode must be reference, covalent or free")
         job = item
     else:
         if mode is None:
@@ -998,7 +1000,7 @@ def _prepare_batch_entries(
 
 def _dispatch(job: DockingJob, output_dir: Path, options: dict[str, object]) -> dict[str, object]:
     if job.mode == "reference":
-        from .reference import dock_reference
+        from .reference.pipeline import dock_reference
 
         assert job.reference_ligand is not None
         return dock_reference(
@@ -1009,7 +1011,7 @@ def _dispatch(job: DockingJob, output_dir: Path, options: dict[str, object]) -> 
             **options,
         )
     if job.mode == "covalent":
-        from .covalent import dock_covalent
+        from .covalent.pipeline import dock_covalent
 
         return dock_covalent(
             job.protein_pdb,  # type: ignore[arg-type]
@@ -1018,9 +1020,11 @@ def _dispatch(job: DockingJob, output_dir: Path, options: dict[str, object]) -> 
             output_dir,
             **options,
         )
-    from .free import dock_free
+    if job.mode == "free":
+        from .free import dock_free
 
-    return dock_free(job.protein_pdb, job.ligand, output_dir, **options)  # type: ignore[arg-type]
+        return dock_free(job.protein_pdb, job.ligand, output_dir, **options)  # type: ignore[arg-type]
+    raise ValueError(f"unsupported docking mode: {job.mode!r}")
 
 
 def _atomic_write_text(path: Path, payload: str) -> None:
