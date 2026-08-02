@@ -8,6 +8,7 @@ import os
 import re
 from collections import OrderedDict
 from dataclasses import dataclass
+from itertools import islice
 from pathlib import Path
 
 import numpy as np
@@ -77,10 +78,11 @@ def _read_single_molecule(path: Path, *, remove_hydrogens: bool) -> Chem.Mol:
     suffix = path.suffix.lower()
     if suffix == ".sdf":
         supplier = Chem.SDMolSupplier(str(path), removeHs=remove_hydrogens)
-        records = list(supplier)
+        records = list(islice(supplier, 2))
         if len(records) != 1:
+            record_count = "0" if not records else "more than one"
             raise ValueError(
-                f"single-molecule input requires exactly one SDF record, found {len(records)} in {path}; "
+                f"single-molecule input requires exactly one SDF record, found {record_count} in {path}; "
                 "use dock_batch for multi-ligand SDF files"
             )
         mol = records[0]

@@ -49,7 +49,7 @@ uv run anchor-dock batch examples/batch/jobs.jsonl \
   --resume
 ```
 
-`free` defaults to `--optimize`; pass `--no-optimize` to skip local refinement. Single-molecule inputs (`reference`, `covalent`, `free`) require an SDF file with exactly one record; multi-ligand SDF files must go through `batch`.
+`free` defaults to `--optimize`; pass `--no-optimize` to skip local refinement. Query ligands may still be passed as SMILES, InChI, or supported molecule files. When a ligand or reference input is an SDF, it must contain exactly one record; multi-ligand SDF files must go through `batch`.
 
 Each command prints JSON. A batch command exits nonzero when any recorded result failed. Run `anchor-dock <mode> --help` for all options.
 
