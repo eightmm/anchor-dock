@@ -681,7 +681,7 @@ def test_resume_invalidates_when_options_change(monkeypatch, tmp_path: Path) -> 
     assert "resumed" not in changed[0]
 
 
-def test_resume_invalidates_when_batch_signature_epoch_changes(monkeypatch, tmp_path: Path) -> None:
+def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkeypatch, tmp_path: Path) -> None:
     import anchor_dock.batch as batch_module
 
     calls = 0
@@ -696,16 +696,22 @@ def test_resume_invalidates_when_batch_signature_epoch_changes(monkeypatch, tmp_
     job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="epoch")
     root = tmp_path / "resume-epoch"
     current_epoch = batch_module._BATCH_SCHEMA_VERSION
+    current_output_schema = batch_module.OUTPUT_SCHEMA_VERSION
     assert current_epoch == "3"
+    assert current_output_schema == "2"
 
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "2")
     previous = dock_batch([job], output_dir=root)[0]
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", current_epoch)
     current = dock_batch([job], output_dir=root, resume=True)[0]
+    monkeypatch.setattr(batch_module, "OUTPUT_SCHEMA_VERSION", "future")
+    future = dock_batch([job], output_dir=root, resume=True)[0]
 
-    assert calls == 2
+    assert calls == 3
     assert previous["job_signature"] != current["job_signature"]
+    assert current["job_signature"] != future["job_signature"]
     assert "resumed" not in current
+    assert "resumed" not in future
 
 
 def test_resume_signature_tracks_resolved_device_and_runtime_versions(monkeypatch, tmp_path: Path) -> None:
@@ -1049,4 +1055,35 @@ def test_covalent_dispatch_uses_canonical_pipeline_without_compat_warning(
     with warnings.catch_warnings():
         warnings.simplefilter("error", FutureWarning)
         _dispatch(job, tmp_path / "covalent-dispatch", {})
+    assert "optimize" not in captured["options"]
+
+
+def test_reference_dispatch_uses_canonical_pipeline_without_compat_warning(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import anchor_dock._compat as compat
+    import anchor_dock.reference as reference_package
+    import anchor_dock.reference.pipeline as reference_pipeline
+    from anchor_dock.batch import _dispatch
+
+    captured: dict[str, object] = {}
+
+    def fake_canonical(protein_pdb, reference_ligand, ligand, output_dir, **options):
+        del protein_pdb, reference_ligand, ligand
+        captured["options"] = options
+        return _pose_result(Path(output_dir), "reference")
+
+    def unreachable_compat(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        pytest.fail("canonical reference batch dispatch must not cross the 0.2 compatibility wrapper")
+
+    monkeypatch.setattr(reference_pipeline, "dock_reference", fake_canonical)
+    monkeypatch.setattr(compat, "dock_reference", unreachable_compat)
+    monkeypatch.setattr(reference_package, "dock_reference", unreachable_compat)
+
+    job = DockingJob.reference("CCO", protein_pdb="p.pdb", reference_ligand="r.sdf")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
+        _dispatch(job, tmp_path / "reference-dispatch", {})
     assert "optimize" not in captured["options"]

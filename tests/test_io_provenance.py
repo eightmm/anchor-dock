@@ -126,5 +126,6 @@ def test_free_docking_tags_true_conformer_and_representative_index(
         start_index = int(pose_id.split("_")[1])
         representative_index = start_index % 2
         expected_conformer_id = [7, 19][representative_index]
+        assert pose.GetProp("AnchorDock_Output_Schema") == "2"
         assert pose.GetProp("AnchorDock_Source_Representative_Index") == str(representative_index)
         assert pose.GetProp("AnchorDock_Source_Conformer") == str(expected_conformer_id)

@@ -99,6 +99,6 @@ SDF properties use only the versioned `AnchorDock_*` schema, including:
 - covalent `AnchorDock_Receptor_Reactant_Structure_Fingerprint` and `AnchorDock_Covalent_Receptor_Typing_*` fields;
 - `AnchorDock_Intramolecular_Reference`, torsion/optimization truth fields, and `AnchorDock_Search_Parameters`.
 
-Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied. Single-molecule SDF loaders (`load_ligand`, `load_reference_ligand`) require exactly one SDF record and point multi-ligand inputs to `dock_batch`; free-pose output tags both `AnchorDock_Source_Conformer` (the true RDKit conformer ID) and `AnchorDock_Source_Representative_Index` (its ordinal among representatives).
+Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied. Single-molecule SDF loaders (`load_ligand`, `load_reference_ligand`) require exactly one SDF record and point multi-ligand inputs to `dock_batch`. Output schema `2` defines free-pose `AnchorDock_Source_Conformer` as the true RDKit conformer ID and `AnchorDock_Source_Representative_Index` as its ordinal among representatives.
 
 The advanced shared engine is available as `DockingEngine`. Removed 0.2 façade classes and internal cache hooks are not public API.

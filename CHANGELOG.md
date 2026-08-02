@@ -17,6 +17,6 @@
 - added Haar-uniform free-search rotations, strict RDKit rotor topology, truthful optimization requested/applied/improved fields, and explicit salt/mixture rejection;
 - rejected invalid direct batch modes, routed canonical batch jobs around compatibility adapters, and advanced the resume-signature epoch so pre-fix artifacts are recomputed;
 - rejected occupied or incomplete covalent nucleophiles and invalid rotation scans before docking work begins;
-- required exactly one bounded-read SDF record for single-molecule inputs, added explicit free `--no-optimize`, and recorded both true conformer IDs and representative ordinals;
+- required exactly one bounded-read SDF record for single-molecule inputs, added explicit free `--no-optimize`, and advanced output schema `2` to distinguish true conformer IDs from representative ordinals;
 - removed the unvalidated `vina_lp`, boronic-acid, and ambiguous alkynyl-amide claims instead of silently mapping them;
 - changed scientific score semantics and output tags intentionally; 0.2 numeric results are not comparable to 0.3.

@@ -23,6 +23,7 @@ from rdkit import Chem, rdBase
 
 from ._version import __version__
 from .core.io import file_content_fingerprint
+from .core.output import OUTPUT_SCHEMA_VERSION
 
 
 @dataclass
@@ -276,6 +277,7 @@ def _job_signature(
 ) -> str:
     payload = {
         "schema": _BATCH_SCHEMA_VERSION,
+        "output_schema": OUTPUT_SCHEMA_VERSION,
         "anchor_dock_version": __version__,
         "runtime": dict(runtime_identity),
         "mode": job.mode,
