@@ -52,15 +52,16 @@ class ResidueConfig:
     support_atom_name: str
     bond_length: float
     atomic_number: int
+    expected_neighbor_names: tuple[str, ...] = ()
 
 
 REACTIVE_RESIDUES: dict[str, ResidueConfig] = {
-    "CYS": ResidueConfig("SG", "CB", 1.82, 16),
-    "SER": ResidueConfig("OG", "CB", 1.43, 8),
-    "THR": ResidueConfig("OG1", "CB", 1.43, 8),
-    "TYR": ResidueConfig("OH", "CZ", 1.43, 8),
-    "LYS": ResidueConfig("NZ", "CE", 1.47, 7),
-    "HIS": ResidueConfig("NE2", "CE1", 1.47, 7),
+    "CYS": ResidueConfig("SG", "CB", 1.82, 16, ("CB",)),
+    "SER": ResidueConfig("OG", "CB", 1.43, 8, ("CB",)),
+    "THR": ResidueConfig("OG1", "CB", 1.43, 8, ("CB",)),
+    "TYR": ResidueConfig("OH", "CZ", 1.43, 8, ("CZ",)),
+    "LYS": ResidueConfig("NZ", "CE", 1.47, 7, ("CE",)),
+    "HIS": ResidueConfig("NE2", "CE1", 1.47, 7, ("CE1", "CD2")),
 }
 
 GOOD_COMPATIBILITY: dict[str, set[str]] = {
@@ -220,7 +221,22 @@ def find_reactive_residues(protein_mol: Chem.Mol, residue_spec: str | None = Non
         config = REACTIVE_RESIDUES.get(name)
         if config is None or config.atom_name not in atoms or config.support_atom_name not in atoms:
             continue
-        coord = positions[atoms[config.atom_name]].copy()
+        if any(nb_name not in atoms for nb_name in config.expected_neighbor_names):
+            continue
+
+        nucleophile_idx = atoms[config.atom_name]
+        nucleophile_atom = protein_mol.GetAtomWithIdx(nucleophile_idx)
+        if nucleophile_atom.GetAtomicNum() != config.atomic_number:
+            continue
+
+        expected_neighbor_indices = {atoms[nb_name] for nb_name in config.expected_neighbor_names}
+        actual_heavy_neighbor_indices = {
+            nb.GetIdx() for nb in nucleophile_atom.GetNeighbors() if nb.GetAtomicNum() != 1
+        }
+        if actual_heavy_neighbor_indices != expected_neighbor_indices:
+            continue
+
+        coord = positions[nucleophile_idx].copy()
         support_coord = positions[atoms[config.support_atom_name]].copy()
         vector = coord - support_coord
         norm = float(np.linalg.norm(vector))

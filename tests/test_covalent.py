@@ -24,6 +24,7 @@ from anchor_dock.covalent.pipeline import (
     _product_state_receptor_context,
     clear_covalent_context_cache,
 )
+from anchor_dock.covalent.pipeline import dock_covalent as dock_covalent_canonical
 
 
 @pytest.fixture
@@ -36,13 +37,14 @@ def cys_anchor() -> AnchorPoint:
 def _minimal_reactive_receptor(residue: str) -> tuple[ReceptorContext, AnchorPoint]:
     config = REACTIVE_RESIDUES[residue]
     element = Chem.GetPeriodicTable().GetElementSymbol(config.atomic_number)
-    block = (
-        f"ATOM      1 {config.support_atom_name:>4} {residue:>3} A   1       "
-        "0.000   0.000   0.000  1.00 20.00           C  \n"
-        f"ATOM      2 {config.atom_name:>4} {residue:>3} A   1       "
-        f"1.500   0.000   0.000  1.00 20.00          {element:>2}  \n"
-        "TER\nEND\n"
-    )
+    lines = [
+        f"ATOM      1 {config.support_atom_name:>4} {residue:>3} A   1       0.000   0.000   0.000  1.00 20.00           C  ",
+        f"ATOM      2 {config.atom_name:>4} {residue:>3} A   1       1.500   0.000   0.000  1.00 20.00          {element:>2}  ",
+    ]
+    if residue == "HIS":
+        lines.append("ATOM      3  CD2 HIS A   1       2.000   1.200   0.000  1.00 20.00           C  ")
+    lines.extend(["TER", "END", ""])
+    block = "\n".join(lines)
     molecule = Chem.MolFromPDBBlock(block, sanitize=False, removeHs=True)
     assert molecule is not None
     anchor = select_reactive_anchor(molecule, f"{residue}1:A")
@@ -426,3 +428,70 @@ def test_covalent_receptor_context_is_cached(cys_pdb: Path) -> None:
     first = _prepare_covalent_receptor(cys_pdb, "CYS145:A", 12.0, True, "cpu")
     second = _prepare_covalent_receptor(cys_pdb, "CYS145:A", 12.0, True, "cpu")
     assert first is second
+
+
+@pytest.mark.parametrize("residue", ["CYS", "SER", "THR", "TYR", "LYS", "HIS"])
+def test_native_connectivity_accepted_for_all_six_residues(residue: str) -> None:
+    _, anchor = _minimal_reactive_receptor(residue)
+    assert anchor.residue_name == residue
+    assert anchor.atom_name == REACTIVE_RESIDUES[residue].atom_name
+
+
+def test_disulfide_and_extra_heavy_neighbor_rejection() -> None:
+    disulfide_pdb = (
+        "ATOM      1  CB  CYS A   1       0.000   0.000   0.000  1.00 20.00           C  \n"
+        "ATOM      2  SG  CYS A   1       1.500   0.000   0.000  1.00 20.00           S  \n"
+        "ATOM      3  SG  CYS A   2       2.800   0.000   0.000  1.00 20.00           S  \n"
+        "ATOM      4  CB  CYS A   2       4.300   0.000   0.000  1.00 20.00           C  \n"
+        "TER\nEND\n"
+    )
+    mol_disulfide = Chem.MolFromPDBBlock(disulfide_pdb, sanitize=False, removeHs=True)
+    assert mol_disulfide is not None
+    with pytest.raises(ValueError, match="no supported reactive residue found"):
+        select_reactive_anchor(mol_disulfide, "CYS1:A")
+
+    extra_lys_pdb = (
+        "ATOM      1  CE  LYS A   1       0.000   0.000   0.000  1.00 20.00           C  \n"
+        "ATOM      2  NZ  LYS A   1       1.500   0.000   0.000  1.00 20.00           N  \n"
+        "ATOM      3  C1  LYS A   1       2.000   1.200   0.000  1.00 20.00           C  \n"
+        "TER\nEND\n"
+    )
+    mol_extra_lys = Chem.MolFromPDBBlock(extra_lys_pdb, sanitize=False, removeHs=True)
+    assert mol_extra_lys is not None
+    with pytest.raises(ValueError, match="no supported reactive residue found"):
+        select_reactive_anchor(mol_extra_lys, "LYS1:A")
+
+
+def test_incomplete_his_rejection() -> None:
+    his_no_cd2 = (
+        "ATOM      1  CE1 HIS A   1       0.000   0.000   0.000  1.00 20.00           C  \n"
+        "ATOM      2  NE2 HIS A   1       1.500   0.000   0.000  1.00 20.00           N  \n"
+        "TER\nEND\n"
+    )
+    mol_no_cd2 = Chem.MolFromPDBBlock(his_no_cd2, sanitize=False, removeHs=True)
+    assert mol_no_cd2 is not None
+    with pytest.raises(ValueError, match="no supported reactive residue found"):
+        select_reactive_anchor(mol_no_cd2, "HIS1:A")
+
+    his_unbonded_cd2 = (
+        "ATOM      1  CE1 HIS A   1       0.000   0.000   0.000  1.00 20.00           C  \n"
+        "ATOM      2  NE2 HIS A   1       1.500   0.000   0.000  1.00 20.00           N  \n"
+        "ATOM      3  CD2 HIS A   1      10.000   0.000   0.000  1.00 20.00           C  \n"
+        "TER\nEND\n"
+    )
+    mol_unbonded = Chem.MolFromPDBBlock(his_unbonded_cd2, sanitize=False, removeHs=True)
+    assert mol_unbonded is not None
+    with pytest.raises(ValueError, match="no supported reactive residue found"):
+        select_reactive_anchor(mol_unbonded, "HIS1:A")
+
+
+def test_dock_covalent_early_rotation_validation(tmp_path: Path) -> None:
+    non_existent = tmp_path / "non_existent_receptor.pdb"
+    with pytest.raises(ValueError, match="rotation_scan_step must be in 1..360 or 0 to disable"):
+        dock_covalent_canonical(non_existent, "C=CC(=O)N", "CYS1:A", rotation_scan_step=-1)
+
+    with pytest.raises(ValueError, match="rotation_scan_step must be in 1..360 or 0 to disable"):
+        dock_covalent_canonical(non_existent, "C=CC(=O)N", "CYS1:A", rotation_scan_step=361)
+
+    with pytest.raises(ValueError, match="rotation_top_k must be positive when rotation scanning is enabled"):
+        dock_covalent_canonical(non_existent, "C=CC(=O)N", "CYS1:A", rotation_scan_step=30, rotation_top_k=0)

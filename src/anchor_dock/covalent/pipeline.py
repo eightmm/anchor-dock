@@ -243,9 +243,9 @@ def _rotation_scan(
     nucleophile_coord: torch.Tensor,
     step_degrees: int,
 ) -> torch.Tensor:
-    if step_degrees <= 0:
+    if step_degrees == 0:
         return coords.unsqueeze(0)
-    if step_degrees > 360:
+    if step_degrees < 0 or step_degrees > 360:
         raise ValueError("rotation_scan_step must be in 1..360 or 0 to disable")
     angles = torch.arange(0, 360, step_degrees, dtype=coords.dtype, device=coords.device)
     angles = angles * torch.pi / 180.0
@@ -288,6 +288,11 @@ def dock_covalent(
     when the protein contains exactly one supported nucleophile.
     """
     started = time.perf_counter()
+    if rotation_scan_step < 0 or rotation_scan_step > 360:
+        raise ValueError("rotation_scan_step must be in 1..360 or 0 to disable")
+    if rotation_scan_step > 0 and rotation_top_k <= 0:
+        raise ValueError("rotation_top_k must be positive when rotation scanning is enabled")
+
     context = _prepare_covalent_receptor(protein_pdb, reactive_residue, pocket_cutoff, include_heteroatoms, device)
     anchor = context.anchor
     receptor = context.receptor
@@ -419,8 +424,6 @@ def dock_covalent(
         best_rotation = scan_scores.argmin(dim=0)
         conformer_indices = torch.arange(conformer_count, device=target_device)
         coords = rotated[best_rotation, conformer_indices]
-        if rotation_top_k <= 0:
-            raise ValueError("rotation_top_k must be positive when rotation scanning is enabled")
         best_scores = scan_scores[best_rotation, conformer_indices]
         keep = torch.argsort(best_scores)[: min(rotation_top_k, conformer_count)]
         coords = coords[keep]
