@@ -681,6 +681,33 @@ def test_resume_invalidates_when_options_change(monkeypatch, tmp_path: Path) -> 
     assert "resumed" not in changed[0]
 
 
+def test_resume_invalidates_when_batch_signature_epoch_changes(monkeypatch, tmp_path: Path) -> None:
+    import anchor_dock.batch as batch_module
+
+    calls = 0
+
+    def fake_dispatch(job, output_dir, options):
+        nonlocal calls
+        del job, options
+        calls += 1
+        return _pose_result(output_dir)
+
+    monkeypatch.setattr(batch_module, "_dispatch", fake_dispatch)
+    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="epoch")
+    root = tmp_path / "resume-epoch"
+    current_epoch = batch_module._BATCH_SCHEMA_VERSION
+    assert current_epoch == "3"
+
+    monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "2")
+    previous = dock_batch([job], output_dir=root)[0]
+    monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", current_epoch)
+    current = dock_batch([job], output_dir=root, resume=True)[0]
+
+    assert calls == 2
+    assert previous["job_signature"] != current["job_signature"]
+    assert "resumed" not in current
+
+
 def test_resume_signature_tracks_resolved_device_and_runtime_versions(monkeypatch, tmp_path: Path) -> None:
     import anchor_dock.batch as batch_module
 

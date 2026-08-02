@@ -15,5 +15,8 @@
 - standardized all SDF metadata under versioned `AnchorDock_*` fields and reject non-finite or dimensionally invalid output;
 - added typed table options, content-hashed input/scorer/output resume integrity, runtime-aware batch signatures, callable/code/state-aware custom scorer fingerprints, atomic running/complete manifests, safe output-tree exclusion and all-input/output collision preflight, malformed-record reporting, water typing, and bounded receptor caches;
 - added Haar-uniform free-search rotations, strict RDKit rotor topology, truthful optimization requested/applied/improved fields, and explicit salt/mixture rejection;
+- rejected invalid direct batch modes, routed canonical batch jobs around compatibility adapters, and advanced the resume-signature epoch so pre-fix artifacts are recomputed;
+- rejected occupied or incomplete covalent nucleophiles and invalid rotation scans before docking work begins;
+- required exactly one bounded-read SDF record for single-molecule inputs, added explicit free `--no-optimize`, and recorded both true conformer IDs and representative ordinals;
 - removed the unvalidated `vina_lp`, boronic-acid, and ambiguous alkynyl-amide claims instead of silently mapping them;
 - changed scientific score semantics and output tags intentionally; 0.2 numeric results are not comparable to 0.3.

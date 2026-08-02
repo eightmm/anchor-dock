@@ -153,7 +153,8 @@ _SUPPORTED_SUFFIXES = {
     ".ndjson",
 }
 _COMPRESSED_SUFFIXES = {".gz", ".bz2", ".xz", ".lzma"}
-_BATCH_SCHEMA_VERSION = "2"
+# Resume-signature epoch: bump whenever older successful artifacts are no longer semantically reusable.
+_BATCH_SCHEMA_VERSION = "3"
 _BATCH_MANIFEST_NAMES = ("results.jsonl", "summary.json")
 
 
