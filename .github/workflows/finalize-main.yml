@@ -1,0 +1,27 @@
+name: Finalize AnchorDock main branch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-temporary-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete final integration branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(curl -sS -o /tmp/delete-ref.json -w '%{http_code}' \
+            -X DELETE \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/refs/heads/agent/final-engine-cleanup")
+          case "$status" in
+            204|404|422) exit 0 ;;
+            *) cat /tmp/delete-ref.json; exit 1 ;;
+          esac

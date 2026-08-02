@@ -1,368 +1,317 @@
-"""Covalent docking strategy built on :mod:`anchor_dock.core`."""
+"""Covalent residue-warhead docking on the shared AnchorDock engine."""
 
 from __future__ import annotations
 
 import os
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
-import numpy as np
 import torch
-from rdkit import Chem, RDLogger
-from rdkit.Geometry import Point3D
+from rdkit import Chem
+from rdkit.Chem import rdMolDescriptors
 
-from anchor_dock.core import (
-    PocketBundle,
-    compute_intramolecular_mask,
-    compute_vina_features,
+from ..core.conformers import generate_conformers_and_cluster
+from ..core.engine import DockingEngine
+from ..core.features import ATOM_TYPING_VERSION
+from ..core.io import (
+    ReceptorContext,
+    choose_device,
     extract_pocket_around_residue,
-    generate_conformers_and_cluster,
-    optimize_torsions_vina,
-    precompute_interaction_matrices,
-    process_query_ligand,
-    vina_scoring,
-    write_ranked_poses,
+    load_ligand,
+    receptor_context_from_mol,
 )
-
-from .adduct import create_adduct_template, get_protein_exclusion_atom_indices
+from ..core.kinematics import get_batched_rotation_matrix
+from ..core.output import write_ranked_poses
+from ..core.scoring import ScorerLike
+from .adduct import (
+    create_adduct_template,
+    create_covalent_exclusion_mask,
+    find_receptor_nucleophile_index,
+)
 from .anchor import (
-    REACTIVE_RESIDUES,
     AnchorPoint,
     check_warhead_residue_compatibility,
     create_covalent_coordmap,
     detect_warheads,
-    find_reactive_residues,
+    select_reactive_anchor,
 )
 
 
-def _device(value: str | torch.device | None) -> torch.device:
-    if value is None:
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    result = torch.device(value)
-    if result.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is not available")
-    return result
+@dataclass(frozen=True)
+class CovalentReceptorContext:
+    """Cached reactive anchor and extracted receptor pocket."""
+
+    anchor: AnchorPoint
+    receptor: ReceptorContext
 
 
-def _residue_id(anchor: AnchorPoint) -> str:
-    base = f"{anchor.residue_name}{anchor.residue_num}"
-    return f"{base}:{anchor.chain_id}" if anchor.chain_id else base
+_COVALENT_CONTEXT_CACHE: dict[tuple[object, ...], CovalentReceptorContext] = {}
 
 
-def load_pocket_for_caching(
-    protein_pdb: str,
-    reactive_residue: str | None = None,
-    pocket_cutoff: float = 12.0,
-    device: str | torch.device | None = None,
-    verbose: bool = True,
-) -> dict[str, object]:
-    """Load a receptor, choose an anchor, and cache its extracted pocket features."""
-    target_device = _device(device)
-    protein = Chem.MolFromPDBFile(protein_pdb, sanitize=False, removeHs=True)
+def clear_covalent_context_cache() -> None:
+    _COVALENT_CONTEXT_CACHE.clear()
+
+
+def _prepare_covalent_receptor(
+    protein_pdb: str | os.PathLike[str],
+    reactive_residue: str | None,
+    pocket_cutoff: float,
+    include_heteroatoms: bool,
+    device: str | torch.device | None,
+) -> CovalentReceptorContext:
+    target_device = choose_device(device)
+    path = os.path.abspath(os.fspath(protein_pdb))
+    stat = os.stat(path)
+    key = (
+        path,
+        stat.st_mtime_ns,
+        stat.st_size,
+        reactive_residue.strip() if reactive_residue is not None else None,
+        float(pocket_cutoff),
+        bool(include_heteroatoms),
+        str(target_device),
+        ATOM_TYPING_VERSION,
+    )
+    cached = _COVALENT_CONTEXT_CACHE.get(key)
+    if cached is not None:
+        return cached
+    protein = Chem.MolFromPDBFile(path, sanitize=False, removeHs=True)
     if protein is None:
-        raise ValueError(f"Failed to load protein from {protein_pdb}")
-    anchors = find_reactive_residues(protein, reactive_residue)
-    if not anchors:
-        supported = ", ".join(f"{name}({config.atom_name})" for name, config in REACTIVE_RESIDUES.items())
-        raise ValueError(f"No reactive residue found for {reactive_residue or 'auto-detect'}; supported: {supported}")
-    anchor = anchors[0]
-    residue_id = _residue_id(anchor)
-    pocket = extract_pocket_around_residue(protein, residue_id, cutoff=pocket_cutoff)
-    relocated = find_reactive_residues(pocket, residue_id)
-    if not relocated:
-        raise RuntimeError(f"Reactive residue {residue_id} was lost during pocket extraction")
-    anchor = relocated[0]
-    coords = torch.tensor(pocket.GetConformer().GetPositions(), dtype=torch.float32, device=target_device)
-    features = compute_vina_features(pocket, target_device)
-    bundle = PocketBundle(mol=pocket, coords=coords, features=features)
-    if verbose:
-        print(
-            f"Anchor: {residue_id} {anchor.atom_name}; pocket={pocket.GetNumAtoms()} atoms; "
-            f"device={target_device}"
-        )
-    return {
-        "pocket_bundle": bundle,
-        "anchor": anchor,
-        "residue_spec_str": residue_id,
-        "device": target_device,
-        "source_path": os.path.abspath(protein_pdb),
-        "pocket_cutoff": float(pocket_cutoff),
-    }
+        raise ValueError(f"failed to load protein from {protein_pdb}")
+    anchor = select_reactive_anchor(protein, reactive_residue)
+    pocket = extract_pocket_around_residue(
+        protein,
+        anchor.residue_id,
+        cutoff=pocket_cutoff,
+        include_heteroatoms=include_heteroatoms,
+    )
+    anchor = select_reactive_anchor(pocket, anchor.residue_id)
+    receptor = receptor_context_from_mol(pocket, target_device, source_path=path)
+    context = CovalentReceptorContext(anchor, receptor)
+    _COVALENT_CONTEXT_CACHE[key] = context
+    return context
 
 
-def _align_anchor_atoms(
-    mol: Chem.Mol,
-    conformer_ids: list[int],
-    anchor_indices: list[int],
-    target_positions: np.ndarray,
-) -> None:
-    """Rigidly align each conformer anchor frame to receptor coordinates."""
-    for conformer_id in conformer_ids:
-        conformer = mol.GetConformer(conformer_id)
-        positions = conformer.GetPositions()
-        current = positions[anchor_indices]
-        if len(anchor_indices) == 1:
-            aligned = positions + (target_positions[0] - current[0])
-        else:
-            current_center = current.mean(axis=0)
-            target_center = target_positions.mean(axis=0)
-            covariance = (current - current_center).T @ (target_positions - target_center)
-            u, _, vt = np.linalg.svd(covariance)
-            correction = np.eye(3)
-            if np.linalg.det(vt.T @ u.T) < 0:
-                correction[-1, -1] = -1
-            rotation = vt.T @ correction @ u.T
-            aligned = (positions - current_center) @ rotation.T + target_center
-        for atom_idx, xyz in enumerate(aligned):
-            conformer.SetAtomPosition(atom_idx, Point3D(*map(float, xyz)))
-
-
-def _axis_rotation_scan(
+def _rotation_scan(
     coords: torch.Tensor,
-    cb_position: np.ndarray,
-    nucleophile_position: np.ndarray,
+    support_coord: torch.Tensor,
+    nucleophile_coord: torch.Tensor,
     step_degrees: int,
 ) -> torch.Tensor:
-    """Rotate all poses around the fixed Cβ→nucleophile axis."""
     if step_degrees <= 0:
-        return coords
-    device, dtype = coords.device, coords.dtype
-    cb = torch.as_tensor(cb_position, dtype=dtype, device=device)
-    origin = torch.as_tensor(nucleophile_position, dtype=dtype, device=device)
-    axis = (origin - cb) / torch.linalg.vector_norm(origin - cb).clamp_min(1e-12)
-    angles = torch.arange(0, 360, step_degrees, dtype=dtype, device=device) * torch.pi / 180.0
-    x, y, z = axis
-    zeros = torch.zeros_like(x)
-    skew = torch.stack((zeros, -z, y, z, zeros, -x, -y, x, zeros)).reshape(3, 3)
-    identity = torch.eye(3, dtype=dtype, device=device)
-    rotations = identity + torch.sin(angles)[:, None, None] * skew + (1.0 - torch.cos(angles))[:, None, None] * (skew @ skew)
-    shifted = coords[None, :, :, :] - origin
-    return torch.einsum("rpnc,rcd->rpnd", shifted, rotations.transpose(1, 2)).add(origin).reshape(-1, *coords.shape[1:])
-
-
-def _score_in_chunks(
-    coords: torch.Tensor,
-    pocket: PocketBundle,
-    query_features: dict[str, torch.Tensor],
-    preset: str,
-    precomputed: dict[str, torch.Tensor],
-    chunk_size: int = 256,
-) -> torch.Tensor:
-    scores = []
-    for start in range(0, coords.shape[0], chunk_size):
-        scores.append(
-            vina_scoring(
-                coords[start : start + chunk_size],
-                pocket.coords,
-                query_features,
-                pocket.features,
-                weight_preset=preset,
-                precomputed_matrices=precomputed,
-            )
-        )
-    return torch.cat(scores)
+        return coords.unsqueeze(0)
+    if step_degrees > 360:
+        raise ValueError("rotation_scan_step must be in 1..360 or 0 to disable")
+    angles = torch.arange(0, 360, step_degrees, dtype=coords.dtype, device=coords.device)
+    angles = angles * torch.pi / 180.0
+    axis = nucleophile_coord - support_coord
+    axes = axis.unsqueeze(0).expand(angles.shape[0], -1)
+    rotations = get_batched_rotation_matrix(axes, angles)
+    shifted = coords.unsqueeze(0) - nucleophile_coord
+    return torch.matmul(shifted, rotations.transpose(1, 2)[:, None, :, :]) + nucleophile_coord
 
 
 def dock_covalent(
-    protein_pdb: str,
-    query_ligand: str,
+    protein_pdb: str | os.PathLike[str],
+    query_ligand: str | os.PathLike[str] | Chem.Mol,
     reactive_residue: str | None = None,
-    output_dir: str = "output_predictions",
+    output_dir: str | os.PathLike[str] = "anchor_dock_covalent",
+    *,
     pocket_cutoff: float = 12.0,
-    _cached_pocket: dict[str, object] | None = None,
+    include_heteroatoms: bool = True,
     num_confs: int = 1000,
     rmsd_threshold: float = 1.0,
     rotation_scan_step: int = 30,
     rotation_top_k: int = 50,
-    optimize: bool = False,
-    optimizer: Literal["adam", "adamw", "lbfgs"] = "adam",
+    optimize: bool = True,
+    optimizer: Literal["adam", "lbfgs"] = "adam",
     opt_steps: int = 100,
     opt_lr: float = 0.05,
     opt_batch_size: int = 128,
-    weight_preset: Literal["vina", "vina_lp", "vinardo"] = "vina",
+    scorer: ScorerLike = "vina",
     torsion_penalty: bool = True,
-    save_all_poses: bool | None = None,
     top_k: int | None = None,
-    device: str | torch.device | None = None,
-    verbose: bool = True,
     warhead_index: int = 0,
     strict_compatibility: bool = False,
+    random_seed: int = 42,
+    device: str | torch.device | None = None,
+    verbose: bool = True,
 ) -> dict[str, object]:
-    """Dock a reactive ligand by constructing and optimizing a residue-linked adduct."""
-    started = time.perf_counter()
-    if not verbose:
-        RDLogger.DisableLog("rdApp.warning")
-    cache = _cached_pocket or load_pocket_for_caching(
-        protein_pdb, reactive_residue, pocket_cutoff, device, verbose=verbose
-    )
-    pocket = cache["pocket_bundle"]
-    anchor = cache["anchor"]
-    target_device = cache["device"]
-    if not isinstance(pocket, PocketBundle) or not isinstance(anchor, AnchorPoint) or not isinstance(target_device, torch.device):
-        raise TypeError("Invalid cached pocket object")
+    """Dock a reactive ligand against one explicitly resolved protein anchor.
 
-    ligand, canonical_smiles = process_query_ligand(query_ligand)
-    hits = detect_warheads(ligand)
-    if not hits:
-        raise ValueError("No supported reactive warhead detected")
-    if not 0 <= warhead_index < len(hits):
-        raise IndexError(f"warhead_index={warhead_index} outside 0..{len(hits)-1}")
-    hit = hits[warhead_index]
-    compatible, message = check_warhead_residue_compatibility(
-        hit.warhead_type, anchor.residue_name, strict=strict_compatibility
+    When ``reactive_residue`` is omitted, automatic selection is accepted only
+    when the protein contains exactly one supported nucleophile.
+    """
+    started = time.perf_counter()
+    context = _prepare_covalent_receptor(
+        protein_pdb, reactive_residue, pocket_cutoff, include_heteroatoms, device
+    )
+    anchor = context.anchor
+    receptor = context.receptor
+    target_device = receptor.device
+
+    ligand, canonical_smiles = load_ligand(query_ligand, add_hydrogens=False)
+    warheads = detect_warheads(ligand)
+    if not warheads:
+        raise ValueError("no supported reactive warhead detected")
+    if not 0 <= warhead_index < len(warheads):
+        raise IndexError(f"warhead_index={warhead_index} outside 0..{len(warheads) - 1}")
+    warhead = warheads[warhead_index]
+    compatible, compatibility_message = check_warhead_residue_compatibility(
+        warhead.warhead_type,
+        anchor.residue_name,
+        strict=strict_compatibility,
     )
     if not compatible:
-        raise ValueError(message)
-    if verbose:
-        print(f"Warhead: {hit.warhead_type} at atom {hit.reactive_atom_idx}; {message}")
+        raise ValueError(compatibility_message)
 
-    original_rotors = None
-    if torsion_penalty:
-        from rdkit.Chem import rdMolDescriptors
-        original_rotors = rdMolDescriptors.CalcNumRotatableBonds(ligand)
-
-    adduct, cb_idx, nuc_idx, reactive_idx = create_adduct_template(ligand, hit, anchor)
-    coord_map = create_covalent_coordmap(cb_idx, nuc_idx, anchor)
-    adduct, conformer_ids = generate_conformers_and_cluster(
+    num_rotatable_bonds = (
+        int(rdMolDescriptors.CalcNumRotatableBonds(ligand)) if torsion_penalty else 0
+    )
+    adduct, support_idx, nucleophile_idx, reactive_idx = create_adduct_template(ligand, warhead, anchor)
+    coord_map = create_covalent_coordmap(support_idx, nucleophile_idx, reactive_idx, anchor)
+    adduct, representative_ids = generate_conformers_and_cluster(
         adduct,
         target_device,
         num_confs=num_confs,
         rmsd_threshold=rmsd_threshold,
-        coordMap=coord_map,
-        exact_coordmap_before_clustering=True,
+        coord_map=coord_map,
+        exact_constraints_before_clustering=True,
+        add_hydrogens=False,
+        random_seed=random_seed,
     )
-
-    anchor_indices = ([cb_idx] if cb_idx is not None else []) + [nuc_idx]
-    target_positions = np.asarray(
-        ([anchor.cb_coord] if cb_idx is not None and anchor.cb_coord is not None else []) + [anchor.coord],
-        dtype=float,
-    )
-    _align_anchor_atoms(adduct, conformer_ids, anchor_indices, target_positions)
+    if not representative_ids:
+        raise RuntimeError("covalent conformer generation produced no representative poses")
     coords = torch.stack(
-        [torch.tensor(adduct.GetConformer(cid).GetPositions(), dtype=torch.float32) for cid in conformer_ids]
+        [torch.tensor(adduct.GetConformer(conf_id).GetPositions(), dtype=torch.float32) for conf_id in representative_ids]
     ).to(target_device)
 
-    query_features = compute_vina_features(adduct, target_device)
-    precomputed = precompute_interaction_matrices(query_features, pocket.features, target_device)
-    if rotation_scan_step > 0 and cb_idx is not None and anchor.cb_coord is not None:
-        if rotation_top_k <= 0:
-            raise ValueError("rotation_top_k must be positive when rotation scanning is enabled")
-        rotations_per_conformer = len(range(0, 360, rotation_scan_step))
-        rotated = _axis_rotation_scan(coords, anchor.cb_coord, anchor.coord, rotation_scan_step)
-        quick_scores = _score_in_chunks(rotated, pocket, query_features, weight_preset, precomputed)
-        matrix = quick_scores.reshape(rotations_per_conformer, coords.shape[0])
-        best_rotation = matrix.argmin(dim=0)
-        flat_indices = best_rotation * coords.shape[0] + torch.arange(coords.shape[0], device=target_device)
-        best_per_conformer = rotated[flat_indices]
-        best_scores = quick_scores[flat_indices]
-        selected = torch.argsort(best_scores)[: min(rotation_top_k, coords.shape[0])]
-        coords = best_per_conformer[selected]
-
-    # Exclude pseudo protein atoms against the receptor and the duplicated receptor nucleophile column.
-    pseudo_atoms = {idx for idx in (cb_idx, nuc_idx) if idx is not None}
-    protein_nuc = get_protein_exclusion_atom_indices(pocket.mol, anchor, n_hop_exclude=0)
-    exclusion = torch.zeros(
-        1, adduct.GetNumAtoms(), pocket.mol.GetNumAtoms(), dtype=torch.bool, device=target_device
+    receptor_nucleophile_idx = find_receptor_nucleophile_index(receptor.mol, anchor)
+    pseudo_indices = {support_idx, nucleophile_idx}
+    exclusion = create_covalent_exclusion_mask(
+        adduct,
+        receptor.mol,
+        pseudo_atom_indices=pseudo_indices,
+        reactive_atom_idx=reactive_idx,
+        receptor_nucleophile_idx=receptor_nucleophile_idx,
+        device=target_device,
     )
-    for idx in pseudo_atoms:
-        exclusion[:, idx, :] = True
-    for protein_idx in protein_nuc:
-        exclusion[:, :, protein_idx] = True
-        exclusion[:, reactive_idx, protein_idx] = True
-
-    intra_mask = compute_intramolecular_mask(adduct, target_device, exclude_atom_indices=pseudo_atoms)
-    scores = vina_scoring(
-        coords,
-        pocket.coords,
-        query_features,
-        pocket.features,
-        original_rotors,
-        weight_preset,
-        intramolecular_mask=intra_mask,
-        precomputed_matrices=precomputed,
+    engine = DockingEngine(
+        scorer,
+        device=target_device,
+        optimizer=optimizer,
+        num_steps=opt_steps,
+        learning_rate=opt_lr,
+        batch_size=opt_batch_size,
+    )
+    fixed_indices = (support_idx, nucleophile_idx, reactive_idx)
+    problem = engine.prepare(
+        adduct,
+        receptor,
+        anchor_indices=fixed_indices,
+        num_rotatable_bonds=num_rotatable_bonds,
+        exclude_intramolecular_atoms=pseudo_indices,
         intermolecular_exclusion_mask=exclusion,
     )
-    initial_scores = scores.clone()
 
+    if rotation_scan_step > 0:
+        rotated = _rotation_scan(
+            coords,
+            torch.as_tensor(anchor.support_coord, dtype=coords.dtype, device=target_device),
+            torch.as_tensor(anchor.coord, dtype=coords.dtype, device=target_device),
+            rotation_scan_step,
+        )
+        rotation_count, conformer_count = rotated.shape[:2]
+        scan_scores = problem.scorer.search_energy(rotated.reshape(-1, *coords.shape[1:])).reshape(
+            rotation_count, conformer_count
+        )
+        best_rotation = scan_scores.argmin(dim=0)
+        conformer_indices = torch.arange(conformer_count, device=target_device)
+        coords = rotated[best_rotation, conformer_indices]
+        if rotation_top_k <= 0:
+            raise ValueError("rotation_top_k must be positive when rotation scanning is enabled")
+        best_scores = scan_scores[best_rotation, conformer_indices]
+        keep = torch.argsort(best_scores)[: min(rotation_top_k, conformer_count)]
+        coords = coords[keep]
+
+    initial_coords = coords
     if optimize:
-        fixed = anchor_indices
-        coords = optimize_torsions_vina(
-            adduct,
-            fixed,
-            coords,
-            pocket.coords,
-            query_features,
-            pocket.features,
-            target_device,
-            num_steps=opt_steps,
-            lr=opt_lr,
-            freeze_anchor=True,
-            num_rotatable_bonds=original_rotors,
-            weight_preset=weight_preset,
-            batch_size=opt_batch_size,
-            optimizer=optimizer,
-            intermolecular_exclusion_mask=exclusion,
-            precomputed_matrices=precomputed,
-            intramolecular_exclude_indices=pseudo_atoms,
-        )
-        scores = vina_scoring(
-            coords,
-            pocket.coords,
-            query_features,
-            pocket.features,
-            original_rotors,
-            weight_preset,
-            intramolecular_mask=intra_mask,
-            precomputed_matrices=precomputed,
-            intermolecular_exclusion_mask=exclusion,
-        )
+        final_coords, optimization_stats = engine.optimize_anchored(problem, initial_coords, freeze_anchor=True)
+    else:
+        final_coords = initial_coords
+        optimization_stats = None
+    initial_components, final_components = engine.report_scores(problem, initial_coords, final_coords)
 
-    adduct.SetProp("AnchorDock_Mode", "covalent")
-    adduct.SetProp("AnchorDock_Score_Semantics", "nonbonded_pose_score_conditioned_on_adduct")
-    adduct.SetProp("AnchorDock_Warhead_Type", hit.warhead_type)
-    adduct.SetProp("AnchorDock_Reactive_Atom_Idx", str(reactive_idx))
-    adduct.SetProp("AnchorDock_Anchor_Residue", _residue_id(anchor))
-    adduct.SetProp("AnchorDock_Anchor_Atom", anchor.atom_name)
-    adduct.SetProp("AnchorDock_Gradient_Optimized", str(bool(optimize)))
-    # Legacy SDF properties.
-    adduct.SetProp("CovVina_Warhead_Type", hit.warhead_type)
-    adduct.SetProp("CovVina_Reactive_Atom_Idx", str(reactive_idx))
-    adduct.SetProp("CovVina_Anchor_Residue", _residue_id(anchor))
-    adduct.SetProp("CovVina_Bond_Length", f"{anchor.bond_length:.2f}")
+    bond_lengths = torch.linalg.vector_norm(
+        final_coords[:, reactive_idx] - final_coords[:, nucleophile_idx],
+        dim=1,
+    )
+    target_length = float(anchor.bond_length)
+    if not torch.allclose(bond_lengths, torch.full_like(bond_lengths, target_length), atol=1e-4, rtol=0.0):
+        raise RuntimeError("covalent bond-length invariant was violated during optimization")
 
-    if save_all_poses is False and top_k is None:
-        top_k = 3
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, "covalent_poses_all.sdf" if top_k is None else f"covalent_pose_top{top_k}.sdf")
+    output_path = Path(output_dir) / "covalent_poses.sdf"
+    pose_metadata = [
+        {
+            "Warhead_Type": warhead.warhead_type,
+            "Reactive_Atom_Index": reactive_idx,
+            "Covalent_Bond_Length": f"{float(length):.6f}",
+        }
+        for length in bond_lengths.detach().cpu()
+    ]
     selected = write_ranked_poses(
         adduct,
-        coords,
-        scores,
-        output_file,
-        initial_scores=initial_scores,
-        pose_ids=list(range(coords.shape[0])),
+        final_coords,
+        final_components.score,
+        str(output_path),
+        scorer_name=problem.scorer.name,
+        score_units=problem.scorer.units,
+        search_energies=final_components.search_energy,
+        initial_scores=initial_components.score,
+        pose_ids=[f"p{index:04d}" for index in range(final_coords.shape[0])],
         top_k=top_k,
+        molecule_metadata={
+            "Mode": "covalent",
+            "Anchor_Strategy": "residue_warhead",
+            "Anchor_Residue": anchor.residue_id,
+            "Anchor_Atom": anchor.atom_name,
+            "Support_Atom": anchor.support_atom_name,
+            "Warhead_Type": warhead.warhead_type,
+            "Compatibility": compatibility_message,
+            "Canonical_SMILES": canonical_smiles,
+            "Atom_Typing": receptor.atom_typing_version,
+            "Gradient_Optimized": optimize,
+            "Random_Seed": random_seed,
+        },
+        per_pose_metadata=pose_metadata,
     )
     runtime = time.perf_counter() - started
-    result = {
+    best_idx = int(torch.argmin(final_components.score).item())
+    result: dict[str, object] = {
         "mode": "covalent",
-        "output_file": output_file,
+        "output_file": str(output_path),
         "num_poses": int(selected.numel()),
-        "best_score": float(scores.min().detach().cpu()),
-        "score_semantics": "nonbonded_pose_score_conditioned_on_adduct",
-        "runtime": runtime,
-        "num_conformers": int(num_confs),
-        "num_representatives": int(coords.shape[0]),
-        "warhead_type": hit.warhead_type,
-        "anchor_residue": _residue_id(anchor),
+        "num_representatives": int(final_coords.shape[0]),
+        "best_score": float(final_components.score[best_idx].detach().cpu()),
+        "best_search_energy": float(final_components.search_energy[best_idx].detach().cpu()),
+        "score_units": problem.scorer.units,
+        "scorer": problem.scorer.name,
+        "score_semantics": "adduct_conditioned_pose_ranking",
+        "warhead_type": warhead.warhead_type,
+        "anchor_residue": anchor.residue_id,
         "anchor_atom": anchor.atom_name,
         "canonical_smiles": canonical_smiles,
+        "covalent_bond_length": target_length,
+        "optimized": optimize,
+        "optimization": optimization_stats.as_dict() if optimization_stats is not None else None,
+        "runtime": runtime,
         "device": str(target_device),
     }
     if verbose:
-        print(f"Covalent docking complete: {result['num_poses']} poses, best={result['best_score']:.3f}, {runtime:.2f}s")
+        print(
+            f"covalent docking complete: {result['num_poses']} poses, "
+            f"best={result['best_score']:.4f}, {runtime:.2f}s"
+        )
     return result
-
-
-# Compatibility name used by CovVina.
-run_covalent_pipeline = dock_covalent

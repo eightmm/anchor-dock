@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numpy as np
 import torch
 from rdkit import Chem
 
@@ -85,7 +84,7 @@ def create_adduct_template(
     ligand_mol: Chem.Mol,
     warhead: WarheadHit,
     anchor: AnchorPoint,
-) -> tuple[Chem.Mol, int | None, int, int]:
+) -> tuple[Chem.Mol, int, int, int]:
     """Apply a reaction-class topology transform and attach protein anchor atoms."""
     editable = Chem.RWMol(Chem.RemoveHs(ligand_mol))
     positions = LEAVING_GROUP_MATCH_POSITIONS.get(warhead.warhead_type, ())
@@ -152,11 +151,9 @@ def create_adduct_template(
     shift = sum(idx < original_reactive for idx in remove_indices)
     reactive_idx = original_reactive - shift
 
-    cb_idx = editable.AddAtom(Chem.Atom(6)) if anchor.cb_coord is not None else None
-    nucleophile_atomic_number = {"SG": 16, "OG": 8, "OG1": 8, "OH": 8, "NZ": 7, "NE2": 7}[anchor.atom_name]
-    nuc_idx = editable.AddAtom(Chem.Atom(nucleophile_atomic_number))
-    if cb_idx is not None:
-        editable.AddBond(cb_idx, nuc_idx, Chem.BondType.SINGLE)
+    support_idx = editable.AddAtom(Chem.Atom(6))
+    nuc_idx = editable.AddAtom(Chem.Atom(anchor.atomic_number))
+    editable.AddBond(support_idx, nuc_idx, Chem.BondType.SINGLE)
     editable.AddBond(nuc_idx, reactive_idx, Chem.BondType.SINGLE)
 
     adduct = editable.GetMol()
@@ -164,41 +161,50 @@ def create_adduct_template(
         Chem.SanitizeMol(adduct)
     except Exception as exc:
         raise ValueError(f"Invalid {warhead.warhead_type} adduct topology: {exc}") from exc
-    return adduct, cb_idx, nuc_idx, reactive_idx
+    return adduct, support_idx, nuc_idx, reactive_idx
 
 
-def get_protein_exclusion_atom_indices(
-    pocket_mol: Chem.Mol,
-    anchor: AnchorPoint,
-    n_hop_exclude: int = 0,
-) -> set[int]:
-    positions = pocket_mol.GetConformer().GetPositions()
-    if positions.shape[0] == 0:
-        return set()
-    distances = np.linalg.norm(positions - anchor.coord, axis=1)
-    closest = int(distances.argmin())
-    if distances[closest] > 0.5:
-        return set()
-    result = {closest}
-    for _ in range(n_hop_exclude):
-        result.update(n.GetIdx() for idx in tuple(result) for n in pocket_mol.GetAtomWithIdx(idx).GetNeighbors())
-    return result
+def find_receptor_nucleophile_index(receptor_mol: Chem.Mol, anchor: AnchorPoint) -> int:
+    """Locate the receptor atom represented by the adduct pseudo nucleophile."""
+    matches: list[int] = []
+    for atom in receptor_mol.GetAtoms():
+        info = atom.GetPDBResidueInfo()
+        if info is None:
+            continue
+        if (
+            info.GetResidueName().strip().upper() == anchor.residue_name
+            and info.GetResidueNumber() == anchor.residue_num
+            and info.GetInsertionCode().strip() == anchor.insertion_code
+            and info.GetChainId().strip() == anchor.chain_id
+            and info.GetName().strip().upper() == anchor.atom_name
+        ):
+            matches.append(atom.GetIdx())
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected one receptor atom for {anchor.residue_id} {anchor.atom_name}, found {len(matches)}"
+        )
+    return matches[0]
 
 
-def create_intermolecular_exclusion_mask(
+def create_covalent_exclusion_mask(
     ligand_mol: Chem.Mol,
-    protein_mol: Chem.Mol,
-    ligand_exclude_indices: set[int],
-    protein_exclude_atom_indices: set[int],
+    receptor_mol: Chem.Mol,
+    *,
+    pseudo_atom_indices: set[int],
+    reactive_atom_idx: int,
+    receptor_nucleophile_idx: int,
     device: torch.device | str,
 ) -> torch.Tensor:
+    """Exclude pseudo rows and only the duplicated covalent atom pair."""
     mask = torch.zeros(
-        ligand_mol.GetNumAtoms(), protein_mol.GetNumAtoms(), dtype=torch.bool, device=torch.device(device)
+        ligand_mol.GetNumAtoms(),
+        receptor_mol.GetNumAtoms(),
+        dtype=torch.bool,
+        device=torch.device(device),
     )
-    for idx in ligand_exclude_indices:
-        if 0 <= idx < mask.shape[0]:
-            mask[idx, :] = True
-    for idx in protein_exclude_atom_indices:
-        if 0 <= idx < mask.shape[1]:
-            mask[:, idx] = True
+    for atom_idx in pseudo_atom_indices:
+        if 0 <= atom_idx < mask.shape[0]:
+            mask[atom_idx, :] = True
+    if 0 <= reactive_atom_idx < mask.shape[0] and 0 <= receptor_nucleophile_idx < mask.shape[1]:
+        mask[reactive_atom_idx, receptor_nucleophile_idx] = True
     return mask.unsqueeze(0)

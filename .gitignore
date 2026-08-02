@@ -1,62 +1,10 @@
-# Python-generated files
 __pycache__/
-*.py[oc]
-*.pyo
-*.pyd
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
 build/
 dist/
-wheels/
-*.egg-info
-*.egg
-
-# Virtual environments and local package cache
-.venv
-venv/
-ENV/
-env/
-.uv-cache/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# AI tooling
-.claude/
-.codex/
-.cursor/
-.windsurf/
-.omc/
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Testing and transient outputs
-.pytest_cache/
-.coverage
-htmlcov/
-*.log
-test_outputs/
-output/
-output_*/
-
-# Structure files: ignore by default, keep checked-in examples
-*.sdf
-*.pdb
-!examples/**/*.sdf
-!examples/**/*.pdb
-
-# Images: ignore by default, keep checked-in examples
-*.png
-*.jpg
-*.gif
-!examples/**/*.png
-!examples/**/*.jpg
-!examples/**/*.gif
-
-# OS
-.DS_Store
-Thumbs.db
+*.egg-info/
+anchor_dock_*/
+anchor-dock-source.tar.gz

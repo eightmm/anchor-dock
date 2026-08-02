@@ -1,0 +1,4 @@
+smiles,name,num_starts,opt_steps,box_size,scorer
+CCO,ethanol,128,100,"[20,20,20]",softdock
+CCN,ethylamine,128,100,"[20,20,20]",softdock
+c1ccccc1,benzene,256,150,"[24,24,24]",softdock

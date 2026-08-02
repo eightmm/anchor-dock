@@ -1,7 +1,7 @@
 [project]
 name = "anchor-dock"
-version = "0.2.0"
-description = "Anchor- and constraint-guided ligand pose prediction with reference and covalent docking modes"
+version = "0.3.0"
+description = "Torch-native reference-guided, covalent, and multistart local ligand docking"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
@@ -9,13 +9,6 @@ dependencies = [
     "numpy>=2.4.2",
     "rdkit>=2025.9.5",
     "torch>=2.10.0",
-]
-
-[project.optional-dependencies]
-# lig_align.io.visualization and the scripts/vis_*.py renderers only.
-viz = [
-    "matplotlib>=3.10",
-    "pillow>=11.0",
 ]
 
 [project.scripts]
@@ -40,8 +33,6 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-# F catches real defects, I and UP are mechanically fixable. E501 is excluded
-# because the numeric kernels read better as wide expressions than wrapped ones.
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
 

@@ -1,16 +1,23 @@
-"""AnchorDock: anchor- and constraint-guided ligand pose prediction."""
+"""AnchorDock public API."""
 
-from .covalent import dock_covalent, dock_covalent_batch, run_batch_docking, run_covalent_pipeline
-from .reference import dock_reference, dock_reference_batch, run_reference_pipeline
+from .batch import DockingJob, LigandRecord, dock_batch
+from .core.engine import DockingEngine
+from .core.scoring import NeuralScorerAdapter, PairwiseScorer, resolve_scorer
+from .covalent import dock_covalent
+from .free import dock_free
+from .reference import dock_reference
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
+    "DockingEngine",
+    "DockingJob",
+    "LigandRecord",
+    "NeuralScorerAdapter",
+    "PairwiseScorer",
+    "dock_batch",
     "dock_covalent",
-    "dock_covalent_batch",
+    "dock_free",
     "dock_reference",
-    "dock_reference_batch",
-    "run_batch_docking",
-    "run_covalent_pipeline",
-    "run_reference_pipeline",
+    "resolve_scorer",
 ]

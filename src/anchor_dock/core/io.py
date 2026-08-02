@@ -1,76 +1,148 @@
-"""Shared ligand and receptor I/O."""
+"""Ligand and receptor I/O with explicit, scorer-safe caching."""
 
 from __future__ import annotations
 
 import os
 import re
-from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import torch
 from rdkit import Chem
 
-from .features import compute_vina_features
+from .features import ATOM_TYPING_VERSION, compute_atom_features
 
 
 @dataclass(frozen=True)
-class PocketBundle:
+class ReceptorContext:
+    """Prepared receptor coordinates and atom features."""
+
     mol: Chem.Mol
     coords: torch.Tensor
-    features: dict[str, torch.Tensor]
+    features: dict[str, object]
+    source_path: str | None
+    device: torch.device
+    atom_typing_version: str = ATOM_TYPING_VERSION
 
 
-_POCKET_CACHE: dict[tuple[str, int, int, str], PocketBundle] = {}
+_RECEPTOR_CACHE: dict[tuple[str, int, int, str, str], ReceptorContext] = {}
 
 
-def process_query_ligand(query: str) -> tuple[Chem.Mol, str]:
-    """Load an SDF or parse a SMILES, then canonicalize atom ordering."""
-    if query.lower().endswith(".sdf"):
-        supplier = Chem.SDMolSupplier(query, removeHs=True)
-        source = supplier[0] if supplier else None
-        if source is None:
-            raise ValueError(f"Failed to load molecule from {query}")
-        smiles = Chem.MolToSmiles(source)
+def choose_device(device: torch.device | str | None = None) -> torch.device:
+    if device is None:
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    result = torch.device(device)
+    if result.type == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("CUDA was requested but is not available")
+    return result
+
+
+def _read_single_molecule(path: Path, *, remove_hydrogens: bool) -> Chem.Mol:
+    suffix = path.suffix.lower()
+    if suffix == ".sdf":
+        supplier = Chem.SDMolSupplier(str(path), removeHs=remove_hydrogens)
+        mol = next((candidate for candidate in supplier if candidate is not None), None)
+    elif suffix == ".mol":
+        mol = Chem.MolFromMolFile(str(path), removeHs=remove_hydrogens)
+    elif suffix == ".mol2":
+        mol = Chem.MolFromMol2File(str(path), removeHs=remove_hydrogens)
+    elif suffix in {".pdb", ".ent"}:
+        mol = Chem.MolFromPDBFile(str(path), sanitize=False, removeHs=remove_hydrogens)
     else:
-        smiles = query
-    parsed = Chem.MolFromSmiles(smiles)
-    if parsed is None:
-        raise ValueError(f"Failed to parse ligand: {query}")
-    canonical = Chem.MolToSmiles(parsed)
+        raise ValueError(f"unsupported molecule file type: {path.suffix}")
+    if mol is None:
+        raise ValueError(f"failed to read molecule from {path}")
+    return mol
+
+
+def load_ligand(
+    ligand: str | os.PathLike[str] | Chem.Mol,
+    *,
+    add_hydrogens: bool = False,
+) -> tuple[Chem.Mol, str]:
+    """Load a ligand from RDKit, SMILES, InChI or a molecule file.
+
+    The returned molecule is canonicalized through SMILES so atom ordering is
+    deterministic across batch and single-ligand entry points.
+    """
+    if isinstance(ligand, Chem.Mol):
+        source = Chem.Mol(ligand)
+    else:
+        text = os.fspath(ligand)
+        path = Path(text)
+        if path.is_file():
+            source = _read_single_molecule(path, remove_hydrogens=True)
+        elif text.startswith("InChI="):
+            source = Chem.MolFromInchi(text)
+        else:
+            source = Chem.MolFromSmiles(text)
+    if source is None:
+        raise ValueError(f"failed to parse ligand: {ligand}")
+    canonical = Chem.MolToSmiles(Chem.RemoveHs(source), canonical=True, isomericSmiles=True)
     molecule = Chem.MolFromSmiles(canonical)
     if molecule is None:
-        raise ValueError(f"Failed to canonicalize ligand: {query}")
+        raise ValueError(f"failed to canonicalize ligand: {ligand}")
+    if add_hydrogens:
+        molecule = Chem.AddHs(molecule)
     return molecule, canonical
 
 
-def load_pocket_bundle(
-    protein_pdb: str,
+def load_reference_ligand(path: str | os.PathLike[str]) -> Chem.Mol:
+    """Load a reference ligand while preserving its input coordinates."""
+    molecule = _read_single_molecule(Path(path), remove_hydrogens=False)
+    if molecule.GetNumConformers() == 0:
+        raise ValueError(f"reference ligand has no coordinates: {path}")
+    return molecule
+
+
+def receptor_context_from_mol(
+    mol: Chem.Mol,
     device: torch.device | str,
-    feature_builder: Callable[[Chem.Mol, torch.device], dict[str, torch.Tensor]] = compute_vina_features,
-) -> PocketBundle:
-    """Load and cache a receptor pocket by path metadata and target device."""
-    device = torch.device(device)
-    path = os.path.abspath(protein_pdb)
-    stat = os.stat(path)
-    key = (path, stat.st_mtime_ns, stat.st_size, str(device))
-    if key in _POCKET_CACHE:
-        return _POCKET_CACHE[key]
-    mol = Chem.MolFromPDBFile(path, sanitize=False, removeHs=True)
-    if mol is None or mol.GetNumConformers() == 0:
-        raise ValueError(f"Failed to load protein coordinates from {protein_pdb}")
+    *,
+    source_path: str | None = None,
+) -> ReceptorContext:
+    device = choose_device(device)
+    if mol.GetNumConformers() == 0:
+        raise ValueError("receptor molecule has no conformer")
     coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float32, device=device)
-    try:
-        features = feature_builder(mol, device)
-    except TypeError:
-        features = feature_builder(mol)
-    bundle = PocketBundle(mol=mol, coords=coords, features=features)
-    _POCKET_CACHE[key] = bundle
-    return bundle
+    features = compute_atom_features(mol, device)
+    return ReceptorContext(Chem.Mol(mol), coords, features, source_path, device)
 
 
-def clear_pocket_cache() -> None:
-    _POCKET_CACHE.clear()
+def load_receptor_context(
+    protein_pdb: str | os.PathLike[str],
+    device: torch.device | str | None = None,
+) -> ReceptorContext:
+    """Load and cache a PDB receptor using atom-typing-aware cache keys."""
+    target_device = choose_device(device)
+    path = os.path.abspath(os.fspath(protein_pdb))
+    stat = os.stat(path)
+    key = (path, stat.st_mtime_ns, stat.st_size, str(target_device), ATOM_TYPING_VERSION)
+    cached = _RECEPTOR_CACHE.get(key)
+    if cached is not None:
+        return cached
+    mol = Chem.MolFromPDBFile(path, sanitize=False, removeHs=True)
+    if mol is None:
+        raise ValueError(f"failed to load receptor from {protein_pdb}")
+    context = receptor_context_from_mol(mol, target_device, source_path=path)
+    _RECEPTOR_CACHE[key] = context
+    return context
+
+
+def clear_receptor_cache() -> None:
+    _RECEPTOR_CACHE.clear()
+
+
+def _parse_residue_spec(spec: str) -> tuple[str, int, str | None, str | None]:
+    match = re.fullmatch(r"([A-Za-z]+)(-?\d+)([A-Za-z]?)?(?::([^:]+))?", spec.strip())
+    if not match:
+        raise ValueError(f"invalid residue specifier: {spec!r}; expected CYS145:A or CYS145A:A")
+    residue = match.group(1).upper()
+    number = int(match.group(2))
+    insertion = match.group(3) or None
+    chain = match.group(4) or None
+    return residue, number, insertion, chain
 
 
 def extract_pocket_around_residue(
@@ -78,48 +150,51 @@ def extract_pocket_around_residue(
     residue_spec: str,
     cutoff: float = 12.0,
     *,
-    include_heteroatoms: bool = False,
+    include_heteroatoms: bool = True,
 ) -> Chem.Mol:
-    """Extract complete residues having any atom within ``cutoff`` of an anchor residue."""
-    match = re.fullmatch(r"([A-Za-z]+)(-?\d+)(?::([^:]+))?", residue_spec.strip())
-    if not match:
-        raise ValueError(f"Invalid residue specifier: {residue_spec}")
-    target_name, target_number, target_chain = match.group(1).upper(), int(match.group(2)), match.group(3)
+    """Extract complete residues having any atom within ``cutoff`` of a residue."""
+    if cutoff <= 0:
+        raise ValueError("cutoff must be positive")
+    target_name, target_number, target_insertion, target_chain = _parse_residue_spec(residue_spec)
     if protein_mol.GetNumConformers() == 0:
-        raise ValueError("Protein molecule has no conformer")
+        raise ValueError("protein molecule has no conformer")
     conformer = protein_mol.GetConformer()
 
     target_atoms: list[int] = []
-    residue_members: dict[tuple[str, int, str, bool], list[int]] = {}
+    residue_members: dict[tuple[str, int, str, str, bool], list[int]] = {}
     for atom in protein_mol.GetAtoms():
         info = atom.GetPDBResidueInfo()
         if info is None:
             continue
-        hetero = bool(info.GetIsHeteroAtom())
         key = (
-            info.GetResidueName().strip(),
+            info.GetResidueName().strip().upper(),
             info.GetResidueNumber(),
+            info.GetInsertionCode().strip(),
             info.GetChainId().strip(),
-            hetero,
+            bool(info.GetIsHeteroAtom()),
         )
         residue_members.setdefault(key, []).append(atom.GetIdx())
-        if key[0] == target_name and key[1] == target_number and (target_chain is None or key[2] == target_chain):
+        if (
+            key[0] == target_name
+            and key[1] == target_number
+            and (target_insertion is None or key[2] == target_insertion)
+            and (target_chain is None or key[3] == target_chain)
+        ):
             target_atoms.append(atom.GetIdx())
     if not target_atoms:
-        raise ValueError(f"Residue {residue_spec} not found")
+        raise ValueError(f"residue {residue_spec} not found")
 
     positions = conformer.GetPositions()
     target_coords = positions[target_atoms]
     selected: set[int] = set()
-    for (name, number, chain, hetero), atom_indices in residue_members.items():
+    for (*_, hetero), atom_indices in residue_members.items():
         if hetero and not include_heteroatoms:
             continue
         coords = positions[atom_indices]
-        minimum = np.linalg.norm(coords[:, None, :] - target_coords[None, :, :], axis=-1).min()
-        if minimum <= cutoff:
+        if np.linalg.norm(coords[:, None, :] - target_coords[None, :, :], axis=-1).min() <= cutoff:
             selected.update(atom_indices)
     if not selected:
-        raise ValueError(f"No pocket atoms within {cutoff} Å of {residue_spec}")
+        raise ValueError(f"no pocket atoms within {cutoff} Å of {residue_spec}")
 
     ordered = sorted(selected)
     old_to_new: dict[int, int] = {}

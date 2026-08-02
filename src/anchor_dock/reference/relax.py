@@ -1,30 +1,38 @@
-"""Helpers for safe force-field relaxation after MCS coordinate placement."""
+"""Constrained force-field relaxation for reference-guided poses."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
 
-def relax_pose_with_fixed_core(mol: Chem.Mol,
-                               conf_id: int,
-                               fixed_indices: set[int],
-                               max_iters: int = 500,
-                               mmff_props=None) -> tuple[bool, str]:
-    """
-    Relax non-core atoms with MMFF, falling back to UFF when needed.
+@dataclass(frozen=True)
+class RelaxationResult:
+    requested: bool
+    applied: bool
+    method: str
+    message: str
 
-    Args:
-        mmff_props: Precomputed MMFF properties (avoids recomputation per conformer).
 
-    Returns:
-        (applied, message)
-    """
-    num_atoms = mol.GetNumAtoms()
-    movable_atoms = num_atoms - len(fixed_indices)
-
+def relax_pose_with_fixed_core(
+    mol: Chem.Mol,
+    conf_id: int,
+    fixed_indices: set[int],
+    *,
+    requested: bool = True,
+    max_iters: int = 500,
+    mmff_props: object | None = None,
+) -> RelaxationResult:
+    """Relax movable atoms exactly once while keeping all anchor atoms fixed."""
+    if not requested:
+        return RelaxationResult(False, False, "none", "disabled")
+    movable_atoms = mol.GetNumAtoms() - len(fixed_indices)
     if movable_atoms <= 0:
-        return False, "skipped: all query atoms are fixed by the MCS"
+        return RelaxationResult(True, False, "none", "all atoms are fixed by the anchor")
     if movable_atoms < 2:
-        return False, "skipped: fewer than two atoms remain movable"
+        return RelaxationResult(True, False, "none", "fewer than two atoms remain movable")
 
     try:
         mol.UpdatePropertyCache(strict=False)
@@ -35,24 +43,32 @@ def relax_pose_with_fixed_core(mol: Chem.Mol,
     if mmff_props is None:
         mmff_props = AllChem.MMFFGetMoleculeProperties(mol)
     if mmff_props is not None:
-        ff = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=conf_id)
-        if ff is not None:
+        try:
+            force_field = AllChem.MMFFGetMoleculeForceField(mol, mmff_props, confId=conf_id)
+        except Exception:
+            force_field = None
+        if force_field is not None:
             for atom_idx in fixed_indices:
-                ff.AddFixedPoint(atom_idx)
+                force_field.AddFixedPoint(int(atom_idx))
             try:
-                ff.Minimize(maxIts=max_iters)
-                return True, "applied: MMFF"
+                status = force_field.Minimize(maxIts=max_iters)
+                message = "converged" if status == 0 else "iteration limit reached"
+                return RelaxationResult(True, True, "MMFF94", message)
             except RuntimeError:
                 pass
 
-    uff = AllChem.UFFGetMoleculeForceField(mol, confId=conf_id)
-    if uff is not None:
+    try:
+        force_field = AllChem.UFFGetMoleculeForceField(mol, confId=conf_id)
+    except Exception:
+        force_field = None
+    if force_field is not None:
         for atom_idx in fixed_indices:
-            uff.AddFixedPoint(atom_idx)
+            force_field.AddFixedPoint(int(atom_idx))
         try:
-            uff.Minimize(maxIts=max_iters)
-            return True, "applied: UFF fallback"
+            status = force_field.Minimize(maxIts=max_iters)
+            message = "converged" if status == 0 else "iteration limit reached"
+            return RelaxationResult(True, True, "UFF", message)
         except RuntimeError as exc:
-            return False, f"failed: MMFF and UFF raised {exc}"
+            return RelaxationResult(True, False, "none", f"MMFF and UFF failed: {exc}")
 
-    return False, "failed: no usable force field could be constructed"
+    return RelaxationResult(True, False, "none", "no usable force field")
