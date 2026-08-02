@@ -1,0 +1,27 @@
+name: Run robust AnchorDock finalizer
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install --upgrade uv
+      - name: Validate, merge, and clean
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python .github/orchestrate_final.py
