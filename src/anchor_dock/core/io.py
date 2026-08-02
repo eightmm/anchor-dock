@@ -77,7 +77,13 @@ def _read_single_molecule(path: Path, *, remove_hydrogens: bool) -> Chem.Mol:
     suffix = path.suffix.lower()
     if suffix == ".sdf":
         supplier = Chem.SDMolSupplier(str(path), removeHs=remove_hydrogens)
-        mol = next((candidate for candidate in supplier if candidate is not None), None)
+        records = list(supplier)
+        if len(records) != 1:
+            raise ValueError(
+                f"single-molecule input requires exactly one SDF record, found {len(records)} in {path}; "
+                "use dock_batch for multi-ligand SDF files"
+            )
+        mol = records[0]
     elif suffix == ".mol":
         mol = Chem.MolFromMolFile(str(path), removeHs=remove_hydrogens)
     elif suffix == ".mol2":

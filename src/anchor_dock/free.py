@@ -227,7 +227,13 @@ def dock_free(
             "Score_Rotatable_Bonds": score_rotatable_bonds,
             "Intramolecular_Reference": intramolecular_reference,
         },
-        per_pose_metadata=[{"Source_Conformer": int(index)} for index in source_indices],
+        per_pose_metadata=[
+            {
+                "Source_Conformer": int(representative_ids[int(index)]),
+                "Source_Representative_Index": int(index),
+            }
+            for index in source_indices
+        ],
     )
     runtime = time.perf_counter() - started
     best_idx = int(torch.argmin(final_components.score).item())

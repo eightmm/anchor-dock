@@ -49,6 +49,8 @@ uv run anchor-dock batch examples/batch/jobs.jsonl \
   --resume
 ```
 
+`free` defaults to `--optimize`; pass `--no-optimize` to skip local refinement. Single-molecule inputs (`reference`, `covalent`, `free`) require an SDF file with exactly one record; multi-ligand SDF files must go through `batch`.
+
 Each command prints JSON. A batch command exits nonzero when any recorded result failed. Run `anchor-dock <mode> --help` for all options.
 
 The legacy flags `--weight-preset`, `--no-mmff`, and `--free-mcs` warn and translate for one release. `vina_lp` fails instead of being silently remapped.

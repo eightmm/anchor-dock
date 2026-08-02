@@ -51,3 +51,41 @@ def test_covalent_cli_omitted_optimize_is_explicitly_false(monkeypatch, capsys) 
         assert main(["covalent", "-p", "p.pdb", "-q", "C=CC(=O)N"]) == 0
     assert captured is not None and captured["optimize"] is False
     assert json.loads(capsys.readouterr().out)["mode"] == "covalent"
+
+
+def _fake_dock_free(monkeypatch):
+    captured = {}
+
+    def fake_free(*args, **kwargs):
+        captured.update(kwargs)
+        return {"mode": "free"}
+
+    monkeypatch.setattr("anchor_dock.cli.dock_free", fake_free)
+    return captured
+
+
+def test_free_cli_defaults_to_optimize_true(monkeypatch, capsys) -> None:
+    captured = _fake_dock_free(monkeypatch)
+    assert main(["free", "-p", "p.pdb", "-q", "CCO"]) == 0
+    assert captured["optimize"] is True
+    assert json.loads(capsys.readouterr().out)["mode"] == "free"
+
+
+def test_free_cli_explicit_optimize_true(monkeypatch, capsys) -> None:
+    captured = _fake_dock_free(monkeypatch)
+    assert main(["free", "-p", "p.pdb", "-q", "CCO", "--optimize"]) == 0
+    assert captured["optimize"] is True
+    capsys.readouterr()
+
+
+def test_free_cli_no_optimize_forwards_false(monkeypatch, capsys) -> None:
+    captured = _fake_dock_free(monkeypatch)
+    assert main(["free", "-p", "p.pdb", "-q", "CCO", "--no-optimize"]) == 0
+    assert captured["optimize"] is False
+    capsys.readouterr()
+
+
+def test_free_cli_optimize_flags_are_mutually_exclusive() -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["free", "-p", "p.pdb", "-q", "CCO", "--optimize", "--no-optimize"])

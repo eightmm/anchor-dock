@@ -83,8 +83,11 @@ def build_parser() -> argparse.ArgumentParser:
     free.add_argument("--num-starts", type=int, default=128)
     free.add_argument("--rmsd-threshold", type=float, default=1.0)
     free.add_argument("--top-k", type=int, default=20)
+    free_optimization = free.add_mutually_exclusive_group()
+    free_optimization.add_argument("--optimize", dest="optimize", action="store_true")
+    free_optimization.add_argument("--no-optimize", dest="optimize", action="store_false")
     _optimization_arguments(free)
-    free.set_defaults(scorer="softdock", opt_steps=150)
+    free.set_defaults(scorer="softdock", opt_steps=150, optimize=True)
 
     batch = subcommands.add_parser("batch", help="homogeneous or mixed-mode batch execution")
     batch.add_argument("input")
@@ -193,6 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             num_confs=args.num_confs,
             num_starts=args.num_starts,
             rmsd_threshold=args.rmsd_threshold,
+            optimize=args.optimize,
             optimizer=args.optimizer,
             opt_steps=args.opt_steps,
             opt_lr=args.opt_lr,
