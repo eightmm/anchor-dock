@@ -209,13 +209,13 @@ def clear_receptor_cache() -> None:
 
 
 def _parse_residue_spec(spec: str) -> tuple[str, int, str | None, str | None]:
-    match = re.fullmatch(r"([A-Za-z]+)(-?\d+)([A-Za-z]?)?(?::([^:]+))?", spec.strip())
+    match = re.fullmatch(r"([A-Za-z]+)(-?\d+)([A-Za-z]?)?(?::([^:]*))?", spec.strip())
     if not match:
         raise ValueError(f"invalid residue specifier: {spec!r}; expected CYS145:A or CYS145A:A")
     residue = match.group(1).upper()
     number = int(match.group(2))
     insertion = match.group(3) or None
-    chain = match.group(4) or None
+    chain = match.group(4)
     return residue, number, insertion, chain
 
 

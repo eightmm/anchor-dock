@@ -1,5 +1,6 @@
 """Interaction-guided docking primitives."""
 
+from .pipeline import clear_interaction_context_cache, dock_interaction
 from .restraint import flat_bottom_distance_restraint, interaction_distances
 from .selectors import (
     InteractionSelectionError,
@@ -19,6 +20,8 @@ __all__ = [
     "MatchLimitExceededError",
     "ReceptorAtomNotFoundError",
     "ReceptorAtomSelection",
+    "clear_interaction_context_cache",
+    "dock_interaction",
     "flat_bottom_distance_restraint",
     "interaction_distances",
     "select_ligand_anchors",
