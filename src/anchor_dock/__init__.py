@@ -14,7 +14,7 @@ from .core.engine import DockingEngine
 from .core.io import clear_receptor_cache
 from .core.scoring import NeuralScorerAdapter, PairwiseScorer, resolve_scorer
 from .covalent.pipeline import clear_covalent_context_cache
-from .free import dock_free
+from .interaction import clear_interaction_context_cache, dock_interaction
 
 run_batch_docking = dock_covalent_batch
 
@@ -23,6 +23,7 @@ def clear_all_caches() -> None:
     """Release cached receptor contexts, including device tensors."""
     clear_receptor_cache()
     clear_covalent_context_cache()
+    clear_interaction_context_cache()
 
 
 __all__ = [
@@ -35,7 +36,7 @@ __all__ = [
     "dock_batch",
     "dock_covalent",
     "dock_covalent_batch",
-    "dock_free",
+    "dock_interaction",
     "dock_reference",
     "dock_reference_batch",
     "resolve_scorer",

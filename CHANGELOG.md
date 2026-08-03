@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0
+
+- replaced the public unconstrained local search with `dock_interaction`, CLI/batch mode `interaction`, and `DockingJob.interaction`;
+- required an exact receptor residue and atom, a ligand SMARTS with one mapped `:1` query atom, a target distance, and a tolerance;
+- added fail-closed receptor selection and deterministic enumeration of every distinct ligand anchor match, with an error instead of cap truncation;
+- added bounded seeded candidate generation, scorer-only coarse preselection across matches/conformers, guided SE(3)+torsion optimization, and restraint-free release on one live pose model;
+- filtered released poses by the requested distance window and kept restraint values separate from the unmodified reported score and search energy;
+- recorded selector, match, distance, guide/release, restraint, score, and protonation-limitation provenance without claiming an inferred chemical interaction;
+- advanced the SDF output schema to `3` and batch resume epoch to `4` for the breaking contract.
+
 ## 0.3.0
 
 - added one public namespace and four entry points: reference, covalent, free, and batch;

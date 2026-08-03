@@ -1,4 +1,24 @@
-# Migrating from 0.2 to 0.3
+# Migration
+
+## Migrating from 0.3 to 0.4
+
+AnchorDock 0.4 removes unconstrained local search from the public Python API, CLI, batch enum/factory, examples, and current documentation. Replace it with the explicit interaction-guided interface only when the scientific input includes all five required fields:
+
+| 0.4 field | Meaning |
+|---|---|
+| `receptor_residue` | exact residue selector, for example `ASP189:A` |
+| `receptor_atom` | exact non-hydrogen standard-PDB atom name |
+| `ligand_smarts` | SMARTS containing exactly one mapped `:1` query atom |
+| `target_distance` | positive receptor/ligand atom distance in Å |
+| `distance_tolerance` | positive half-width smaller than the target distance |
+
+There is no automatic migration from a box/center search because choosing the residue, receptor atom, ligand chemical group, and distance hypothesis is a scientific decision. Public names are now `dock_interaction`, CLI/batch mode `interaction`, and `DockingJob.interaction`.
+
+Distinct ligand atoms selected by `:1` are enumerated automatically. A zero-match SMARTS fails, and a match count beyond `max_matches` fails instead of silently selecting the first or truncating. The guide is a generic atom-pair distance restraint; it does not claim a hydrogen bond, salt bridge, metal interaction, pi interaction, protonation state, tautomer, or compatible chemistry.
+
+The first optimization phase combines scorer search energy with a flat-bottom distance guide. The same live pose model then runs a restraint-free release phase. Exported poses must satisfy the hard final distance window, and `AnchorDock_Score` plus `AnchorDock_Search_Energy` contain only the unmodified scorer values. Output schema advances to `3`, and the batch resume epoch advances to `4`; older successful artifacts are not reusable under the new contract.
+
+## Migrating from 0.2 to 0.3
 
 AnchorDock 0.3 is one engine and one import namespace: `anchor_dock`. The old `lig_align` and `cov_vina` packages and their low-level façade modules were removed.
 

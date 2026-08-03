@@ -111,6 +111,7 @@ def test_dock_interaction_no_optimize_smoke(cys_pdb, tmp_path) -> None:
         assert pose is not None
         # Verify metadata
         assert pose.GetProp("AnchorDock_Mode") == "interaction"
+        assert pose.GetProp("AnchorDock_Output_Schema") == "3"
         assert pose.GetProp("AnchorDock_Search_Method") == "guided_random_placement"
         assert pose.GetProp("AnchorDock_Score_Semantics") == "interaction_conditioned_local_pose_ranking"
 
@@ -436,6 +437,15 @@ def test_dock_interaction_invalid_arguments(cys_pdb, tmp_path) -> None:
             optimize=True, opt_steps=1, release_steps=0,
         )
 
+    with pytest.raises(ValueError, match="optimizer"):
+        dock_interaction(
+            protein_pdb=cys_pdb, query_ligand="CCO", output_dir=output_dir,
+            receptor_residue="CYS145:A", receptor_atom="SG", ligand_smarts="[#6:1]~[#8]",
+            target_distance=3.0, distance_tolerance=0.5,
+            optimizer="bogus",  # type: ignore[arg-type]
+            optimize=False,
+        )
+
     # num_candidates < match_count
     # ligand_smarts "[#6:1]" matched on CCO has 2 matches.
     # If num_candidates = 1, it should fail.
@@ -449,6 +459,28 @@ def test_dock_interaction_invalid_arguments(cys_pdb, tmp_path) -> None:
 
 
 def test_dock_interaction_cache_clear(cys_pdb, tmp_path) -> None:
+    clear_interaction_context_cache()
+    assert len(_INTERACTION_CONTEXT_CACHE) == 0
+
+    output_dir = tmp_path / "cache_test"
+    dock_interaction(
+        protein_pdb=cys_pdb,
+        query_ligand="CCO",
+        output_dir=output_dir,
+        receptor_residue="CYS145:A",
+        receptor_atom="SG",
+        ligand_smarts="[#6:1]~[#8]",
+        target_distance=3.0,
+        distance_tolerance=0.5,
+        num_confs=2,
+        num_candidates=4,
+        preselect_k=2,
+        optimize=False,
+        device="cpu",
+        verbose=False,
+    )
+
+    assert len(_INTERACTION_CONTEXT_CACHE) == 1
     clear_interaction_context_cache()
     assert len(_INTERACTION_CONTEXT_CACHE) == 0
 
@@ -477,24 +509,53 @@ def test_dock_interaction_context_cache_is_bounded(cys_pdb, tmp_path) -> None:
     assert len(_INTERACTION_CONTEXT_CACHE) == INTERACTION_CONTEXT_CACHE_MAXSIZE
     clear_interaction_context_cache()
 
-    output_dir = tmp_path / "cache_test"
-    dock_interaction(
-        protein_pdb=cys_pdb,
+
+def test_dock_interaction_rejects_altloc_in_scored_pocket(cys_pdb, tmp_path) -> None:
+    lines = cys_pdb.read_text().splitlines(keepends=True)
+    lines[4] = f"{lines[4][:16]}A{lines[4][17:]}"
+    ambiguous = tmp_path / "pocket-altloc.pdb"
+    ambiguous.write_text("".join(lines))
+
+    with pytest.raises(ValueError, match="alternate locations.*scored receptor pocket"):
+        dock_interaction(
+            protein_pdb=ambiguous,
+            query_ligand="CCO",
+            output_dir=tmp_path / "altloc",
+            receptor_residue="CYS145:A",
+            receptor_atom="SG",
+            ligand_smarts="[#6:1]~[#8]",
+            target_distance=3.0,
+            distance_tolerance=0.5,
+            num_confs=1,
+            num_candidates=1,
+            preselect_k=1,
+            optimize=False,
+            device="cpu",
+            verbose=False,
+        )
+
+
+def test_dock_interaction_supports_explicit_blank_chain(cys_pdb, tmp_path) -> None:
+    lines = cys_pdb.read_text().splitlines(keepends=True)
+    blank_chain = tmp_path / "blank-chain.pdb"
+    blank_chain.write_text("".join(
+        f"{line[:21]} {line[22:]}" if line.startswith("ATOM") else line
+        for line in lines
+    ))
+    result = dock_interaction(
+        protein_pdb=blank_chain,
         query_ligand="CCO",
-        output_dir=output_dir,
-        receptor_residue="CYS145:A",
+        output_dir=tmp_path / "blank-chain",
+        receptor_residue="CYS145:",
         receptor_atom="SG",
         ligand_smarts="[#6:1]~[#8]",
         target_distance=3.0,
         distance_tolerance=0.5,
-        num_confs=2,
-        num_candidates=4,
-        preselect_k=2,
+        num_confs=1,
+        num_candidates=1,
+        preselect_k=1,
         optimize=False,
         device="cpu",
         verbose=False,
     )
-
-    assert len(_INTERACTION_CONTEXT_CACHE) == 1
-    clear_interaction_context_cache()
-    assert len(_INTERACTION_CONTEXT_CACHE) == 0
+    assert result["receptor_residue"] == "CYS145:"

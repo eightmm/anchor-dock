@@ -5,6 +5,7 @@ import io
 import json
 import os
 import warnings
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -12,11 +13,49 @@ import torch
 import torch.nn as nn
 from rdkit import Chem
 
-from anchor_dock import DockingJob, dock_batch, dock_free
+from anchor_dock import DockingJob
+from anchor_dock import dock_batch as _dock_batch_impl
 from anchor_dock.batch import iter_batch_items
 
+_INTERACTION_FIELDS = {
+    "receptor_residue": "CYS145:A",
+    "receptor_atom": "SG",
+    "ligand_smarts": "[#6:1]",
+    "target_distance": 3.0,
+    "distance_tolerance": 0.5,
+}
 
-def _pose_result(output_dir: Path, mode: str = "free") -> dict[str, object]:
+
+def dock_batch(source, *args, **kwargs):
+    if kwargs.get("mode") == "interaction":
+        for name, value in _INTERACTION_FIELDS.items():
+            kwargs.setdefault(name, value)
+    return _dock_batch_impl(source, *args, **kwargs)
+
+
+def _interaction_job(
+    ligand,
+    *,
+    protein_pdb,
+    id=None,
+    metadata=None,
+    **options,
+) -> DockingJob:
+    fields = dict(_INTERACTION_FIELDS)
+    for name in tuple(fields):
+        if name in options:
+            fields[name] = options.pop(name)
+    return DockingJob.interaction(
+        ligand,
+        protein_pdb=protein_pdb,
+        id=id,
+        metadata=metadata,
+        **fields,
+        **options,
+    )
+
+
+def _pose_result(output_dir: Path, mode: str = "interaction") -> dict[str, object]:
     output_dir.mkdir(parents=True, exist_ok=True)
     output = output_dir / "pose.sdf"
     output.write_text("pose\n")
@@ -35,80 +74,32 @@ def _expected_job_directory(root: Path, job: DockingJob) -> Path:
     from anchor_dock.batch import _canonical_ligand_text, _safe_id
 
     raw_id = job.id or "ligand"
-    identity = (
-        f"{job.mode}|{_canonical_ligand_text(job.ligand)}|{job.protein_pdb}|"
-        f"{job.reference_ligand}|{job.reactive_residue}|{raw_id}"
+    identity = "|".join(
+        str(value)
+        for value in (
+            job.mode,
+            _canonical_ligand_text(job.ligand),
+            job.protein_pdb,
+            job.reference_ligand,
+            job.reactive_residue,
+            job.receptor_residue,
+            job.receptor_atom,
+            job.ligand_smarts,
+            job.target_distance,
+            job.distance_tolerance,
+            raw_id,
+        )
     )
     return root / _safe_id(raw_id, "ligand", identity)
-
-
-def test_free_docking_smoke(cys_pdb: Path, tmp_path: Path) -> None:
-    result = dock_free(
-        cys_pdb,
-        "CCO",
-        tmp_path / "free",
-        num_confs=2,
-        num_starts=3,
-        opt_steps=2,
-        opt_batch_size=3,
-        top_k=2,
-        device="cpu",
-        verbose=False,
-    )
-    assert result["mode"] == "free"
-    assert result["num_poses"] == 2
-    assert result["torsion_penalty_requested"] is True
-    assert result["torsion_penalty_applied"] is False
-    assert result["score_rotatable_bonds"] == 0
-    assert result["best_score"] == result["best_search_energy"]
-    assert Path(result["output_file"]).is_file()
-
-
-def test_free_rotation_starts_are_seeded_and_haar_uniform() -> None:
-    from anchor_dock.free import _sample_uniform_rotation_vectors
-
-    first_generator = torch.Generator().manual_seed(17)
-    second_generator = torch.Generator().manual_seed(17)
-    first = _sample_uniform_rotation_vectors(20_000, first_generator)
-    second = _sample_uniform_rotation_vectors(20_000, second_generator)
-    assert torch.equal(first, second)
-    mean_angle = torch.linalg.vector_norm(first, dim=1).mean()
-    assert float(mean_angle) == pytest.approx(torch.pi / 2 + 2 / torch.pi, abs=0.03)
-
-
-def test_zero_step_optimization_is_recorded_as_requested_but_not_applied(
-    cys_pdb: Path,
-    tmp_path: Path,
-) -> None:
-    result = dock_free(
-        cys_pdb,
-        "CCO",
-        tmp_path / "zero-step",
-        num_confs=2,
-        num_starts=2,
-        optimize=True,
-        opt_steps=0,
-        top_k=1,
-        device="cpu",
-        verbose=False,
-    )
-    assert result["optimization_requested"] is True
-    assert result["optimization_applied"] is False
-    assert result["optimization_improved"] is False
-    assert result["optimized"] is False
-    pose = next(mol for mol in Chem.SDMolSupplier(result["output_file"]) if mol is not None)
-    assert pose.GetProp("AnchorDock_Optimization_Requested") == "True"
-    assert pose.GetProp("AnchorDock_Optimization_Applied") == "False"
-    assert pose.GetProp("AnchorDock_Search_Method") == "multistart_random_placement"
 
 
 def test_batch_parses_smi_csv_jsonl_sdf_and_compression(tmp_path: Path) -> None:
     smi = tmp_path / "ligands.smi"
     smi.write_text("CCO ethanol\nCCN ethylamine\n")
     csv_path = tmp_path / "jobs.csv"
-    csv_path.write_text("smiles,name,mode\nCCC,propane,free\n")
+    csv_path.write_text("smiles,name,mode\nCCC,propane,interaction\n")
     jsonl = tmp_path / "jobs.jsonl"
-    jsonl.write_text(json.dumps({"smiles": "CCCC", "name": "butane", "mode": "free"}) + "\n")
+    jsonl.write_text(json.dumps({"smiles": "CCCC", "name": "butane", "mode": "interaction"}) + "\n")
     gz = tmp_path / "more.smi.gz"
     gz.write_bytes(gzip.compress(b"CO methanol\n"))
     mol = Chem.MolFromSmiles("c1ccccc1")
@@ -128,6 +119,60 @@ def test_batch_parses_smi_csv_jsonl_sdf_and_compression(tmp_path: Path) -> None:
     stream = io.BytesIO(gzip.compress(b"CN methylamine\n"))
     stream.name = "memory.smi.gz"
     assert len(list(iter_batch_items(stream))) == 1
+
+
+def test_interaction_job_factory_preserves_required_fields() -> None:
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="ethanol", opt_steps=7)
+    assert job.mode == "interaction"
+    assert {name: getattr(job, name) for name in _INTERACTION_FIELDS} == _INTERACTION_FIELDS
+    assert job.options == {"opt_steps": 7}
+    assert not hasattr(DockingJob, "free")
+
+
+@pytest.mark.parametrize("suffix", ["jsonl", "csv"])
+def test_interaction_manifest_parses_explicit_fields(tmp_path: Path, suffix: str) -> None:
+    source = tmp_path / f"jobs.{suffix}"
+    if suffix == "jsonl":
+        source.write_text(json.dumps({
+            "mode": "interaction",
+            "smiles": "CCO",
+            "protein_pdb": "protein.pdb",
+            **_INTERACTION_FIELDS,
+        }) + "\n")
+    else:
+        source.write_text(
+            "mode,smiles,protein_pdb,receptor_residue,receptor_atom,ligand_smarts,"
+            "target_distance,distance_tolerance\n"
+            "interaction,CCO,protein.pdb,CYS145:A,SG,[#6:1],3.0,0.5\n"
+        )
+    job = next(iter_batch_items(source))
+    assert isinstance(job, DockingJob)
+    assert {name: getattr(job, name) for name in _INTERACTION_FIELDS} == _INTERACTION_FIELDS
+    assert not _INTERACTION_FIELDS.keys() & job.options.keys()
+
+
+def test_homogeneous_interaction_row_overrides_are_promoted(monkeypatch, tmp_path: Path) -> None:
+    captured: list[DockingJob] = []
+
+    def fake_dispatch(job, output_dir, options):
+        assert not _INTERACTION_FIELDS.keys() & options.keys()
+        captured.append(job)
+        return _pose_result(output_dir, job.mode)
+
+    monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
+    source = tmp_path / "ligands.csv"
+    source.write_text("smiles,name,target_distance\nCCO,ethanol,3.4\n")
+    result = dock_batch(
+        source,
+        mode="interaction",
+        protein_pdb="protein.pdb",
+        output_dir=tmp_path / "promoted",
+    )
+    assert result[0]["success"] is True
+    assert captured[0].target_distance == 3.4
+    for name, value in _INTERACTION_FIELDS.items():
+        if name != "target_distance":
+            assert getattr(captured[0], name) == value
 
 
 @pytest.mark.parametrize("container_key", ["jobs", "ligands"])
@@ -185,7 +230,7 @@ def test_batch_directory_source_excludes_nested_output_tree(
     input_source: object = [source] if wrap_directory else source
     results = dock_batch(
         input_source,
-        mode="free",
+        mode="interaction",
         protein_pdb="protein.pdb",
         output_dir=root,
     )
@@ -210,7 +255,7 @@ def test_batch_preserves_explicit_file_inside_output_tree(monkeypatch, tmp_path:
 
     results = dock_batch(
         explicit,
-        mode="free",
+        mode="interaction",
         protein_pdb="protein.pdb",
         output_dir=root,
     )
@@ -232,7 +277,7 @@ def test_batch_rejects_same_source_and_output_before_writing_manifests(
     with pytest.raises(ValueError, match="same directory"):
         dock_batch(
             input_source,
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=source,
         )
@@ -258,7 +303,7 @@ def test_batch_rejects_input_file_that_is_an_output_manifest_before_overwrite(
     with pytest.raises(ValueError, match="conflicts with an output manifest"):
         dock_batch(
             input_source,
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -288,7 +333,7 @@ def test_batch_preflights_generator_manifest_collisions_before_overwrite(
     with pytest.raises(ValueError, match="conflicts with an output manifest"):
         dock_batch(
             input_source,
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -309,7 +354,7 @@ def test_batch_preflights_generator_source_output_directory_collision(tmp_path: 
     with pytest.raises(ValueError, match="same directory"):
         dock_batch(
             inputs(),
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -334,7 +379,7 @@ def test_batch_processes_normal_one_shot_generator(monkeypatch, tmp_path: Path) 
 
     results = dock_batch(
         inputs(),
-        mode="free",
+        mode="interaction",
         protein_pdb="protein.pdb",
         output_dir=tmp_path / "output",
     )
@@ -354,7 +399,7 @@ def test_batch_rejects_nonexistent_reserved_manifest_source_path(
     with pytest.raises(ValueError, match="conflicts with an output manifest"):
         dock_batch(
             root / manifest_name,
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -377,7 +422,7 @@ def test_batch_rejects_file_like_manifest_input_before_read_or_overwrite(
         with pytest.raises(ValueError, match="conflicts with an output manifest"):
             dock_batch(
                 stream,
-                mode="free",
+                mode="interaction",
                 protein_pdb="protein.pdb",
                 output_dir=root,
             )
@@ -401,9 +446,9 @@ def test_batch_rejects_docking_job_fields_that_collide_with_manifests(
     original = b"job-field-input\n"
     source.write_bytes(original)
     if field == "ligand":
-        job = DockingJob.free(source, protein_pdb="protein.pdb", id="field")
+        job = _interaction_job(source, protein_pdb="protein.pdb", id="field")
     elif field == "protein_pdb":
-        job = DockingJob.free("CCO", protein_pdb=source, id="field")
+        job = _interaction_job("CCO", protein_pdb=source, id="field")
     else:
         job = DockingJob.reference(
             "CCO",
@@ -433,7 +478,7 @@ def test_batch_rejects_homogeneous_default_paths_that_collide_with_manifests(
     original = b"homogeneous-input\n"
     source.write_bytes(original)
     kwargs: dict[str, object] = {
-        "mode": "free",
+        "mode": "interaction",
         "protein_pdb": "protein.pdb",
         "output_dir": root,
     }
@@ -461,7 +506,7 @@ def test_batch_preflights_custom_reiterable_manifest_collision(
     with pytest.raises(ValueError, match="conflicts with an output manifest"):
         dock_batch(
             _SingleValueReiterable(source),
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -477,7 +522,7 @@ def test_batch_preflights_custom_reiterable_output_directory_collision(tmp_path:
     with pytest.raises(ValueError, match="same directory"):
         dock_batch(
             _SingleValueReiterable(root),
-            mode="free",
+            mode="interaction",
             protein_pdb="protein.pdb",
             output_dir=root,
         )
@@ -488,17 +533,18 @@ def test_batch_preflights_custom_reiterable_output_directory_collision(tmp_path:
 
 def test_batch_rejects_json_source_at_its_computed_result_path(tmp_path: Path) -> None:
     root = tmp_path / "output"
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="collision")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="collision")
     job_dir = _expected_job_directory(root, job)
     job_dir.mkdir(parents=True)
     source = job_dir / "result.json"
     original = json.dumps(
         {
             "smiles": "CCO",
-            "name": "collision",
-            "mode": "free",
-            "protein_pdb": "protein.pdb",
-        }
+                "name": "collision",
+                "mode": "interaction",
+                "protein_pdb": "protein.pdb",
+                **_INTERACTION_FIELDS,
+            }
     )
     source.write_text(original)
 
@@ -513,7 +559,7 @@ def test_batch_rejects_json_source_at_its_computed_result_path(tmp_path: Path) -
 def test_batch_rejects_job_input_resolving_inside_its_own_output_directory(tmp_path: Path) -> None:
     root = tmp_path / "output"
     alias = tmp_path / "protein-link.pdb"
-    job = DockingJob.free("CCO", protein_pdb=alias, id="self-input")
+    job = _interaction_job("CCO", protein_pdb=alias, id="self-input")
     job_dir = _expected_job_directory(root, job)
     job_dir.mkdir(parents=True)
     source = job_dir / "protein.pdb"
@@ -532,13 +578,13 @@ def test_batch_rejects_job_input_resolving_inside_its_own_output_directory(tmp_p
 
 def test_batch_rejects_future_job_input_inside_an_earlier_job_output_directory(tmp_path: Path) -> None:
     root = tmp_path / "output"
-    first = DockingJob.free("CCO", protein_pdb="protein.pdb", id="first")
+    first = _interaction_job("CCO", protein_pdb="protein.pdb", id="first")
     first_dir = _expected_job_directory(root, first)
     first_dir.mkdir(parents=True)
     source = first_dir / "future.smi"
     original = b"CCN future\n"
     source.write_bytes(original)
-    second = DockingJob.free(source, protein_pdb="protein.pdb", id="second")
+    second = _interaction_job(source, protein_pdb="protein.pdb", id="second")
 
     with pytest.raises(ValueError, match="conflicts with a batch job output directory"):
         dock_batch([first, second], output_dir=root)
@@ -583,7 +629,7 @@ def test_batch_atomic_manifest_write_does_not_follow_predictable_temp_symlink(
     predictable.symlink_to(external)
 
     results = dock_batch(
-        [DockingJob.free("CCO", protein_pdb=external, id="atomic")],
+        [_interaction_job("CCO", protein_pdb=external, id="atomic")],
         output_dir=root,
     )
 
@@ -594,12 +640,12 @@ def test_batch_atomic_manifest_write_does_not_follow_predictable_temp_symlink(
 
 def test_batch_rejects_dangling_symlink_input_inside_job_output_directory(tmp_path: Path) -> None:
     root = tmp_path / "output"
-    first = DockingJob.free("CCO", protein_pdb="protein.pdb", id="first")
+    first = _interaction_job("CCO", protein_pdb="protein.pdb", id="first")
     first_dir = _expected_job_directory(root, first)
     first_dir.mkdir(parents=True)
     dangling = first_dir / "result.json"
     dangling.symlink_to(tmp_path / "missing-protein.pdb")
-    second = DockingJob.free("CCN", protein_pdb=dangling, id="second")
+    second = _interaction_job("CCN", protein_pdb=dangling, id="second")
 
     with pytest.raises(ValueError, match="conflicts with a batch job output directory"):
         dock_batch([first, second], output_dir=root)
@@ -621,14 +667,14 @@ def test_mixed_batch_and_resume_with_dispatch_stub(monkeypatch, tmp_path: Path) 
     jobs = [
         DockingJob.reference("CCO", protein_pdb="p.pdb", reference_ligand="r.sdf", id="ref"),
         DockingJob.covalent("C=CC(=O)N", protein_pdb="p.pdb", reactive_residue="CYS1:A", id="cov"),
-        DockingJob.free("CCN", protein_pdb="p.pdb", id="free"),
+        _interaction_job("CCN", protein_pdb="p.pdb", id="interaction"),
     ]
     first = dock_batch(jobs, output_dir=tmp_path / "batch")
-    assert [result["mode"] for result in first] == ["reference", "covalent", "free"]
-    assert calls == ["reference", "covalent", "free"]
+    assert [result["mode"] for result in first] == ["reference", "covalent", "interaction"]
+    assert calls == ["reference", "covalent", "interaction"]
     second = dock_batch(jobs, output_dir=tmp_path / "batch", resume=True)
     assert all(result["resumed"] for result in second)
-    assert calls == ["reference", "covalent", "free"]
+    assert calls == ["reference", "covalent", "interaction"]
 
 
 def test_csv_option_coercion_and_homogeneous_row_overrides(monkeypatch, tmp_path: Path) -> None:
@@ -644,7 +690,7 @@ def test_csv_option_coercion_and_homogeneous_row_overrides(monkeypatch, tmp_path
     table.write_text('smiles,name,optimize,opt_steps,box_size,top_k\nCCO,ethanol,true,7,"[18, 20, 22]",3\n')
     results = dock_batch(
         table,
-        mode="free",
+        mode="interaction",
         protein_pdb="protein.pdb",
         output_dir=tmp_path / "typed",
     )
@@ -669,7 +715,7 @@ def test_resume_invalidates_when_options_change(monkeypatch, tmp_path: Path) -> 
         return _pose_result(output_dir)
 
     monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="ethanol")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="ethanol")
     root = tmp_path / "resume"
     first = dock_batch([job], output_dir=root, opt_steps=2)
     same = dock_batch([job], output_dir=root, opt_steps=2, resume=True)
@@ -679,6 +725,81 @@ def test_resume_invalidates_when_options_change(monkeypatch, tmp_path: Path) -> 
     assert first[0]["job_signature"] != changed[0]["job_signature"]
     assert same[0]["resumed"] is True
     assert "resumed" not in changed[0]
+
+
+@pytest.mark.parametrize(
+    ("field", "changed_value"),
+    [
+        ("receptor_residue", "ASP189:A"),
+        ("receptor_atom", "OD1"),
+        ("ligand_smarts", "[#8:1]"),
+        ("target_distance", 3.2),
+        ("distance_tolerance", 0.7),
+    ],
+)
+def test_interaction_fields_change_job_signature(field: str, changed_value: object) -> None:
+    from anchor_dock.batch import _job_signature, _runtime_identity
+
+    baseline = _interaction_job("CCO", protein_pdb="protein.pdb", id="signature")
+    changed = replace(baseline, **{field: changed_value})
+    runtime = _runtime_identity({"device": "cpu"})
+    first = _job_signature(baseline, {}, runtime)
+    second = _job_signature(changed, {}, runtime)
+    assert first != second
+
+
+@pytest.mark.parametrize("missing_field", tuple(_INTERACTION_FIELDS))
+def test_interaction_job_missing_required_field_fails_preflight(
+    monkeypatch,
+    tmp_path: Path,
+    missing_field: str,
+) -> None:
+    monkeypatch.setattr(
+        "anchor_dock.batch._dispatch",
+        lambda *args, **kwargs: pytest.fail("invalid interaction job must not dispatch"),
+    )
+    job = replace(_interaction_job("CCO", protein_pdb="protein.pdb"), **{missing_field: None})
+    result = dock_batch([job], output_dir=tmp_path / missing_field, on_error="record")
+    assert result[0]["success"] is False
+    assert missing_field in result[0]["error"]
+
+
+def test_interaction_boolean_distance_fails_batch_preflight(tmp_path: Path) -> None:
+    job = replace(_interaction_job("CCO", protein_pdb="protein.pdb"), target_distance=True)
+    result = dock_batch([job], output_dir=tmp_path / "bool-distance", on_error="record")
+    assert result[0]["success"] is False
+    assert "not a bool" in result[0]["error"]
+
+
+def test_interaction_dispatch_passes_fields_once(monkeypatch, tmp_path: Path) -> None:
+    from anchor_dock.batch import _dispatch
+
+    captured: dict[str, object] = {}
+
+    def fake_interaction(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return _pose_result(Path(args[2]), "interaction")
+
+    monkeypatch.setattr("anchor_dock.interaction.pipeline.dock_interaction", fake_interaction)
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", opt_steps=7)
+    _dispatch(job, tmp_path / "dispatch", job.options)
+    assert captured["args"] == ("protein.pdb", "CCO", tmp_path / "dispatch")
+    kwargs = captured["kwargs"]
+    assert {name: kwargs[name] for name in _INTERACTION_FIELDS} == _INTERACTION_FIELDS
+    assert kwargs["opt_steps"] == 7
+
+
+def test_removed_free_manifest_fails_with_migration_message(tmp_path: Path) -> None:
+    source = tmp_path / "removed.jsonl"
+    source.write_text(json.dumps({
+        "mode": "free",
+        "smiles": "CCO",
+        "protein_pdb": "protein.pdb",
+    }) + "\n")
+    result = dock_batch(source, output_dir=tmp_path / "removed", on_error="record")
+    assert result[0]["success"] is False
+    assert "removed in 0.4" in result[0]["error"]
 
 
 def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkeypatch, tmp_path: Path) -> None:
@@ -693,14 +814,14 @@ def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkey
         return _pose_result(output_dir)
 
     monkeypatch.setattr(batch_module, "_dispatch", fake_dispatch)
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="epoch")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="epoch")
     root = tmp_path / "resume-epoch"
     current_epoch = batch_module._BATCH_SCHEMA_VERSION
     current_output_schema = batch_module.OUTPUT_SCHEMA_VERSION
-    assert current_epoch == "3"
-    assert current_output_schema == "2"
+    assert current_epoch == "4"
+    assert current_output_schema == "3"
 
-    monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "2")
+    monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "3")
     previous = dock_batch([job], output_dir=root)[0]
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", current_epoch)
     current = dock_batch([job], output_dir=root, resume=True)[0]
@@ -730,7 +851,7 @@ def test_resume_signature_tracks_resolved_device_and_runtime_versions(monkeypatc
     monkeypatch.setattr(batch_module.torch, "__version__", "torch-a")
     monkeypatch.setattr(batch_module.np, "__version__", "numpy-a")
     monkeypatch.setattr(batch_module.rdBase, "rdkitVersion", "rdkit-a")
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="runtime")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="runtime")
     root = tmp_path / "runtime-signature"
 
     results = [dock_batch([job], output_dir=root)[0]]
@@ -769,7 +890,7 @@ def test_resume_retries_failure_missing_and_external_artifacts(monkeypatch, tmp_
         return _pose_result(output_dir)
 
     monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="ethanol")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="ethanol")
     root = tmp_path / "resume-integrity"
     result = dock_batch([job], output_dir=root)[0]
     assert result["output_artifact_fingerprint"].startswith("sha256:")
@@ -804,8 +925,8 @@ def test_preflight_error_is_recorded_and_next_job_runs(monkeypatch, tmp_path: Pa
         lambda job, output_dir, options: _pose_result(output_dir, job.mode),
     )
     jobs = [
-        DockingJob("free", "CCO", id="missing-protein"),
-        DockingJob.free("CCN", protein_pdb="protein.pdb", id="valid"),
+        DockingJob("interaction", "CCO", id="missing-protein"),
+        _interaction_job("CCN", protein_pdb="protein.pdb", id="valid"),
     ]
     results = dock_batch(jobs, output_dir=tmp_path / "preflight", on_error="record")
     assert [result["success"] for result in results] == [False, True]
@@ -827,7 +948,7 @@ def test_batch_invalidates_root_completion_state_before_dispatch(
     failure: BaseException,
 ) -> None:
     root = tmp_path / f"root-state-{type(failure).__name__}"
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="ethanol")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="ethanol")
     monkeypatch.setattr(
         "anchor_dock.batch._dispatch",
         lambda job, output_dir, options: _pose_result(output_dir, job.mode),
@@ -871,7 +992,7 @@ def test_custom_scorer_weights_change_resume_signature(monkeypatch, tmp_path: Pa
         return _pose_result(output_dir)
 
     monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="weighted")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="weighted")
     root = tmp_path / "fingerprint"
     first = dock_batch([job], output_dir=root, scorer=WeightedScorer(1.0))[0]
     second = dock_batch([job], output_dir=root, scorer=WeightedScorer(9.0), resume=True)[0]
@@ -897,7 +1018,7 @@ def test_custom_scorer_labels_change_resume_signature(monkeypatch, tmp_path: Pat
 
     monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
     model = Scorer()
-    job = DockingJob.free("CCO", protein_pdb="protein.pdb", id="labels")
+    job = _interaction_job("CCO", protein_pdb="protein.pdb", id="labels")
     root = tmp_path / "label-signature"
     first = dock_batch(
         [job],
@@ -931,13 +1052,13 @@ def test_metadata_change_invalidates_resume_signature(monkeypatch, tmp_path: Pat
 
     monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
     root = tmp_path / "metadata-signature"
-    first_job = DockingJob.free(
+    first_job = _interaction_job(
         "CCO",
         protein_pdb="protein.pdb",
         id="ethanol",
         metadata={"campaign": 1},
     )
-    second_job = DockingJob.free(
+    second_job = _interaction_job(
         "CCO",
         protein_pdb="protein.pdb",
         id="ethanol",
@@ -965,7 +1086,7 @@ def test_file_content_change_invalidates_resume_with_same_size_and_mtime(
     protein = tmp_path / "protein.pdb"
     protein.write_text("AAAA")
     timestamp = protein.stat().st_mtime_ns
-    job = DockingJob.free("CCO", protein_pdb=protein, id="content")
+    job = _interaction_job("CCO", protein_pdb=protein, id="content")
     root = tmp_path / "content-signature"
     first = dock_batch([job], output_dir=root)[0]
     protein.write_text("BBBB")
@@ -1007,7 +1128,7 @@ def test_invalid_direct_docking_job_mode_is_preflight_failure(monkeypatch, tmp_p
     job = DockingJob("fre", "CCO", protein_pdb="protein.pdb", id="typo-mode")
     results = dock_batch([job], output_dir=tmp_path / "invalid-mode", on_error="record")
     assert results[0]["success"] is False
-    assert "mode must be reference, covalent or free" in results[0]["error"]
+    assert "mode must be reference, covalent or interaction" in results[0]["error"]
     summary = json.loads((tmp_path / "invalid-mode" / "summary.json").read_text())
     assert summary["errors"] == 1
     assert summary["successful"] == 0
@@ -1015,7 +1136,7 @@ def test_invalid_direct_docking_job_mode_is_preflight_failure(monkeypatch, tmp_p
 
 def test_invalid_direct_docking_job_mode_raises_under_on_error_raise(tmp_path: Path) -> None:
     job = DockingJob("fre", "CCO", protein_pdb="protein.pdb", id="typo-mode")
-    with pytest.raises(ValueError, match="mode must be reference, covalent or free"):
+    with pytest.raises(ValueError, match="mode must be reference, covalent or interaction"):
         dock_batch([job], output_dir=tmp_path / "invalid-mode-raise", on_error="raise")
 
 

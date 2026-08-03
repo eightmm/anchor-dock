@@ -223,7 +223,7 @@ def test_reference_pipeline_uses_standard_metadata(
     properties = set(poses[0].GetPropNames())
     assert "AnchorDock_Mode" in properties
     assert "AnchorDock_MCS_Mode" in properties
-    assert poses[0].GetProp("AnchorDock_Version") == "0.3.0"
+    assert poses[0].GetProp("AnchorDock_Version") == "0.4.0"
     assert poses[0].GetProp("AnchorDock_Score_Semantics") == "anchor-conditioned_pose_ranking"
     assert poses[0].HasProp("AnchorDock_Scorer_Fingerprint")
     assert poses[0].HasProp("AnchorDock_Receptor_Structure_Fingerprint")

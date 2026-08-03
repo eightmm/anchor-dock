@@ -11,7 +11,7 @@ from rdkit.Geometry import Point3D
 
 from .._version import __version__
 
-OUTPUT_SCHEMA_VERSION = "2"
+OUTPUT_SCHEMA_VERSION = "3"
 _RESERVED_METADATA_KEYS = {
     "Rank",
     "Pose_ID",

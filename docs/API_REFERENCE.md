@@ -1,9 +1,9 @@
 # API reference
 
-AnchorDock 0.3 exposes four high-level operations from `anchor_dock`:
+AnchorDock 0.4 exposes four high-level operations from `anchor_dock`:
 
 ```python
-from anchor_dock import dock_reference, dock_covalent, dock_free, dock_batch
+from anchor_dock import dock_batch, dock_covalent, dock_interaction, dock_reference
 ```
 
 ## Reference (selected options)
@@ -61,25 +61,39 @@ Automatic residue selection succeeds only for one unambiguous supported nucleoph
 
 Omitting `optimize` at the top-level compatibility entry point currently runs with `False` and emits a `FutureWarning`; pass it explicitly.
 
-## Free local search (selected options)
+## Interaction-guided local search (selected options)
 
 ```python
-dock_free(
+dock_interaction(
     protein_pdb,
     query_ligand,
-    output_dir="anchor_dock_free",
+    output_dir="anchor_dock_interaction",
     *,
-    center=None,
-    box_size=(20.0, 20.0, 20.0),
-    num_confs=64,
-    num_starts=128,
+    receptor_residue,
+    receptor_atom,
+    ligand_smarts,
+    target_distance,
+    distance_tolerance,
+    pocket_cutoff=12.0,
+    include_heteroatoms=True,
+    num_confs=32,
+    num_candidates=128,
+    preselect_k=16,
+    max_matches=16,
     optimize=True,
+    opt_steps=50,
+    release_steps=25,
+    restraint_weight=10.0,
     scorer="softdock",
-    top_k=20,
+    top_k=10,
 )
 ```
 
-Free mode uses seeded Haar-uniform SO(3) starts for multistart local optimization; it is not Vina global search.
+`receptor_residue` accepts an exact residue such as `ASP189:A` (or an omitted chain only when the residue is unique), and `receptor_atom` is an exact standard-PDB atom name. Alternate locations, duplicate or ambiguous selections, hydrogens, and absent atoms fail closed.
+
+`ligand_smarts` must be valid SMARTS with exactly one mapped query atom whose map number is `:1`. Matching is performed on the canonical heavy-atom ligand. All distinct matching ligand atoms are hypotheses; zero matches fail, and exceeding `max_matches` fails instead of truncating. Each selected atom is initially placed at `target_distance`, candidates are coarse-scored and preselected across matches/conformers, then guided optimization and restraint-free release run on the same live pose model. Final poses outside `target_distance ± distance_tolerance` are rejected.
+
+The restraint is `weight * relu(abs(distance-target)-tolerance)^2`. It is guide metadata, never part of the reported physical score or search energy. This mode encodes a generic atom-pair distance hypothesis and performs no interaction-type, protonation, tautomer, or chemical-compatibility inference.
 
 ## Batch
 
@@ -87,7 +101,7 @@ Free mode uses seeded Haar-uniform SO(3) starts for multistart local optimizatio
 
 ## Results and output
 
-Successful reference, covalent, and free calls return a dictionary containing mode/version, output, pose counts, best score/search energy, scorer identity, receptor/source fingerprints, intramolecular reference, runtime, and device. `search_parameters` records the effective search options; reconstruction also requires the adjacent input, scorer, version, fingerprint, and device fields. Torsion and optimization fields distinguish requested, actually applied, and improved behavior. `dock_batch` adds job and artifact fingerprints plus `batch_runtime_identity`.
+Successful reference, covalent, and interaction calls return a dictionary containing mode/version, output, pose counts, best score/search energy, scorer identity, receptor/source fingerprints, intramolecular reference, runtime, and device. `search_parameters` records the effective search options; reconstruction also requires the adjacent input, scorer, version, fingerprint, and device fields. Torsion and optimization fields distinguish requested, actually applied, and improved behavior. Interaction results additionally record the resolved receptor atom, every ligand match, target window, initial/guided/final distances, guide/release statistics, restraint formula and weight, and protonation limitation. `dock_batch` adds job and artifact fingerprints plus `batch_runtime_identity`.
 
 SDF properties use only the versioned `AnchorDock_*` schema, including:
 
@@ -97,8 +111,9 @@ SDF properties use only the versioned `AnchorDock_*` schema, including:
 - `AnchorDock_Score`, `AnchorDock_Search_Energy`, `AnchorDock_Score_Units`, `AnchorDock_Score_Semantics`.
 - `AnchorDock_Receptor_Structure_Fingerprint`, `AnchorDock_Receptor_Source_Fingerprint`;
 - covalent `AnchorDock_Receptor_Reactant_Structure_Fingerprint` and `AnchorDock_Covalent_Receptor_Typing_*` fields;
+- interaction receptor/ligand selector provenance, target window, per-pose distances, and restraint metadata;
 - `AnchorDock_Intramolecular_Reference`, torsion/optimization truth fields, and `AnchorDock_Search_Parameters`.
 
-Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied. Single-molecule SDF loaders (`load_ligand`, `load_reference_ligand`) require exactly one SDF record and point multi-ligand inputs to `dock_batch`. Output schema `2` defines free-pose `AnchorDock_Source_Conformer` as the true RDKit conformer ID and `AnchorDock_Source_Representative_Index` as its ordinal among representatives.
+Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied. Single-molecule SDF loaders (`load_ligand`, `load_reference_ligand`) require exactly one SDF record and point multi-ligand inputs to `dock_batch`. Output schema `3` records the true RDKit conformer ID in `AnchorDock_Source_Conformer` and its representative ordinal in `AnchorDock_Source_Representative_Index`.
 
 The advanced shared engine is available as `DockingEngine`. Removed 0.2 façade classes and internal cache hooks are not public API.

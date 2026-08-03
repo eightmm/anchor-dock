@@ -6,7 +6,6 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from anchor_dock import dock_free
 from anchor_dock.core.io import load_ligand, load_reference_ligand
 
 
@@ -85,47 +84,3 @@ def test_load_reference_ligand_single_malformed_record_keeps_read_failure(tmp_pa
     path.write_text(_MALFORMED_SDF_RECORD)
     with pytest.raises(ValueError, match="failed to read molecule"):
         load_reference_ligand(path)
-
-
-def _fake_sparse_conformer_generator(mol, device, *, num_confs, rmsd_threshold, add_hydrogens, random_seed, **kwargs):
-    working = Chem.AddHs(Chem.Mol(mol))
-    params = AllChem.ETKDGv3()
-    params.randomSeed = int(random_seed)
-    conformer_ids = list(AllChem.EmbedMultipleConfs(working, numConfs=2, params=params))
-    assert len(conformer_ids) == 2
-    heavy = Chem.RemoveHs(working)
-    heavy_conformers = list(heavy.GetConformers())
-    assert len(heavy_conformers) == 2
-    target_ids = [7, 19]
-    for conformer, new_id in zip(heavy_conformers, target_ids, strict=True):
-        conformer.SetId(new_id)
-    return heavy, target_ids
-
-
-def test_free_docking_tags_true_conformer_and_representative_index(
-    monkeypatch,
-    cys_pdb: Path,
-    tmp_path: Path,
-) -> None:
-    monkeypatch.setattr("anchor_dock.free.generate_conformers_and_cluster", _fake_sparse_conformer_generator)
-    result = dock_free(
-        cys_pdb,
-        "CCO",
-        tmp_path / "free-provenance",
-        num_confs=2,
-        num_starts=4,
-        optimize=False,
-        top_k=None,
-        device="cpu",
-        verbose=False,
-    )
-    poses = [mol for mol in Chem.SDMolSupplier(result["output_file"]) if mol is not None]
-    assert poses
-    for pose in poses:
-        pose_id = pose.GetProp("AnchorDock_Pose_ID")
-        start_index = int(pose_id.split("_")[1])
-        representative_index = start_index % 2
-        expected_conformer_id = [7, 19][representative_index]
-        assert pose.GetProp("AnchorDock_Output_Schema") == "2"
-        assert pose.GetProp("AnchorDock_Source_Representative_Index") == str(representative_index)
-        assert pose.GetProp("AnchorDock_Source_Conformer") == str(expected_conformer_id)

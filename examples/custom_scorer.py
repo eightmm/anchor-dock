@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from anchor_dock import dock_free
+from anchor_dock import dock_interaction
 
 
 class ContactScorer(nn.Module):
@@ -12,5 +12,15 @@ class ContactScorer(nn.Module):
         return -torch.exp(-((distances - 3.5) / 1.5).square()).sum(dim=(1, 2))
 
 
-result = dock_free("pocket.pdb", "CCO", scorer=ContactScorer(), num_starts=64)
+result = dock_interaction(
+    "pocket.pdb",
+    "CCO",
+    receptor_residue="ASP189:A",
+    receptor_atom="OD1",
+    ligand_smarts="[O:1]",
+    target_distance=3.0,
+    distance_tolerance=0.5,
+    scorer=ContactScorer(),
+    num_candidates=64,
+)
 print(result)

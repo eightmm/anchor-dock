@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .batch import dock_batch
 from .covalent import dock_covalent
-from .free import dock_free
+from .interaction import dock_interaction
 from .reference import dock_reference
 
 
@@ -73,28 +73,50 @@ def build_parser() -> argparse.ArgumentParser:
     covalent.add_argument("--top-k", type=int, default=None)
     _optimization_arguments(covalent)
 
-    free = subcommands.add_parser("free", help="unanchored multistart local docking")
-    free.add_argument("-p", "--protein", required=True)
-    free.add_argument("-q", "--query", required=True)
-    free.add_argument("-o", "--output", default="anchor_dock_free")
-    free.add_argument("--center", type=float, nargs=3, default=None)
-    free.add_argument("--box-size", type=float, nargs=3, default=(20.0, 20.0, 20.0))
-    free.add_argument("-n", "--num-confs", type=int, default=64)
-    free.add_argument("--num-starts", type=int, default=128)
-    free.add_argument("--rmsd-threshold", type=float, default=1.0)
-    free.add_argument("--top-k", type=int, default=20)
-    free_optimization = free.add_mutually_exclusive_group()
-    free_optimization.add_argument("--optimize", dest="optimize", action="store_true")
-    free_optimization.add_argument("--no-optimize", dest="optimize", action="store_false")
-    _optimization_arguments(free)
-    free.set_defaults(scorer="softdock", opt_steps=150, optimize=True)
+    interaction = subcommands.add_parser("interaction", help="explicit atom-pair guided local docking")
+    interaction.add_argument("-p", "--protein", required=True)
+    interaction.add_argument("-q", "--query", required=True)
+    interaction.add_argument("-o", "--output", default="anchor_dock_interaction")
+    interaction.add_argument("--receptor-residue", required=True)
+    interaction.add_argument("--receptor-atom", required=True)
+    interaction.add_argument("--ligand-smarts", required=True)
+    interaction.add_argument("--target-distance", required=True, type=float)
+    interaction.add_argument("--distance-tolerance", required=True, type=float)
+    interaction.add_argument("--pocket-cutoff", type=float, default=12.0)
+    heteroatoms = interaction.add_mutually_exclusive_group()
+    heteroatoms.add_argument("--include-heteroatoms", dest="include_heteroatoms", action="store_true")
+    heteroatoms.add_argument("--exclude-heteroatoms", dest="include_heteroatoms", action="store_false")
+    interaction.add_argument("-n", "--num-confs", type=int, default=32)
+    interaction.add_argument("--rmsd-threshold", type=float, default=1.0)
+    interaction.add_argument("--num-candidates", type=int, default=128)
+    interaction.add_argument("--preselect-k", type=int, default=16)
+    interaction.add_argument("--max-matches", type=int, default=16)
+    interaction.add_argument("--release-steps", type=int, default=25)
+    interaction.add_argument("--restraint-weight", type=float, default=10.0)
+    interaction.add_argument("--top-k", type=int, default=10)
+    interaction_optimization = interaction.add_mutually_exclusive_group()
+    interaction_optimization.add_argument("--optimize", dest="optimize", action="store_true")
+    interaction_optimization.add_argument("--no-optimize", dest="optimize", action="store_false")
+    _optimization_arguments(interaction)
+    interaction.set_defaults(
+        include_heteroatoms=True,
+        scorer="softdock",
+        opt_steps=50,
+        opt_batch_size=32,
+        optimize=True,
+    )
 
     batch = subcommands.add_parser("batch", help="homogeneous or mixed-mode batch execution")
     batch.add_argument("input")
-    batch.add_argument("-m", "--mode", choices=("reference", "covalent", "free"), default=None)
+    batch.add_argument("-m", "--mode", choices=("reference", "covalent", "interaction"), default=None)
     batch.add_argument("-p", "--protein", default=None)
     batch.add_argument("-r", "--reference", default=None)
     batch.add_argument("--reactive-residue", default=None)
+    batch.add_argument("--receptor-residue", default=None)
+    batch.add_argument("--receptor-atom", default=None)
+    batch.add_argument("--ligand-smarts", default=None)
+    batch.add_argument("--target-distance", type=float, default=None)
+    batch.add_argument("--distance-tolerance", type=float, default=None)
     batch.add_argument("-o", "--output", default="anchor_dock_batch")
     batch.add_argument("--on-error", choices=("record", "raise", "skip"), default="record")
     batch.add_argument("--resume", action="store_true")
@@ -186,22 +208,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             device=args.device,
             verbose=not args.quiet,
         )
-    elif args.command == "free":
-        result = dock_free(
+    elif args.command == "interaction":
+        result = dock_interaction(
             args.protein,
             args.query,
             args.output,
-            center=args.center,
-            box_size=args.box_size,
+            receptor_residue=args.receptor_residue,
+            receptor_atom=args.receptor_atom,
+            ligand_smarts=args.ligand_smarts,
+            target_distance=args.target_distance,
+            distance_tolerance=args.distance_tolerance,
+            pocket_cutoff=args.pocket_cutoff,
+            include_heteroatoms=args.include_heteroatoms,
             num_confs=args.num_confs,
-            num_starts=args.num_starts,
             rmsd_threshold=args.rmsd_threshold,
+            num_candidates=args.num_candidates,
+            preselect_k=args.preselect_k,
+            max_matches=args.max_matches,
             optimize=args.optimize,
             optimizer=args.optimizer,
             opt_steps=args.opt_steps,
+            release_steps=args.release_steps,
             opt_lr=args.opt_lr,
             opt_batch_size=args.opt_batch_size,
             scorer=args.scorer,
+            restraint_weight=args.restraint_weight,
             top_k=args.top_k,
             random_seed=args.seed,
             device=args.device,
@@ -219,6 +250,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             protein_pdb=args.protein,
             reference_ligand=args.reference,
             reactive_residue=args.reactive_residue,
+            receptor_residue=args.receptor_residue,
+            receptor_atom=args.receptor_atom,
+            ligand_smarts=args.ligand_smarts,
+            target_distance=args.target_distance,
+            distance_tolerance=args.distance_tolerance,
             output_dir=args.output,
             on_error=args.on_error,
             resume=args.resume,

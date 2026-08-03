@@ -13,7 +13,7 @@ def test_public_api_contains_canonical_and_one_release_aliases() -> None:
         "LigandRecord",
         "dock_batch",
         "dock_covalent",
-        "dock_free",
+        "dock_interaction",
         "dock_reference",
     }
     compatibility = {
@@ -24,6 +24,25 @@ def test_public_api_contains_canonical_and_one_release_aliases() -> None:
         "run_reference_pipeline",
     }
     assert canonical | compatibility <= set(package.__all__)
+
+
+def test_removed_free_api_is_absent() -> None:
+    package = importlib.import_module("anchor_dock")
+    core = importlib.import_module("anchor_dock.core")
+    assert not hasattr(package, "dock_free")
+    assert not hasattr(package.DockingJob, "free")
+    assert not hasattr(package.DockingEngine, "optimize_free")
+    assert not hasattr(core, "FreePoseModel")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("anchor_dock.free")
+
+
+def test_clear_all_caches_includes_interaction_cache() -> None:
+    package = importlib.import_module("anchor_dock")
+    pipeline = importlib.import_module("anchor_dock.interaction.pipeline")
+    pipeline._INTERACTION_CONTEXT_CACHE[("f", "r", "a", 1.0, True, "cpu", "v")] = object()
+    package.clear_all_caches()
+    assert not pipeline._INTERACTION_CONTEXT_CACHE
 
 
 def test_reference_legacy_keywords_warn_once_and_translate(monkeypatch) -> None:

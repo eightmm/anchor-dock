@@ -355,7 +355,7 @@ def test_covalent_pipeline_preserves_bond_length_and_removes_legacy_tags(
     assert poses
     properties = set(poses[0].GetPropNames())
     assert "AnchorDock_Covalent_Bond_Length" in properties
-    assert poses[0].GetProp("AnchorDock_Version") == "0.3.0"
+    assert poses[0].GetProp("AnchorDock_Version") == "0.4.0"
     assert poses[0].GetProp("AnchorDock_Score_Semantics") == "adduct_conditioned_pose_ranking"
     assert poses[0].HasProp("AnchorDock_Scorer_Fingerprint")
     assert poses[0].HasProp("AnchorDock_Receptor_Structure_Fingerprint")

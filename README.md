@@ -4,14 +4,14 @@ AnchorDock is a Torch-native ligand pose engine with three explicit search strat
 
 - **reference**: transfer one or more MCS anchors from a known ligand;
 - **covalent**: construct a residue–warhead adduct and preserve its reaction geometry;
-- **free**: randomized multistart local optimization over translation, rotation, and torsions.
+- **interaction**: test an explicit receptor-atom/ligand-atom distance hypothesis with bounded local search.
 
 All three strategies use the same scorer interface, rigid-frame kinematics, pose optimizer, receptor context, output schema, and heterogeneous batch runner. The only Python namespace is `anchor_dock`.
 
 ## Installation
 
 ```bash
-uv sync --group dev
+uv sync --frozen --group dev
 ```
 
 Python 3.12 or newer is required.
@@ -53,22 +53,26 @@ Covalent scoring retypes the bonded receptor nucleophile in product state on a c
 
 The input protein's support and nucleophile coordinates are fixed first. Carbon electrophiles use validated residue-specific bond targets; sulfur, phosphorus, and other electrophiles use atom-pair distance-geometry bounds. A local geometry pass and rigid branch transform enforce the formed bond and protein-side 1–3 geometry without deforming the ligand branch. Omitting `reactive_residue` is accepted only when exactly one supported residue exists.
 
-## Free local docking
+## Interaction-guided local docking
 
 ```python
-from anchor_dock import dock_free
+from anchor_dock import dock_interaction
 
-result = dock_free(
+result = dock_interaction(
     protein_pdb="pocket.pdb",
     query_ligand="CCO",
-    center=(12.0, -3.0, 8.0),
-    box_size=(20.0, 20.0, 20.0),
-    num_starts=256,
+    receptor_residue="ASP189:A",
+    receptor_atom="OD1",
+    ligand_smarts="[O:1]",
+    target_distance=3.0,
+    distance_tolerance=0.5,
     scorer="softdock",
 )
 ```
 
-This is a seeded multistart **local** search with Haar-uniform SO(3) starts, not a reproduction of AutoDock Vina's global Monte-Carlo search.
+The mapped SMARTS must contain exactly one `:1` query atom. AnchorDock enumerates every distinct matching ligand atom up to the configured hard cap, samples seeded candidates around the selected receptor atom, and preselects fairly across matches and conformers. A flat-bottom distance guide is followed by restraint-free release; only poses still inside the requested distance window are exported and ranked by the unmodified scorer.
+
+This is a generic atom-pair distance hypothesis, not automatic interaction-site detection or a claim of a hydrogen bond, salt bridge, metal interaction, or pi interaction. AnchorDock does not infer protonation, tautomer, or chemical compatibility.
 
 ## One batch API
 
@@ -89,11 +93,15 @@ jobs = [
         protein_pdb="protein.pdb",
         reactive_residue="CYS145:A",
     ),
-    DockingJob.free(
+    DockingJob.interaction(
         "CCN",
-        id="free-001",
+        id="interaction-001",
         protein_pdb="pocket.pdb",
-        num_starts=128,
+        receptor_residue="ASP189:A",
+        receptor_atom="OD1",
+        ligand_smarts="[N:1]",
+        target_distance=3.0,
+        distance_tolerance=0.5,
     ),
 ]
 
@@ -109,7 +117,7 @@ Ligands and references must contain exactly one connected component. AnchorDock 
 ```python
 import torch
 import torch.nn as nn
-from anchor_dock import dock_free
+from anchor_dock import dock_interaction
 
 class MyScorer(nn.Module):
     def forward(self, ligand_coords, receptor_coords, ligand_features, receptor_features):
@@ -119,11 +127,15 @@ class MyScorer(nn.Module):
         )
         return -torch.exp(-distances).sum(dim=(1, 2))
 
-result = dock_free(
+result = dock_interaction(
     "pocket.pdb",
     "CCO",
+    receptor_residue="ASP189:A",
+    receptor_atom="OD1",
+    ligand_smarts="[O:1]",
+    target_distance=3.0,
+    distance_tolerance=0.5,
     scorer=MyScorer(),
-    num_starts=64,
 )
 ```
 
@@ -131,19 +143,19 @@ result = dock_free(
 
 The Vina and Vinardo backends follow the modern AutoDock Vina implementation's pair functions, defaults, radii, 8 Å cutoff, and torsion transform. SMILES/SDF/PDB inputs do not carry authoritative PDBQT XS types, so AnchorDock infers XS-like types and labels the score as `kcal/mol-like`, not an exact Vina affinity. See [docs/SCORING.md](docs/SCORING.md).
 
-Covalent scores are conditioned on an already formed adduct. Free-mode scores rank local starts. Scores from different scorers or search modes should not be mixed without calibration.
+Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived the requested atom-pair distance filter; the guide penalty is never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
 
-## Upgrading from 0.2
+## Upgrading
 
-Version 0.3 keeps a one-release `FutureWarning` adapter for unambiguous 0.2 call names and keywords. It does **not** preserve 0.2 score values or SDF tags: atom typing, pair masks, score reporting, covalent geometry, and the output schema changed. The unsupported `vina_lp` preset and old low-level namespaces fail explicitly. See [docs/MIGRATION.md](docs/MIGRATION.md).
+Version 0.4 removes the public unconstrained search and replaces it with the explicit interaction-guided contract above. This is a breaking API, batch, CLI, and resume-format change. The earlier 0.2-to-0.3 compatibility and scientific score changes remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ## Development
 
 ```bash
 uv lock --check
 uv sync --frozen --group dev
-uv run ruff check src tests examples
-uv run pytest -q
+uv run --frozen ruff check src tests examples
+uv run --frozen pytest -q
 uv build --wheel
 ```
 
@@ -154,7 +166,7 @@ uv build --wheel
 - [Batch inputs and manifests](docs/BATCH.md)
 - [Python and CLI usage](docs/USAGE.md)
 - [API reference](docs/API_REFERENCE.md)
-- [0.2 to 0.3 migration](docs/MIGRATION.md)
+- [Migration](docs/MIGRATION.md)
 - [Examples](examples/README.md)
 
 ## License

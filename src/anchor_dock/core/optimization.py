@@ -306,37 +306,6 @@ def optimize_torsions(
     return result, aggregate
 
 
-class FreePoseModel(nn.Module):
-    """Torsion + rigid SE(3) parameters for unanchored local pose search."""
-
-    def __init__(
-        self,
-        mol: Chem.Mol,
-        base_coords: torch.Tensor,
-        initial_centers: torch.Tensor,
-        initial_rotation_vectors: torch.Tensor,
-        device: torch.device | str,
-    ) -> None:
-        super().__init__()
-        device = torch.device(device)
-        coords = base_coords.to(device=device, dtype=torch.float32)
-        if coords.ndim != 3:
-            raise ValueError("base_coords must have shape [B,N,3]")
-        centered = coords - coords.mean(dim=1, keepdim=True)
-        self.kinematics = LigandKinematics(mol, (), centered, device, freeze_anchor=False)
-        self.translations = nn.Parameter(initial_centers.to(device=device, dtype=torch.float32).clone())
-        self.rotation_vectors = nn.Parameter(initial_rotation_vectors.to(device=device, dtype=torch.float32).clone())
-
-    def forward(self) -> torch.Tensor:
-        flexible = self.kinematics()
-        center = flexible.mean(dim=1, keepdim=True)
-        centered = flexible - center
-        angle = torch.linalg.vector_norm(self.rotation_vectors, dim=1)
-        rotation = get_batched_rotation_matrix(self.rotation_vectors, angle)
-        rotated = torch.matmul(centered, rotation.transpose(1, 2))
-        return rotated + self.translations[:, None, :]
-
-
 class SE3PoseModel(nn.Module):
     """Torsion + rigid SE(3) parameters that keep one ligand pivot atom fixed at a per-row center.
 

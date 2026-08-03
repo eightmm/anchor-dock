@@ -37,8 +37,8 @@ jobs:
           smoke_dir="$(mktemp -d)"
           cd "$smoke_dir"
           uv run --isolated --no-project --with "$wheel" python -c \
-            'import importlib.metadata, importlib.util, anchor_dock; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.3.0"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_free", "dock_batch")); assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
-          for command in reference covalent free batch; do
+            'import importlib.metadata, importlib.util, anchor_dock; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.4.0"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_interaction", "dock_batch")); assert not hasattr(anchor_dock, "dock_free"); assert importlib.util.find_spec("anchor_dock.free") is None; assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
+          for command in reference covalent interaction batch; do
             uv run --isolated --no-project --with "$wheel" anchor-dock "$command" --help
           done
       - name: Pack source snapshot

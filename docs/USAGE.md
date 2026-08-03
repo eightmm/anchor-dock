@@ -31,14 +31,17 @@ uv run anchor-dock covalent \
   --optimize
 ```
 
-Free local search:
+Interaction-guided local search:
 
 ```bash
-uv run anchor-dock free \
+uv run anchor-dock interaction \
   --protein pocket.pdb \
   --query "CCO" \
-  --center 12 -3 8 \
-  --box-size 20 20 20
+  --receptor-residue ASP189:A \
+  --receptor-atom OD1 \
+  --ligand-smarts "[O:1]" \
+  --target-distance 3.0 \
+  --distance-tolerance 0.5
 ```
 
 Batch execution:
@@ -49,7 +52,13 @@ uv run anchor-dock batch examples/batch/jobs.jsonl \
   --resume
 ```
 
-`free` defaults to `--optimize`; pass `--no-optimize` to skip local refinement. Query ligands may still be passed as SMILES, InChI, or supported molecule files. When a ligand or reference input is an SDF, it must contain exactly one record; multi-ligand SDF files must go through `batch`.
+`interaction` defaults to a bounded search: 32 conformer attempts, 128 candidates, 16 preselected poses, 50 guided optimization steps, 25 restraint-free release steps, and at most 16 distinct ligand anchor atoms. Pass `--no-optimize` to retain only the seeded/preselected poses. Query ligands may still be passed as SMILES, InChI, or supported molecule files. When a ligand or reference input is an SDF, it must contain exactly one record; multi-ligand SDF files must go through `batch`.
+
+The receptor residue selector uses forms such as `ASP189:A` or `ASP189A:A` (insertion code before the colon). Omitting the chain is allowed only when the remaining selector is unique; an explicit blank chain is written as `ASP189:`. The receptor atom name must resolve to exactly one non-hydrogen standard `ATOM` record. Alternate locations and ambiguous records are rejected.
+
+The ligand SMARTS must contain exactly one mapped query atom and that map number must be `:1`; for example, `[O:1]` selects oxygen atoms while `[CX3](=[O:1])` restricts the mapped oxygen to a carbonyl environment. Every distinct matching ligand atom is explored automatically. If there are no matches, or the full match set would exceed `--max-matches`, the run fails instead of choosing or truncating silently.
+
+Interaction guidance is a generic atom-pair distance hypothesis. It does not discover the receptor/ligand atoms, assign an interaction type, or infer protonation, tautomers, or chemical compatibility. The flat-bottom restraint guides the first optimization phase, is removed for release, and is never added to reported scorer values. Only released poses inside the specified distance window are exported.
 
 Each command prints JSON. A batch command exits nonzero when any recorded result failed. Run `anchor-dock <mode> --help` for all options.
 
@@ -66,9 +75,9 @@ MCS timeouts and hard node-budget exhaustion discard partial results and fail. C
 
 ## Reading output
 
-Use `AnchorDock_Score` for sorted reported scores and `AnchorDock_Search_Energy` for the objective. Keep scorer/receptor/source fingerprints, units, semantics, intramolecular reference, package/schema version, and `Search_Parameters`. Requested/applied torsion and optimization fields are separate. Covalent output records atom-pair bond-target source/bounds, 1–3 geometry, the reactant receptor fingerprint, and the versioned product-state nucleophile typing change.
+Use `AnchorDock_Score` for sorted reported scores and `AnchorDock_Search_Energy` for the scorer's objective. Keep scorer/receptor/source fingerprints, units, semantics, intramolecular reference, package/schema version, and `Search_Parameters`. Requested/applied torsion and optimization fields are separate. Covalent output records atom-pair bond-target source/bounds, 1–3 geometry, the reactant receptor fingerprint, and the versioned product-state nucleophile typing change. Interaction output separately records the resolved receptor atom, all ligand matches, target window, initial/guided/final distances, restraint values, and guide/release statistics.
 
-Free mode samples seeded Haar-uniform SO(3) starting orientations. Ligands and references must be single connected components; salts and mixtures fail explicitly.
+Interaction mode samples seeded Haar-uniform SO(3) starting orientations around the selected receptor atom. Ligands and references must be single connected components; salts and mixtures fail explicitly.
 
 ## Verification
 

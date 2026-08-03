@@ -57,7 +57,7 @@ Official Vina receives authoritative PDBQT atom types. AnchorDock infers XS-like
 - donor/acceptor nitrogen and oxygen;
 - sulfur, phosphorus, halogens, silicon, astatine, and metals.
 
-Reference and free outputs record `AnchorDock_Atom_Typing=inferred-xs-v2`. Covalent mode copy-on-write retypes the bonded receptor atom and records `inferred-xs-v2+covalent-product-v1`, the original reactant fingerprint, and a structured before/after change. The product rules use non-hydrogen-bonding CYS sulfur and bonded HIS nitrogen, acceptor-only SER/THR/TYR oxygen, and reaction-center-aware donor/acceptor states for LYS. These remain inferred XS-like types, not a protonation or quantum reaction model.
+Reference and interaction outputs record `AnchorDock_Atom_Typing=inferred-xs-v2`. Covalent mode copy-on-write retypes the bonded receptor atom and records `inferred-xs-v2+covalent-product-v1`, the original reactant fingerprint, and a structured before/after change. The product rules use non-hydrogen-bonding CYS sulfur and bonded HIS nitrogen, acceptor-only SER/THR/TYR oxygen, and reaction-center-aware donor/acceptor states for LYS. These remain inferred XS-like types, not a protonation or quantum reaction model.
 
 Vina/Vinardo values are therefore labelled `kcal/mol-like`; they are not claimed to be bitwise or affinity-identical to AutoDock Vina.
 
@@ -66,6 +66,18 @@ If an element cannot receive a validated XS-like type (for example boron), Vina 
 ## SoftDock
 
 `softdock` is an uncalibrated Torch baseline combining smooth steric overlap, contact attraction, hydrophobic contact, and donor–acceptor attraction. Units are arbitrary. It is useful for stable local search and as a template for learned scorers.
+
+## Interaction guidance versus reported score
+
+Interaction mode adds this flat-bottom term during its guide phase:
+
+```text
+E_guide = E_search + weight * relu(abs(distance - target) - tolerance)^2
+```
+
+The release phase optimizes `E_search` alone on the same live pose model. Final poses must still fall within `target ± tolerance`; survivors are ranked and written using only the scorer's normal `AnchorDock_Score` and `AnchorDock_Search_Energy`. The restraint energy, formula, weight, and per-phase distances are stored separately as provenance and never mixed into those score fields.
+
+A short distance does not by itself establish a particular chemical interaction. The guide is therefore labelled a generic atom-pair distance hypothesis, without hydrogen-bond, salt-bridge, metal, pi-interaction, protonation, tautomer, or compatibility inference.
 
 ## Custom scorers
 

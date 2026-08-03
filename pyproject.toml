@@ -1,7 +1,7 @@
 [project]
 name = "anchor-dock"
-version = "0.3.0"
-description = "Torch-native reference-guided, covalent, and multistart local ligand docking"
+version = "0.4.0"
+description = "Torch-native reference-guided, covalent, and interaction-guided local ligand docking"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

@@ -13,7 +13,6 @@ from .features import compute_atom_features
 from .io import ReceptorContext
 from .masks import compute_intramolecular_mask
 from .optimization import (
-    FreePoseModel,
     OptimizationStats,
     OptimizerName,
     SE3PoseModel,
@@ -49,7 +48,7 @@ class PreparedDockingProblem:
 
 
 class DockingEngine:
-    """Prepare scoring once and optimize anchor-constrained or free poses."""
+    """Prepare scoring once and optimize anchor-constrained or guided poses."""
 
     def __init__(
         self,
@@ -148,73 +147,6 @@ class DockingEngine:
             min_delta=self.min_delta,
             freeze_anchor=freeze_anchor,
         )
-
-    def optimize_free(
-        self,
-        problem: PreparedDockingProblem,
-        base_coords: torch.Tensor,
-        *,
-        centers: torch.Tensor,
-        rotation_vectors: torch.Tensor,
-        box_center: torch.Tensor,
-        box_size: torch.Tensor,
-        boundary_weight: float = 10.0,
-    ) -> tuple[torch.Tensor, OptimizationStats]:
-        """Optimize rigid SE(3) and torsions in memory-bounded chunks."""
-        base_coords = base_coords.to(self.device, dtype=torch.float32)
-        centers = centers.to(self.device, dtype=torch.float32)
-        rotation_vectors = rotation_vectors.to(self.device, dtype=torch.float32)
-        if base_coords.ndim != 3 or centers.shape != (base_coords.shape[0], 3):
-            raise ValueError("base_coords and centers must have shapes [B,N,3] and [B,3]")
-        if rotation_vectors.shape != centers.shape:
-            raise ValueError("rotation_vectors must match centers")
-        box_center = box_center.to(self.device, dtype=torch.float32)
-        half_size = box_size.to(self.device, dtype=torch.float32) * 0.5
-
-        outputs: list[torch.Tensor] = []
-        stats_values: list[OptimizationStats] = []
-        chunk_size = 1 if self.optimizer == "lbfgs" else self.batch_size
-        for start in range(0, base_coords.shape[0], chunk_size):
-            stop = min(start + chunk_size, base_coords.shape[0])
-            model = FreePoseModel(
-                problem.mol,
-                base_coords[start:stop],
-                centers[start:stop],
-                rotation_vectors[start:stop],
-                self.device,
-            )
-
-            def energy_fn(values: torch.Tensor) -> torch.Tensor:
-                search = problem.scorer.search_energy(values)
-                excess = torch.relu(torch.abs(values - box_center) - half_size)
-                boundary = excess.square().sum(dim=(1, 2)) * boundary_weight
-                return search + boundary
-
-            optimized, stats = optimize_pose_module(
-                model,
-                energy_fn,
-                num_steps=self.num_steps,
-                learning_rate=self.learning_rate,
-                optimizer=self.optimizer,
-                early_stopping=self.early_stopping,
-                patience=self.patience,
-                min_delta=self.min_delta,
-            )
-            if optimized.ndim == 2:
-                optimized = optimized.unsqueeze(0)
-            outputs.append(optimized)
-            stats_values.append(stats)
-
-        all_steps = [value.average_steps for value in stats_values for _ in range(value.num_poses)]
-        aggregate = OptimizationStats(
-            average_steps=float(sum(all_steps) / len(all_steps)) if all_steps else 0.0,
-            minimum_steps=min((value.minimum_steps for value in stats_values), default=0),
-            maximum_steps=max((value.maximum_steps for value in stats_values), default=0),
-            num_poses=base_coords.shape[0],
-            initial_best_energy=min((value.initial_best_energy for value in stats_values), default=0.0),
-            final_best_energy=min((value.final_best_energy for value in stats_values), default=0.0),
-        )
-        return torch.cat(outputs), aggregate
 
     def optimize_se3(
         self,

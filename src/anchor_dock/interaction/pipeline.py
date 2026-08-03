@@ -33,9 +33,10 @@ from ..core.optimization import OptimizationStats
 from ..core.output import write_ranked_poses
 from ..core.scoring import ScorerLike
 from .restraint import flat_bottom_distance_restraint, interaction_distances
-from .selectors import select_ligand_anchors, select_receptor_atom
+from .selectors import InteractionSelectionError, select_ligand_anchors, select_receptor_atom
 
 SCORE_SEMANTICS = "interaction_conditioned_local_pose_ranking"
+OUTPUT_COORDINATE_DECIMALS = 4
 RESTRAINT_FORMULA = "weight * relu(abs(distance-target)-tolerance)^2"
 PROTONATION_LIMITATION = (
     "exact input ligand state, receptor hydrogens removed, no protomer/tautomer enumeration"
@@ -168,6 +169,23 @@ def _aggregate_stats(stats_list: list[OptimizationStats], total_poses: int) -> O
     )
 
 
+def _reject_pocket_altlocs(pocket: Chem.Mol) -> None:
+    ambiguous: list[str] = []
+    for atom in pocket.GetAtoms():
+        info = atom.GetPDBResidueInfo()
+        if info is None or not info.GetAltLoc().strip():
+            continue
+        ambiguous.append(
+            f"{info.GetResidueName().strip()}{info.GetResidueNumber()}:{info.GetChainId().strip()}"
+            f"/{info.GetName().strip()}:{info.GetAltLoc().strip()}"
+        )
+    if ambiguous:
+        raise InteractionSelectionError(
+            "alternate locations are not supported in the scored receptor pocket: "
+            + ", ".join(sorted(ambiguous))
+        )
+
+
 def dock_interaction(
     protein_pdb: str | os.PathLike[str],
     query_ligand: str | os.PathLike[str] | Chem.Mol,
@@ -227,6 +245,8 @@ def dock_interaction(
         raise TypeError("optimize must be a bool")
     if not isinstance(torsion_penalty, bool):
         raise TypeError("torsion_penalty must be a bool")
+    if optimizer not in {"adam", "adamw", "lbfgs"}:
+        raise ValueError("optimizer must be adam, adamw, or lbfgs")
     if optimize and opt_steps > 0 and release_steps == 0:
         raise ValueError("release_steps must be positive when guided optimization steps are requested")
     if preselect_k > num_candidates:
@@ -272,6 +292,7 @@ def dock_interaction(
             cutoff=pocket_cutoff,
             include_heteroatoms=include_heteroatoms,
         )
+        _reject_pocket_altlocs(pocket_mol)
 
         pocket_context = receptor_context_from_mol(
             pocket_mol,
@@ -472,15 +493,23 @@ def dock_interaction(
         release_stats = zero_stats
 
         optimization_applied = False
+    # Match the SDF coordinate precision before filtering/scoring so an exported
+    # pose cannot cross the requested boundary due to serialization rounding.
+    coordinate_scale = float(10**OUTPUT_COORDINATE_DECIMALS)
+    export_final_coords = torch.round(final_coords.to(torch.float64) * coordinate_scale) / coordinate_scale
+
     # 8) Calculate final distances and discard every row outside [target-tolerance, target+tolerance]
     initial_dists = torch.empty(preselect_k, dtype=torch.float32, device=target_device)
     guided_dists = torch.empty(preselect_k, dtype=torch.float32, device=target_device)
-    final_dists = torch.empty(preselect_k, dtype=torch.float32, device=target_device)
+    final_dists = torch.empty(preselect_k, dtype=torch.float64, device=target_device)
+    receptor_coord_export = torch.tensor(sel.coordinate, dtype=torch.float64, device=target_device)
 
     for idx, pivot in enumerate(preselected_pivot_atom_indices.tolist()):
         initial_dists[idx] = torch.linalg.vector_norm(preselected_initial_coords[idx, pivot, :] - receptor_coord_tensor)
         guided_dists[idx] = torch.linalg.vector_norm(guided_coords[idx, pivot, :] - receptor_coord_tensor)
-        final_dists[idx] = torch.linalg.vector_norm(final_coords[idx, pivot, :] - receptor_coord_tensor)
+        final_dists[idx] = torch.linalg.vector_norm(
+            export_final_coords[idx, pivot, :] - receptor_coord_export
+        )
 
     initial_restraint_energies = flat_bottom_distance_restraint(
         initial_dists, target_distance, distance_tolerance, restraint_weight
@@ -492,8 +521,8 @@ def dock_interaction(
         final_dists, target_distance, distance_tolerance, restraint_weight
     )
 
-    lower_bound = target_distance - distance_tolerance - 1e-5
-    upper_bound = target_distance + distance_tolerance + 1e-5
+    lower_bound = target_distance - distance_tolerance
+    upper_bound = target_distance + distance_tolerance
     valid_mask = (final_dists >= lower_bound) & (final_dists <= upper_bound)
 
     if not valid_mask.any():
@@ -502,13 +531,13 @@ def dock_interaction(
     surviving_indices = torch.nonzero(valid_mask).flatten()
 
     # Score only the survivors using unmodified scorer
-    final_surviving_coords = final_coords[surviving_indices]
+    final_surviving_coords = export_final_coords[surviving_indices]
     initial_surviving_coords = preselected_initial_coords[surviving_indices]
 
     initial_components, final_components = engine.report_scores(
         problem,
         initial_surviving_coords,
-        final_surviving_coords,
+        final_surviving_coords.to(dtype=initial_surviving_coords.dtype),
     )
     if optimization_applied:
         optimization_improved = bool(
@@ -564,6 +593,7 @@ def dock_interaction(
         "Distance_Tolerance": distance_tolerance,
         "Distance_Lower": target_distance - distance_tolerance,
         "Distance_Upper": target_distance + distance_tolerance,
+        "Output_Coordinate_Decimals": OUTPUT_COORDINATE_DECIMALS,
         "Restraint_Formula": RESTRAINT_FORMULA,
         "Restraint_Weight": restraint_weight,
         "Conformer_IDs": ",".join(str(cid) for cid in representative_ids),
@@ -681,6 +711,7 @@ def dock_interaction(
         "distance_tolerance": distance_tolerance,
         "distance_lower": target_distance - distance_tolerance,
         "distance_upper": target_distance + distance_tolerance,
+        "output_coordinate_decimals": OUTPUT_COORDINATE_DECIMALS,
         "restraint_formula": RESTRAINT_FORMULA,
         "restraint_weight": restraint_weight,
         "canonical_smiles": canonical_smiles,

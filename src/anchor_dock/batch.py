@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import lzma
+import math
 import os
 import re
 import tempfile
@@ -40,7 +41,7 @@ class LigandRecord:
 class DockingJob:
     """One fully or partially specified docking job."""
 
-    mode: Literal["reference", "covalent", "free"]
+    mode: Literal["reference", "covalent", "interaction"]
     ligand: str | os.PathLike[str] | Chem.Mol
     protein_pdb: str | os.PathLike[str] | None = None
     id: str | None = None
@@ -48,6 +49,11 @@ class DockingJob:
     reactive_residue: str | None = None
     options: dict[str, object] = field(default_factory=dict)
     metadata: dict[str, object] = field(default_factory=dict)
+    receptor_residue: str | None = None
+    receptor_atom: str | None = None
+    ligand_smarts: str | None = None
+    target_distance: float | None = None
+    distance_tolerance: float | None = None
 
     @classmethod
     def reference(
@@ -61,14 +67,13 @@ class DockingJob:
         **options: object,
     ) -> DockingJob:
         return cls(
-            "reference",
-            ligand,
-            protein_pdb,
-            id,
-            reference_ligand,
-            None,
-            dict(options),
-            dict(metadata or {}),
+            mode="reference",
+            ligand=ligand,
+            protein_pdb=protein_pdb,
+            id=id,
+            reference_ligand=reference_ligand,
+            options=dict(options),
+            metadata=dict(metadata or {}),
         )
 
     @classmethod
@@ -83,35 +88,42 @@ class DockingJob:
         **options: object,
     ) -> DockingJob:
         return cls(
-            "covalent",
-            ligand,
-            protein_pdb,
-            id,
-            None,
-            reactive_residue,
-            dict(options),
-            dict(metadata or {}),
+            mode="covalent",
+            ligand=ligand,
+            protein_pdb=protein_pdb,
+            id=id,
+            reactive_residue=reactive_residue,
+            options=dict(options),
+            metadata=dict(metadata or {}),
         )
 
     @classmethod
-    def free(
+    def interaction(
         cls,
         ligand: str | os.PathLike[str] | Chem.Mol,
         *,
         protein_pdb: str | os.PathLike[str],
+        receptor_residue: str,
+        receptor_atom: str,
+        ligand_smarts: str,
+        target_distance: float,
+        distance_tolerance: float,
         id: str | None = None,
         metadata: Mapping[str, object] | None = None,
         **options: object,
     ) -> DockingJob:
         return cls(
-            "free",
-            ligand,
-            protein_pdb,
-            id,
-            None,
-            None,
-            dict(options),
-            dict(metadata or {}),
+            mode="interaction",
+            ligand=ligand,
+            protein_pdb=protein_pdb,
+            id=id,
+            options=dict(options),
+            metadata=dict(metadata or {}),
+            receptor_residue=receptor_residue,
+            receptor_atom=receptor_atom,
+            ligand_smarts=ligand_smarts,
+            target_distance=target_distance,
+            distance_tolerance=distance_tolerance,
         )
 
 
@@ -155,7 +167,7 @@ _SUPPORTED_SUFFIXES = {
 }
 _COMPRESSED_SUFFIXES = {".gz", ".bz2", ".xz", ".lzma"}
 # Resume-signature epoch: bump whenever older successful artifacts are no longer semantically reusable.
-_BATCH_SCHEMA_VERSION = "3"
+_BATCH_SCHEMA_VERSION = "4"
 _BATCH_MANIFEST_NAMES = ("results.jsonl", "summary.json")
 
 
@@ -285,6 +297,11 @@ def _job_signature(
         "protein": _file_identity(job.protein_pdb),
         "reference": _file_identity(job.reference_ligand),
         "reactive_residue": job.reactive_residue,
+        "receptor_residue": job.receptor_residue,
+        "receptor_atom": job.receptor_atom,
+        "ligand_smarts": job.ligand_smarts,
+        "target_distance": job.target_distance,
+        "distance_tolerance": job.distance_tolerance,
         "metadata": _stable_value(job.metadata),
         "options": _stable_value(options),
     }
@@ -348,11 +365,32 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
         "ref_ligand",
         "reactive_residue",
         "residue",
+        "receptor_residue",
+        "receptor_atom",
+        "ligand_smarts",
+        "target_distance",
+        "distance_tolerance",
         "options",
         "metadata",
     }
     options_mapping = _mapping_object(values.get("options"))
     options = _coerce_options(options_mapping)
+    interaction_fields = (
+        "receptor_residue",
+        "receptor_atom",
+        "ligand_smarts",
+        "target_distance",
+        "distance_tolerance",
+    )
+    for field_name in interaction_fields:
+        raw_value = values.get(field_name)
+        if _is_missing(raw_value):
+            continue
+        value = _coerce_value(raw_value)
+        nested = options.get(field_name)
+        if nested is not None and nested != value:
+            raise ValueError(f"conflicting top-level and options values for {field_name}")
+        options[field_name] = value
     for key, value in values.items():
         if key not in known and not _is_missing(value):
             options[key] = _coerce_value(value)
@@ -365,7 +403,11 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
             options,
         )
     mode_text = str(mode).strip().lower()
-    if mode_text not in {"reference", "covalent", "free"}:
+    if mode_text == "free":
+        raise ValueError(
+            "docking mode 'free' was removed in 0.4; use interaction with explicit receptor/ligand selectors"
+        )
+    if mode_text not in {"reference", "covalent", "interaction"}:
         raise ValueError(f"unknown docking mode {mode!r}")
     protein = next(
         (values.get(name) for name in ("protein_pdb", "protein", "receptor") if not _is_missing(values.get(name))),
@@ -383,15 +425,41 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
         (values.get(name) for name in ("reactive_residue", "residue") if not _is_missing(values.get(name))),
         None,
     )
+    interaction_values = {name: options.pop(name, None) for name in interaction_fields}
     return DockingJob(
-        mode_text,  # type: ignore[arg-type]
-        ligand,  # type: ignore[arg-type]
-        protein,  # type: ignore[arg-type]
-        str(item_id) if item_id is not None else None,
-        reference,  # type: ignore[arg-type]
-        str(residue) if residue is not None else None,
-        options,
-        metadata,
+        mode=mode_text,  # type: ignore[arg-type]
+        ligand=ligand,  # type: ignore[arg-type]
+        protein_pdb=protein,  # type: ignore[arg-type]
+        id=str(item_id) if item_id is not None else None,
+        reference_ligand=reference,  # type: ignore[arg-type]
+        reactive_residue=str(residue) if residue is not None else None,
+        options=options,
+        metadata=metadata,
+        receptor_residue=(
+            str(interaction_values["receptor_residue"])
+            if interaction_values["receptor_residue"] is not None
+            else None
+        ),
+        receptor_atom=(
+            str(interaction_values["receptor_atom"])
+            if interaction_values["receptor_atom"] is not None
+            else None
+        ),
+        ligand_smarts=(
+            str(interaction_values["ligand_smarts"])
+            if interaction_values["ligand_smarts"] is not None
+            else None
+        ),
+        target_distance=(
+            float(interaction_values["target_distance"])
+            if interaction_values["target_distance"] is not None
+            else None
+        ),
+        distance_tolerance=(
+            float(interaction_values["distance_tolerance"])
+            if interaction_values["distance_tolerance"] is not None
+            else None
+        ),
     )
 
 
@@ -897,36 +965,104 @@ def _materialize_job(
     protein_pdb: str | os.PathLike[str] | None,
     reference_ligand: str | os.PathLike[str] | None,
     reactive_residue: str | None,
+    receptor_residue: str | None,
+    receptor_atom: str | None,
+    ligand_smarts: str | None,
+    target_distance: float | None,
+    distance_tolerance: float | None,
 ) -> DockingJob:
     if isinstance(item, DockingJob):
-        if item.mode not in {"reference", "covalent", "free"}:
-            raise ValueError("mode must be reference, covalent or free")
+        if item.mode == "free":
+            raise ValueError(
+                "docking mode 'free' was removed in 0.4; use interaction with explicit receptor/ligand selectors"
+            )
+        if item.mode not in {"reference", "covalent", "interaction"}:
+            raise ValueError("mode must be reference, covalent or interaction")
         job = item
     else:
         if mode is None:
             raise ValueError("mode is required for ligand-only batch inputs")
-        if mode not in {"reference", "covalent", "free"}:
-            raise ValueError("mode must be reference, covalent or free")
+        if mode == "free":
+            raise ValueError(
+                "docking mode 'free' was removed in 0.4; use interaction with explicit receptor/ligand selectors"
+            )
+        if mode not in {"reference", "covalent", "interaction"}:
+            raise ValueError("mode must be reference, covalent or interaction")
         job = DockingJob(
-            mode,  # type: ignore[arg-type]
-            item.ligand,
-            protein_pdb,
-            item.id,
-            reference_ligand,
-            reactive_residue,
-            dict(item.options),
-            dict(item.metadata),
+            mode=mode,  # type: ignore[arg-type]
+            ligand=item.ligand,
+            protein_pdb=protein_pdb,
+            id=item.id,
+            reference_ligand=reference_ligand,
+            reactive_residue=reactive_residue,
+            options=dict(item.options),
+            metadata=dict(item.metadata),
         )
+
+    job_options = dict(job.options)
+
+    def promoted(name: str, direct: object, fallback: object) -> object:
+        nested = _coerce_value(job_options.pop(name)) if name in job_options else None
+        if not _is_missing(direct) and not _is_missing(nested) and direct != nested:
+            raise ValueError(f"conflicting DockingJob field and options value for {name}")
+        if not _is_missing(direct):
+            return direct
+        if not _is_missing(nested):
+            return nested
+        return fallback
+
+    resolved_receptor_residue = promoted("receptor_residue", job.receptor_residue, receptor_residue)
+    resolved_receptor_atom = promoted("receptor_atom", job.receptor_atom, receptor_atom)
+    resolved_ligand_smarts = promoted("ligand_smarts", job.ligand_smarts, ligand_smarts)
+    resolved_target_distance = promoted("target_distance", job.target_distance, target_distance)
+    resolved_distance_tolerance = promoted(
+        "distance_tolerance", job.distance_tolerance, distance_tolerance
+    )
+    def optional_float(name: str, value: object) -> float | None:
+        if _is_missing(value):
+            return None
+        if isinstance(value, bool):
+            raise ValueError(f"{name} must be a finite number, not a bool")
+        try:
+            numeric = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{name} must be a finite number") from exc
+        if not math.isfinite(numeric):
+            raise ValueError(f"{name} must be a finite number")
+        return numeric
+
     job = replace(
         job,
         protein_pdb=job.protein_pdb if job.protein_pdb is not None else protein_pdb,
         reference_ligand=(job.reference_ligand if job.reference_ligand is not None else reference_ligand),
         reactive_residue=(job.reactive_residue if job.reactive_residue is not None else reactive_residue),
+        options=job_options,
+        receptor_residue=(
+            str(resolved_receptor_residue) if not _is_missing(resolved_receptor_residue) else None
+        ),
+        receptor_atom=str(resolved_receptor_atom) if not _is_missing(resolved_receptor_atom) else None,
+        ligand_smarts=str(resolved_ligand_smarts) if not _is_missing(resolved_ligand_smarts) else None,
+        target_distance=optional_float("target_distance", resolved_target_distance),
+        distance_tolerance=optional_float("distance_tolerance", resolved_distance_tolerance),
     )
     if job.protein_pdb is None:
         raise ValueError("protein_pdb is required for every docking job")
     if job.mode == "reference" and job.reference_ligand is None:
         raise ValueError("reference_ligand is required for reference jobs")
+    if job.mode == "interaction":
+        missing = [
+            name
+            for name in (
+                "receptor_residue",
+                "receptor_atom",
+                "ligand_smarts",
+                "target_distance",
+                "distance_tolerance",
+            )
+            if getattr(job, name) is None
+        ]
+        if missing:
+            raise ValueError(f"interaction jobs require explicit fields: {', '.join(missing)}")
     return job
 
 
@@ -934,10 +1070,15 @@ def _prepare_batch_entries(
     items: list[DockingJob | LigandRecord | _InvalidBatchItem],
     *,
     root: Path,
-    mode: Literal["reference", "covalent", "free"] | None,
+    mode: Literal["reference", "covalent", "interaction"] | None,
     protein_pdb: str | os.PathLike[str] | None,
     reference_ligand: str | os.PathLike[str] | None,
     reactive_residue: str | None,
+    receptor_residue: str | None,
+    receptor_atom: str | None,
+    ligand_smarts: str | None,
+    target_distance: float | None,
+    distance_tolerance: float | None,
     defaults: Mapping[str, object],
 ) -> list[_PreparedBatchEntry]:
     entries: list[_PreparedBatchEntry] = []
@@ -952,11 +1093,29 @@ def _prepare_batch_entries(
                 protein_pdb=protein_pdb,
                 reference_ligand=reference_ligand,
                 reactive_residue=reactive_residue,
+                receptor_residue=receptor_residue,
+                receptor_atom=receptor_atom,
+                ligand_smarts=ligand_smarts,
+                target_distance=target_distance,
+                distance_tolerance=distance_tolerance,
             )
             ligand_text = _canonical_ligand_text(job.ligand)
             raw_id = job.id or "ligand"
-            identity = (
-                f"{job.mode}|{ligand_text}|{job.protein_pdb}|{job.reference_ligand}|{job.reactive_residue}|{raw_id}"
+            identity = "|".join(
+                str(value)
+                for value in (
+                    job.mode,
+                    ligand_text,
+                    job.protein_pdb,
+                    job.reference_ligand,
+                    job.reactive_residue,
+                    job.receptor_residue,
+                    job.receptor_atom,
+                    job.ligand_smarts,
+                    job.target_distance,
+                    job.distance_tolerance,
+                    raw_id,
+                )
             )
             base_job_id = _safe_id(raw_id, "ligand", identity)
             occurrence = used_job_ids.get(base_job_id, 0) + 1
@@ -1023,10 +1182,25 @@ def _dispatch(job: DockingJob, output_dir: Path, options: dict[str, object]) -> 
             output_dir,
             **options,
         )
-    if job.mode == "free":
-        from .free import dock_free
+    if job.mode == "interaction":
+        from .interaction.pipeline import dock_interaction
 
-        return dock_free(job.protein_pdb, job.ligand, output_dir, **options)  # type: ignore[arg-type]
+        assert job.receptor_residue is not None
+        assert job.receptor_atom is not None
+        assert job.ligand_smarts is not None
+        assert job.target_distance is not None
+        assert job.distance_tolerance is not None
+        return dock_interaction(
+            job.protein_pdb,  # type: ignore[arg-type]
+            job.ligand,
+            output_dir,
+            receptor_residue=job.receptor_residue,
+            receptor_atom=job.receptor_atom,
+            ligand_smarts=job.ligand_smarts,
+            target_distance=job.target_distance,
+            distance_tolerance=job.distance_tolerance,
+            **options,
+        )
     raise ValueError(f"unsupported docking mode: {job.mode!r}")
 
 
@@ -1136,10 +1310,15 @@ def _preflight_failure(
 def dock_batch(
     source: object,
     *,
-    mode: Literal["reference", "covalent", "free"] | None = None,
+    mode: Literal["reference", "covalent", "interaction"] | None = None,
     protein_pdb: str | os.PathLike[str] | None = None,
     reference_ligand: str | os.PathLike[str] | None = None,
     reactive_residue: str | None = None,
+    receptor_residue: str | None = None,
+    receptor_atom: str | None = None,
+    ligand_smarts: str | None = None,
+    target_distance: float | None = None,
+    distance_tolerance: float | None = None,
     output_dir: str | os.PathLike[str] = "anchor_dock_batch",
     on_error: Literal["record", "raise", "skip"] = "record",
     resume: bool = False,
@@ -1179,6 +1358,11 @@ def dock_batch(
         protein_pdb=protein_pdb,
         reference_ligand=reference_ligand,
         reactive_residue=reactive_residue,
+        receptor_residue=receptor_residue,
+        receptor_atom=receptor_atom,
+        ligand_smarts=ligand_smarts,
+        target_distance=target_distance,
+        distance_tolerance=distance_tolerance,
         defaults=defaults,
     )
     owned_directories = [

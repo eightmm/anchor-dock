@@ -17,7 +17,6 @@ from .io import (
 from .kinematics import LigandKinematics, build_kinematic_topology, get_batched_rotation_matrix, get_rotation_matrix
 from .masks import compute_intramolecular_mask
 from .optimization import (
-    FreePoseModel,
     OptimizationStats,
     SE3PoseModel,
     optimize_pose_module,
@@ -38,7 +37,6 @@ from .scoring import (
 __all__ = [
     "ATOM_TYPING_VERSION",
     "DockingEngine",
-    "FreePoseModel",
     "LigandKinematics",
     "NeuralScorerAdapter",
     "OptimizationStats",

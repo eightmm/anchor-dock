@@ -17,7 +17,7 @@ A strategy constructs a `PreparedDockingProblem`:
 input strategy
     ├── reference MCS
     ├── residue–warhead covalent adduct
-    └── free multistart placement
+    └── explicit atom-pair interaction guide
             ↓
 PreparedDockingProblem
             ↓
@@ -64,10 +64,17 @@ standard AnchorDock SDF/JSON output
 9. exclude pseudo rows and formed-bond cross pairs equivalent to intramolecular 1–2/1–3/1–4 pairs;
 10. optimize remaining torsions and verify bond-length and 1–3 invariants.
 
-## Free strategy
+## Interaction strategy
 
-Free mode samples conformers, translations, and Haar-uniform SO(3) rotations inside a box, then optimizes SE(3) and torsions with a soft boundary penalty. It is deliberately described as multistart local search rather than global docking.
+1. Resolve one exact standard-PDB receptor residue/atom and reject hydrogen, alternate-location, duplicate, absent, or ambiguous selectors.
+2. Generate ligand conformers and enumerate every distinct canonical heavy-atom match selected by the single mapped SMARTS atom `:1`; fail rather than truncate at the configured cap.
+3. Extract a residue-centered receptor pocket and seed bounded Haar-uniform candidate orientations with the matched ligand atom exactly at the target distance.
+4. Coarse-score candidates with the unmodified scorer and preselect deterministically, distributing capacity across ligand matches and conformers.
+5. Optimize SE(3) and torsions with a flat-bottom atom-pair distance guide, then continue on the same live pose model for a restraint-free release phase.
+6. Reject released poses outside the requested distance window and rank survivors only by the unmodified scorer.
+
+The selector and restraint represent a generic atom-pair distance hypothesis. They do not discover an interaction site or infer hydrogen bonds, salt bridges, metal interactions, pi interactions, protonation, tautomers, or chemical compatibility.
 
 ## Receptor contexts
 
-`ReceptorContext` stores receptor coordinates, inferred atom features, an exact scoring-structure fingerprint, and the input PDB content fingerprint. Cache keys use content hash, device, and atom-typing version. Covalent mode additionally keys the resolved anchor/pocket by residue, cutoff, heteroatom policy, device, and typing version. Product-state retyping is copy-on-write, so cached reactant contexts cannot be polluted across warheads; the consumed product features receive a new structure fingerprint while retaining the source and reactant fingerprints. Pocket extraction preserves PDB residue metadata and includes heteroatoms by default.
+`ReceptorContext` stores receptor coordinates, inferred atom features, an exact scoring-structure fingerprint, and the input PDB content fingerprint. Cache keys use content hash, device, and atom-typing version. Covalent and interaction modes additionally key bounded residue-centered pocket contexts by their resolved selectors, cutoff, heteroatom policy, device, and typing version. Product-state retyping is copy-on-write, so cached reactant contexts cannot be polluted across warheads; the consumed product features receive a new structure fingerprint while retaining the source and reactant fingerprints. Pocket extraction preserves PDB residue metadata and includes heteroatoms by default.

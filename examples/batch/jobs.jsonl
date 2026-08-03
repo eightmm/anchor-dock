@@ -1,3 +1,3 @@
 {"id":"ref-001","mode":"reference","smiles":"CCO","protein_pdb":"pocket.pdb","reference_ligand":"known.sdf","options":{"mcs_mode":"multi"}}
 {"id":"cov-001","mode":"covalent","smiles":"C=CC(=O)NCC","protein_pdb":"protein.pdb","reactive_residue":"CYS145:A"}
-{"id":"free-001","mode":"free","smiles":"CCN","protein_pdb":"pocket.pdb","options":{"num_starts":256,"scorer":"softdock"}}
+{"id":"interaction-001","mode":"interaction","smiles":"CCN","protein_pdb":"pocket.pdb","receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5,"options":{"num_candidates":128,"scorer":"softdock"}}

@@ -7,10 +7,15 @@ from anchor_dock import dock_batch
 
 results = dock_batch(
     ["CCO", "CCN", "c1ccccc1"],
-    mode="free",
+    mode="interaction",
     protein_pdb="pocket.pdb",
+    receptor_residue="ASP189:A",
+    receptor_atom="OD1",
+    ligand_smarts="[O,N,c:1]",
+    target_distance=3.0,
+    distance_tolerance=0.5,
     output_dir="screen",
-    num_starts=128,
+    num_candidates=128,
 )
 ```
 
@@ -24,7 +29,15 @@ from anchor_dock import DockingJob, dock_batch
 jobs = [
     DockingJob.reference("CCO", protein_pdb="p.pdb", reference_ligand="r.sdf"),
     DockingJob.covalent("C=CC(=O)N", protein_pdb="p.pdb", reactive_residue="CYS145:A"),
-    DockingJob.free("CCN", protein_pdb="p.pdb"),
+    DockingJob.interaction(
+        "CCN",
+        protein_pdb="p.pdb",
+        receptor_residue="ASP189:A",
+        receptor_atom="OD1",
+        ligand_smarts="[N:1]",
+        target_distance=3.0,
+        distance_tolerance=0.5,
+    ),
 ]
 results = dock_batch(jobs)
 ```
@@ -34,7 +47,7 @@ results = dock_batch(jobs)
 ```json
 {"id":"ref-001","mode":"reference","smiles":"CCO","protein_pdb":"pocket.pdb","reference_ligand":"known.sdf","options":{"mcs_mode":"multi"}}
 {"id":"cov-001","mode":"covalent","smiles":"C=CC(=O)NCC","protein_pdb":"protein.pdb","reactive_residue":"CYS145:A"}
-{"id":"free-001","mode":"free","smiles":"CCN","protein_pdb":"pocket.pdb","options":{"num_starts":256,"scorer":"softdock"}}
+{"id":"interaction-001","mode":"interaction","smiles":"CCN","protein_pdb":"pocket.pdb","receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5,"options":{"num_candidates":128,"scorer":"softdock"}}
 ```
 
 ```python
@@ -75,11 +88,13 @@ than an invalid manifest.
 ## Per-row options
 
 CSV/TSV columns outside the identity and input fields are treated as docking
-options. Booleans, numbers, JSON arrays and JSON objects are converted from text:
+options. The five interaction fields are explicit input fields and must be
+present either in every row or as homogeneous `dock_batch` arguments. Booleans,
+numbers, JSON arrays and JSON objects are converted from text:
 
 ```csv
-smiles,name,optimize,opt_steps,box_size,top_k
-CCO,ethanol,true,100,"[20,20,20]",10
+smiles,name,receptor_residue,receptor_atom,ligand_smarts,target_distance,distance_tolerance,optimize,opt_steps,top_k
+CCO,ethanol,ASP189:A,OD1,[O:1],3.0,0.5,true,50,10
 ```
 
 Arbitrary non-option information belongs in the explicit `metadata` object. A
@@ -99,4 +114,4 @@ Every job receives a sanitized deterministic directory name and a `result.json`.
 
 Malformed rows and molecule records are reported as batch failures rather than silently dropped. `on_error="record"` continues, `"skip"` continues without returning the failed item, and `"raise"` stops at the first error.
 
-Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent contexts are reused through atom-typing-aware caches.
+Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent/interaction contexts are reused through atom-typing-aware bounded caches. Version 0.4 advances the batch resume epoch, so prior interaction-incompatible artifacts are recomputed rather than reused.
