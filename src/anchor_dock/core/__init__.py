@@ -3,6 +3,7 @@
 from .conformers import generate_conformers_and_cluster
 from .engine import DockingEngine, PreparedDockingProblem
 from .features import ATOM_TYPING_VERSION, compute_atom_features, infer_xs_atom_types
+from .geometry import sample_uniform_rotation_vectors
 from .io import (
     ReceptorContext,
     choose_device,
@@ -15,7 +16,13 @@ from .io import (
 )
 from .kinematics import LigandKinematics, build_kinematic_topology, get_batched_rotation_matrix, get_rotation_matrix
 from .masks import compute_intramolecular_mask
-from .optimization import FreePoseModel, OptimizationStats, optimize_pose_module, optimize_torsions
+from .optimization import (
+    FreePoseModel,
+    OptimizationStats,
+    SE3PoseModel,
+    optimize_pose_module,
+    optimize_torsions,
+)
 from .output import write_ranked_poses
 from .scoring import (
     NeuralScorerAdapter,
@@ -40,6 +47,7 @@ __all__ = [
     "PreparedScorer",
     "RawScoreComponents",
     "ReceptorContext",
+    "SE3PoseModel",
     "ScoreComponents",
     "ScoringConfig",
     "build_kinematic_topology",
@@ -60,5 +68,6 @@ __all__ = [
     "pair_terms",
     "receptor_context_from_mol",
     "resolve_scorer",
+    "sample_uniform_rotation_vectors",
     "write_ranked_poses",
 ]

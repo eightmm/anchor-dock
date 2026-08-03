@@ -335,3 +335,57 @@ class FreePoseModel(nn.Module):
         rotation = get_batched_rotation_matrix(self.rotation_vectors, angle)
         rotated = torch.matmul(centered, rotation.transpose(1, 2))
         return rotated + self.translations[:, None, :]
+
+
+class SE3PoseModel(nn.Module):
+    """Torsion + rigid SE(3) parameters that keep one ligand pivot atom fixed at a per-row center.
+
+    The pivot atom is frozen by the kinematics, so torsions and the global
+    rotation only ever reposition atoms around it; only the per-row
+    translation can move the pivot itself.
+    """
+
+    def __init__(
+        self,
+        mol: Chem.Mol,
+        base_coords: torch.Tensor,
+        pivot_atom_index: int,
+        initial_centers: torch.Tensor,
+        initial_rotation_vectors: torch.Tensor,
+        device: torch.device | str,
+    ) -> None:
+        super().__init__()
+        device = torch.device(device)
+        coords = base_coords.to(device=device, dtype=torch.float32)
+        if coords.ndim != 3:
+            raise ValueError("base_coords must have shape [B,N,3]")
+        if not torch.isfinite(coords).all():
+            raise ValueError("base_coords must be finite")
+        batch_size, num_atoms, _ = coords.shape
+        if not (0 <= int(pivot_atom_index) < num_atoms):
+            raise ValueError("pivot_atom_index must index an atom in base_coords")
+
+        centers = initial_centers.to(device=device, dtype=torch.float32)
+        rotation_vectors = initial_rotation_vectors.to(device=device, dtype=torch.float32)
+        if centers.shape != (batch_size, 3):
+            raise ValueError("initial_centers must have shape [B,3]")
+        if rotation_vectors.shape != (batch_size, 3):
+            raise ValueError("initial_rotation_vectors must have shape [B,3]")
+        if not torch.isfinite(centers).all():
+            raise ValueError("initial_centers must be finite")
+        if not torch.isfinite(rotation_vectors).all():
+            raise ValueError("initial_rotation_vectors must be finite")
+
+        self.pivot_atom_index = int(pivot_atom_index)
+        self.kinematics = LigandKinematics(mol, (self.pivot_atom_index,), coords, device, freeze_anchor=True)
+        self.translations = nn.Parameter(centers.clone())
+        self.rotation_vectors = nn.Parameter(rotation_vectors.clone())
+
+    def forward(self) -> torch.Tensor:
+        flexible = self.kinematics()
+        pivot = flexible[:, self.pivot_atom_index, :]
+        centered = flexible - pivot[:, None, :]
+        angle = torch.linalg.vector_norm(self.rotation_vectors, dim=1)
+        rotation = get_batched_rotation_matrix(self.rotation_vectors, angle)
+        rotated = torch.matmul(centered, rotation.transpose(1, 2))
+        return rotated + self.translations[:, None, :]

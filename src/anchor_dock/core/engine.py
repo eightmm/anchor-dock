@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,8 +12,27 @@ from rdkit import Chem
 from .features import compute_atom_features
 from .io import ReceptorContext
 from .masks import compute_intramolecular_mask
-from .optimization import FreePoseModel, OptimizationStats, OptimizerName, optimize_pose_module, optimize_torsions
+from .optimization import (
+    FreePoseModel,
+    OptimizationStats,
+    OptimizerName,
+    SE3PoseModel,
+    optimize_pose_module,
+    optimize_torsions,
+)
 from .scoring import PreparedScorer, ScoreComponents, ScorerLike, resolve_scorer
+
+
+def _aggregate_optimization_stats(stats_values: list[OptimizationStats], total_poses: int) -> OptimizationStats:
+    all_steps = [value.average_steps for value in stats_values for _ in range(value.num_poses)]
+    return OptimizationStats(
+        average_steps=float(sum(all_steps) / len(all_steps)) if all_steps else 0.0,
+        minimum_steps=min((value.minimum_steps for value in stats_values), default=0),
+        maximum_steps=max((value.maximum_steps for value in stats_values), default=0),
+        num_poses=total_poses,
+        initial_best_energy=min((value.initial_best_energy for value in stats_values), default=0.0),
+        final_best_energy=min((value.final_best_energy for value in stats_values), default=0.0),
+    )
 
 
 def _features_to_device(features: dict[str, object], device: torch.device) -> dict[str, object]:
@@ -195,6 +215,87 @@ class DockingEngine:
             final_best_energy=min((value.final_best_energy for value in stats_values), default=0.0),
         )
         return torch.cat(outputs), aggregate
+
+    def optimize_se3(
+        self,
+        problem: PreparedDockingProblem,
+        base_coords: torch.Tensor,
+        pivot_atom_index: int,
+        *,
+        centers: torch.Tensor,
+        rotation_vectors: torch.Tensor,
+        additional_energy_fn: Callable[[torch.Tensor], torch.Tensor] | None = None,
+        release_steps: int = 0,
+    ) -> tuple[torch.Tensor, torch.Tensor, OptimizationStats, OptimizationStats]:
+        """Guide SE(3)+torsion optimization around a frozen pivot atom, then release restraints.
+
+        Both phases reuse the same live pose module, so the guide phase's rigid
+        rotation state (and its gradients) carry over into the release phase
+        rather than being reinitialized.
+        """
+        if release_steps < 0:
+            raise ValueError("release_steps must be non-negative")
+        base_coords = base_coords.to(self.device, dtype=torch.float32)
+        centers = centers.to(self.device, dtype=torch.float32)
+        rotation_vectors = rotation_vectors.to(self.device, dtype=torch.float32)
+        if base_coords.ndim != 3 or centers.shape != (base_coords.shape[0], 3):
+            raise ValueError("base_coords and centers must have shapes [B,N,3] and [B,3]")
+        if rotation_vectors.shape != centers.shape:
+            raise ValueError("rotation_vectors must match centers")
+
+        guided_outputs: list[torch.Tensor] = []
+        final_outputs: list[torch.Tensor] = []
+        guide_stats_values: list[OptimizationStats] = []
+        release_stats_values: list[OptimizationStats] = []
+        chunk_size = 1 if self.optimizer == "lbfgs" else self.batch_size
+        for start in range(0, base_coords.shape[0], chunk_size):
+            stop = min(start + chunk_size, base_coords.shape[0])
+            model = SE3PoseModel(
+                problem.mol,
+                base_coords[start:stop],
+                pivot_atom_index,
+                centers[start:stop],
+                rotation_vectors[start:stop],
+                self.device,
+            )
+
+            def guide_energy_fn(values: torch.Tensor) -> torch.Tensor:
+                search = problem.scorer.search_energy(values)
+                return search if additional_energy_fn is None else search + additional_energy_fn(values)
+
+            guided, guide_stats = optimize_pose_module(
+                model,
+                guide_energy_fn,
+                num_steps=self.num_steps,
+                learning_rate=self.learning_rate,
+                optimizer=self.optimizer,
+                early_stopping=self.early_stopping,
+                patience=self.patience,
+                min_delta=self.min_delta,
+            )
+            released, release_stats = optimize_pose_module(
+                model,
+                problem.scorer.search_energy,
+                num_steps=release_steps,
+                learning_rate=self.learning_rate,
+                optimizer=self.optimizer,
+                early_stopping=self.early_stopping,
+                patience=self.patience,
+                min_delta=self.min_delta,
+            )
+            if guided.ndim == 2:
+                guided = guided.unsqueeze(0)
+            if released.ndim == 2:
+                released = released.unsqueeze(0)
+            guided_outputs.append(guided)
+            final_outputs.append(released)
+            guide_stats_values.append(guide_stats)
+            release_stats_values.append(release_stats)
+
+        total_poses = base_coords.shape[0]
+        guide_aggregate = _aggregate_optimization_stats(guide_stats_values, total_poses)
+        release_aggregate = _aggregate_optimization_stats(release_stats_values, total_poses)
+        return torch.cat(guided_outputs), torch.cat(final_outputs), guide_aggregate, release_aggregate
 
     @staticmethod
     def report_scores(
