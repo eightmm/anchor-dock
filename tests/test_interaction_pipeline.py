@@ -111,7 +111,7 @@ def test_dock_interaction_no_optimize_smoke(cys_pdb, tmp_path) -> None:
         assert pose is not None
         # Verify metadata
         assert pose.GetProp("AnchorDock_Mode") == "interaction"
-        assert pose.GetProp("AnchorDock_Output_Schema") == "3"
+        assert pose.GetProp("AnchorDock_Output_Schema") == "4"
         assert pose.GetProp("AnchorDock_Search_Method") == "guided_random_placement"
         assert pose.GetProp("AnchorDock_Score_Semantics") == "interaction_conditioned_local_pose_ranking"
 

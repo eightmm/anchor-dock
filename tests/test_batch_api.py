@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import gzip
 import io
 import json
@@ -13,7 +14,7 @@ import torch
 import torch.nn as nn
 from rdkit import Chem
 
-from anchor_dock import DockingJob
+from anchor_dock import DockingJob, InteractionConstraint
 from anchor_dock import dock_batch as _dock_batch_impl
 from anchor_dock.batch import iter_batch_items
 
@@ -24,10 +25,27 @@ _INTERACTION_FIELDS = {
     "target_distance": 3.0,
     "distance_tolerance": 0.5,
 }
+_MULTI_INTERACTIONS = (
+    {
+        "receptor_residue": "CYS145:A",
+        "receptor_atom": "SG",
+        "ligand_smarts": "[#6:1]",
+        "target_distance": 3.0,
+        "distance_tolerance": 0.5,
+    },
+    {
+        "receptor_residue": "HIS41:A",
+        "receptor_atom": "NE2",
+        "ligand_smarts": "[#7:1]",
+        "target_distance": 3.2,
+        "distance_tolerance": 0.4,
+        "restraint_weight": 4.0,
+    },
+)
 
 
 def dock_batch(source, *args, **kwargs):
-    if kwargs.get("mode") == "interaction":
+    if kwargs.get("mode") == "interaction" and kwargs.get("interactions") is None:
         for name, value in _INTERACTION_FIELDS.items():
             kwargs.setdefault(name, value)
     return _dock_batch_impl(source, *args, **kwargs)
@@ -87,6 +105,8 @@ def _expected_job_directory(root: Path, job: DockingJob) -> Path:
             job.ligand_smarts,
             job.target_distance,
             job.distance_tolerance,
+            json.dumps(job.interactions, sort_keys=True),
+            job.max_joint_matches,
             raw_id,
         )
     )
@@ -126,19 +146,75 @@ def test_interaction_job_factory_preserves_required_fields() -> None:
     assert job.mode == "interaction"
     assert {name: getattr(job, name) for name in _INTERACTION_FIELDS} == _INTERACTION_FIELDS
     assert job.options == {"opt_steps": 7}
+    assert job.interactions is None
+    assert job.max_joint_matches == 64
     assert not hasattr(DockingJob, "free")
+
+
+def test_interaction_job_factory_preserves_ordered_multi_specifications() -> None:
+    job = DockingJob.interaction(
+        "CCO",
+        protein_pdb="protein.pdb",
+        interactions=_MULTI_INTERACTIONS,
+        max_joint_matches=23,
+    )
+    assert job.interactions == _MULTI_INTERACTIONS
+    assert job.max_joint_matches == 23
+    assert all(getattr(job, name) is None for name in _INTERACTION_FIELDS)
+
+
+def test_interaction_job_factory_accepts_typed_constraints() -> None:
+    typed = tuple(InteractionConstraint(**item) for item in _MULTI_INTERACTIONS)
+
+    job = DockingJob.interaction(
+        "CCO",
+        protein_pdb="protein.pdb",
+        interactions=typed,
+    )
+
+    assert job.interactions == tuple(item.as_dict() for item in typed)
+    assert job.max_joint_matches == 64
+
+
+def test_interaction_job_factory_rejects_mixed_or_invalid_multi_input() -> None:
+    with pytest.raises(ValueError, match="cannot be combined"):
+        DockingJob.interaction(
+            "CCO",
+            protein_pdb="protein.pdb",
+            interactions=_MULTI_INTERACTIONS,
+            **_INTERACTION_FIELDS,
+        )
+    with pytest.raises(ValueError, match="non-empty"):
+        DockingJob.interaction("CCO", protein_pdb="protein.pdb", interactions=[])
+    with pytest.raises(ValueError, match="duplicates an earlier interaction"):
+        DockingJob.interaction(
+            "CCO",
+            protein_pdb="protein.pdb",
+            interactions=[_MULTI_INTERACTIONS[0], _MULTI_INTERACTIONS[0]],
+        )
+    with pytest.raises(ValueError, match="at most 8"):
+        DockingJob.interaction(
+            "CCO",
+            protein_pdb="protein.pdb",
+            interactions=[{**_MULTI_INTERACTIONS[0], "target_distance": 2.0 + index / 10} for index in range(9)],
+        )
 
 
 @pytest.mark.parametrize("suffix", ["jsonl", "csv"])
 def test_interaction_manifest_parses_explicit_fields(tmp_path: Path, suffix: str) -> None:
     source = tmp_path / f"jobs.{suffix}"
     if suffix == "jsonl":
-        source.write_text(json.dumps({
-            "mode": "interaction",
-            "smiles": "CCO",
-            "protein_pdb": "protein.pdb",
-            **_INTERACTION_FIELDS,
-        }) + "\n")
+        source.write_text(
+            json.dumps(
+                {
+                    "mode": "interaction",
+                    "smiles": "CCO",
+                    "protein_pdb": "protein.pdb",
+                    **_INTERACTION_FIELDS,
+                }
+            )
+            + "\n"
+        )
     else:
         source.write_text(
             "mode,smiles,protein_pdb,receptor_residue,receptor_atom,ligand_smarts,"
@@ -149,6 +225,56 @@ def test_interaction_manifest_parses_explicit_fields(tmp_path: Path, suffix: str
     assert isinstance(job, DockingJob)
     assert {name: getattr(job, name) for name in _INTERACTION_FIELDS} == _INTERACTION_FIELDS
     assert not _INTERACTION_FIELDS.keys() & job.options.keys()
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_interaction_manifest_parses_ordered_multi_json_from_csv(
+    tmp_path: Path,
+    nested: bool,
+) -> None:
+    source = tmp_path / f"multi-{'nested' if nested else 'top'}.csv"
+    row: dict[str, object] = {
+        "mode": "interaction",
+        "smiles": "CCO",
+        "protein_pdb": "protein.pdb",
+    }
+    if nested:
+        row["options"] = json.dumps({"interactions": _MULTI_INTERACTIONS, "max_joint_matches": 19})
+    else:
+        row["interactions"] = json.dumps(_MULTI_INTERACTIONS)
+        row["max_joint_matches"] = 19
+    with source.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=row)
+        writer.writeheader()
+        writer.writerow(row)
+
+    job = next(iter_batch_items(source))
+    assert isinstance(job, DockingJob)
+    assert job.interactions == _MULTI_INTERACTIONS
+    assert job.max_joint_matches == 19
+    assert "interactions" not in job.options
+    assert "max_joint_matches" not in job.options
+
+
+def test_interaction_manifest_rejects_canonical_legacy_mix_during_preflight(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "mixed.jsonl"
+    source.write_text(
+        json.dumps(
+            {
+                "mode": "interaction",
+                "smiles": "CCO",
+                "protein_pdb": "protein.pdb",
+                "interactions": _MULTI_INTERACTIONS,
+                **_INTERACTION_FIELDS,
+            }
+        )
+        + "\n"
+    )
+    result = _dock_batch_impl(source, output_dir=tmp_path / "mixed-output")
+    assert result[0]["success"] is False
+    assert "cannot be combined" in result[0]["error"]
 
 
 def test_homogeneous_interaction_row_overrides_are_promoted(monkeypatch, tmp_path: Path) -> None:
@@ -173,6 +299,29 @@ def test_homogeneous_interaction_row_overrides_are_promoted(monkeypatch, tmp_pat
     for name, value in _INTERACTION_FIELDS.items():
         if name != "target_distance":
             assert getattr(captured[0], name) == value
+
+
+def test_homogeneous_batch_materializes_multi_interactions(monkeypatch, tmp_path: Path) -> None:
+    captured: list[DockingJob] = []
+
+    def fake_dispatch(job, output_dir, options):
+        del options
+        captured.append(job)
+        return _pose_result(output_dir, job.mode)
+
+    monkeypatch.setattr("anchor_dock.batch._dispatch", fake_dispatch)
+    result = _dock_batch_impl(
+        [{"smiles": "CCO", "name": "ethanol"}],
+        mode="interaction",
+        protein_pdb="protein.pdb",
+        interactions=_MULTI_INTERACTIONS,
+        max_joint_matches=29,
+        output_dir=tmp_path / "multi-promoted",
+    )
+    assert result[0]["success"] is True
+    assert captured[0].interactions == _MULTI_INTERACTIONS
+    assert captured[0].max_joint_matches == 29
+    assert all(getattr(captured[0], name) is None for name in _INTERACTION_FIELDS)
 
 
 @pytest.mark.parametrize("container_key", ["jobs", "ligands"])
@@ -540,11 +689,11 @@ def test_batch_rejects_json_source_at_its_computed_result_path(tmp_path: Path) -
     original = json.dumps(
         {
             "smiles": "CCO",
-                "name": "collision",
-                "mode": "interaction",
-                "protein_pdb": "protein.pdb",
-                **_INTERACTION_FIELDS,
-            }
+            "name": "collision",
+            "mode": "interaction",
+            "protein_pdb": "protein.pdb",
+            **_INTERACTION_FIELDS,
+        }
     )
     source.write_text(original)
 
@@ -748,6 +897,22 @@ def test_interaction_fields_change_job_signature(field: str, changed_value: obje
     assert first != second
 
 
+def test_multi_interaction_order_and_joint_cap_change_job_signature() -> None:
+    from anchor_dock.batch import _job_signature, _runtime_identity
+
+    baseline = DockingJob.interaction(
+        "CCO",
+        protein_pdb="protein.pdb",
+        interactions=_MULTI_INTERACTIONS,
+        max_joint_matches=64,
+    )
+    reordered = replace(baseline, interactions=tuple(reversed(_MULTI_INTERACTIONS)))
+    recapped = replace(baseline, max_joint_matches=32)
+    runtime = _runtime_identity({"device": "cpu"})
+    signatures = {_job_signature(job, {}, runtime) for job in (baseline, reordered, recapped)}
+    assert len(signatures) == 3
+
+
 @pytest.mark.parametrize("missing_field", tuple(_INTERACTION_FIELDS))
 def test_interaction_job_missing_required_field_fails_preflight(
     monkeypatch,
@@ -771,6 +936,36 @@ def test_interaction_boolean_distance_fails_batch_preflight(tmp_path: Path) -> N
     assert "not a bool" in result[0]["error"]
 
 
+@pytest.mark.parametrize(
+    ("replacement", "message"),
+    [
+        ({"interactions": ()}, "non-empty"),
+        ({"max_joint_matches": 0}, "positive integer"),
+    ],
+)
+def test_multi_interaction_invalid_job_fails_batch_preflight(
+    monkeypatch,
+    tmp_path: Path,
+    replacement: dict[str, object],
+    message: str,
+) -> None:
+    monkeypatch.setattr(
+        "anchor_dock.batch._dispatch",
+        lambda *args, **kwargs: pytest.fail("invalid multi job must not dispatch"),
+    )
+    job = DockingJob.interaction(
+        "CCO",
+        protein_pdb="protein.pdb",
+        interactions=_MULTI_INTERACTIONS,
+    )
+    result = _dock_batch_impl(
+        [replace(job, **replacement)],
+        output_dir=tmp_path / message.replace(" ", "-"),
+    )
+    assert result[0]["success"] is False
+    assert message in result[0]["error"]
+
+
 def test_interaction_dispatch_passes_fields_once(monkeypatch, tmp_path: Path) -> None:
     from anchor_dock.batch import _dispatch
 
@@ -790,13 +985,45 @@ def test_interaction_dispatch_passes_fields_once(monkeypatch, tmp_path: Path) ->
     assert kwargs["opt_steps"] == 7
 
 
+def test_multi_interaction_dispatch_passes_canonical_fields_once(monkeypatch, tmp_path: Path) -> None:
+    from anchor_dock.batch import _dispatch
+
+    captured: dict[str, object] = {}
+
+    def fake_interaction(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return _pose_result(Path(args[2]), "interaction")
+
+    monkeypatch.setattr("anchor_dock.interaction.pipeline.dock_interaction", fake_interaction)
+    job = DockingJob.interaction(
+        "CCO",
+        protein_pdb="protein.pdb",
+        interactions=_MULTI_INTERACTIONS,
+        max_joint_matches=21,
+        opt_steps=7,
+    )
+    _dispatch(job, tmp_path / "dispatch-multi", job.options)
+    assert captured["args"] == ("protein.pdb", "CCO", tmp_path / "dispatch-multi")
+    kwargs = captured["kwargs"]
+    assert kwargs["interactions"] == _MULTI_INTERACTIONS
+    assert kwargs["max_joint_matches"] == 21
+    assert kwargs["opt_steps"] == 7
+    assert not _INTERACTION_FIELDS.keys() & kwargs.keys()
+
+
 def test_removed_free_manifest_fails_with_migration_message(tmp_path: Path) -> None:
     source = tmp_path / "removed.jsonl"
-    source.write_text(json.dumps({
-        "mode": "free",
-        "smiles": "CCO",
-        "protein_pdb": "protein.pdb",
-    }) + "\n")
+    source.write_text(
+        json.dumps(
+            {
+                "mode": "free",
+                "smiles": "CCO",
+                "protein_pdb": "protein.pdb",
+            }
+        )
+        + "\n"
+    )
     result = dock_batch(source, output_dir=tmp_path / "removed", on_error="record")
     assert result[0]["success"] is False
     assert "removed in 0.4" in result[0]["error"]
@@ -818,8 +1045,8 @@ def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkey
     root = tmp_path / "resume-epoch"
     current_epoch = batch_module._BATCH_SCHEMA_VERSION
     current_output_schema = batch_module.OUTPUT_SCHEMA_VERSION
-    assert current_epoch == "4"
-    assert current_output_schema == "3"
+    assert current_epoch == "5"
+    assert current_output_schema == "4"
 
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "3")
     previous = dock_batch([job], output_dir=root)[0]

@@ -4,7 +4,7 @@ AnchorDock is a Torch-native ligand pose engine with three explicit search strat
 
 - **reference**: transfer one or more MCS anchors from a known ligand;
 - **covalent**: construct a residue–warhead adduct and preserve its reaction geometry;
-- **interaction**: test an explicit receptor-atom/ligand-atom distance hypothesis with bounded local search.
+- **interaction**: test one or more explicit receptor-atom/ligand-atom distance hypotheses with bounded local search.
 
 All three strategies use the same scorer interface, rigid-frame kinematics, pose optimizer, receptor context, output schema, and heterogeneous batch runner. The only Python namespace is `anchor_dock`.
 
@@ -72,7 +72,37 @@ result = dock_interaction(
 
 The mapped SMARTS must contain exactly one `:1` query atom. AnchorDock enumerates every distinct matching ligand atom up to the configured hard cap, samples seeded candidates around the selected receptor atom, and preselects fairly across matches and conformers. A flat-bottom distance guide is followed by restraint-free release; only poses still inside the requested distance window are exported and ranked by the unmodified scorer.
 
-This is a generic atom-pair distance hypothesis, not automatic interaction-site detection or a claim of a hydrogen bond, salt bridge, metal interaction, or pi interaction. AnchorDock does not infer protonation, tautomer, or chemical compatibility.
+Multiple simultaneous constraints use the canonical ordered `interactions` list. Each item has the same five required fields and may override `restraint_weight`:
+
+```python
+result = dock_interaction(
+    protein_pdb="pocket.pdb",
+    query_ligand="NCCO",
+    interactions=[
+        {
+            "receptor_residue": "ASP189:A",
+            "receptor_atom": "OD1",
+            "ligand_smarts": "[N:1]",
+            "target_distance": 3.0,
+            "distance_tolerance": 0.5,
+        },
+        {
+            "receptor_residue": "SER190:A",
+            "receptor_atom": "OG",
+            "ligand_smarts": "[O:1]",
+            "target_distance": 2.9,
+            "distance_tolerance": 0.4,
+            "restraint_weight": 12.0,
+        },
+    ],
+    max_joint_matches=64,
+    scorer="softdock",
+)
+```
+
+All list items are mandatory (`AND`): every exported pose must satisfy every distance window. `OR`, `ANY`, and k-of-n semantics are not supported; run alternatives as separate jobs. At most eight items are accepted. Every SMARTS independently enumerates up to `max_matches=16` ligand anchors, and their deterministic Cartesian joint hypotheses must fit within `max_joint_matches=64` or the run fails without truncation. Exact duplicate specifications fail, while one ligand atom may legitimately satisfy more than one receptor constraint. The scored receptor context is the union of pockets around all selected residues. The interaction with the fewest ligand matches seeds primary placement, all remaining constraint violations influence preselection, guidance averages the weighted penalties, and the release and final ranking remain restraint-free and scorer-only.
+
+These are generic atom-pair distance hypotheses, not automatic interaction-site detection or claims of hydrogen bonds, salt bridges, metal interactions, or pi interactions. AnchorDock automatically enumerates ligand anchors selected by each SMARTS, but does not choose receptor atoms or infer interaction type, protonation, tautomer, or chemical compatibility.
 
 ## One batch API
 
@@ -143,11 +173,11 @@ result = dock_interaction(
 
 The Vina and Vinardo backends follow the modern AutoDock Vina implementation's pair functions, defaults, radii, 8 Å cutoff, and torsion transform. SMILES/SDF/PDB inputs do not carry authoritative PDBQT XS types, so AnchorDock infers XS-like types and labels the score as `kcal/mol-like`, not an exact Vina affinity. See [docs/SCORING.md](docs/SCORING.md).
 
-Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived the requested atom-pair distance filter; the guide penalty is never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
+Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived every requested atom-pair distance filter; guide penalties are never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
 
 ## Upgrading
 
-Version 0.4 removes the public unconstrained search and replaces it with the explicit interaction-guided contract above. This is a breaking API, batch, CLI, and resume-format change. The earlier 0.2-to-0.3 compatibility and scientific score changes remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
+Version 0.5 adds bounded simultaneous `AND` interaction constraints while keeping 0.4 single-interaction calls source-compatible. It advances the SDF output schema to `4` and batch resume epoch to `5`. Version 0.4 removed the public unconstrained search; all earlier transitions remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ## Development
 

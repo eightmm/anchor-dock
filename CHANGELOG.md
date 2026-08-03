@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+- added canonical ordered `interactions=[...]` input for up to eight simultaneous atom-pair constraints while preserving the five single-interaction keywords;
+- defined list semantics as `ALL`/`AND` only, rejected duplicate specifications and mixed single/list forms, and kept `OR`/`ANY` alternatives as separate jobs;
+- enumerated each mapped SMARTS anchor automatically with `max_matches=16`, formed deterministic Cartesian assignments, and failed rather than truncating above `max_joint_matches=64`;
+- added conservative per-conformer pairwise feasibility pruning, deterministic primary placement from the selector with the fewest matches, and all-constraint-aware coarse preselection;
+- scored a union pocket around all selected receptor residues and keyed its bounded cache by the complete ordered selector set;
+- averaged per-interaction weighted flat-bottom penalties during guidance, retained restraint-free release, required every final distance window, and ranked survivors only by the unmodified scorer;
+- recorded ordered specifications, resolved receptor atoms, per-selector matches, joint assignments, and per-interaction distances without inferring interaction chemistry, protonation, or tautomers;
+- added CLI `--interactions-json`, structured batch support, SDF output schema `4`, and batch resume epoch `5`.
+
 ## 0.4.0
 
 - replaced the public unconstrained local search with `dock_interaction`, CLI/batch mode `interaction`, and `DockingJob.interaction`;

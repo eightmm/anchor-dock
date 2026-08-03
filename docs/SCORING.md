@@ -69,15 +69,16 @@ If an element cannot receive a validated XS-like type (for example boron), Vina 
 
 ## Interaction guidance versus reported score
 
-Interaction mode adds this flat-bottom term during its guide phase:
+For `n` simultaneous interaction constraints, interaction mode adds the mean of the per-item weighted flat-bottom terms during its guide phase:
 
 ```text
-E_guide = E_search + weight * relu(abs(distance - target) - tolerance)^2
+penalty_i = weight_i * relu(abs(distance_i - target_i) - tolerance_i)^2
+E_guide = E_search + (1 / n) * sum_i(penalty_i)
 ```
 
-The release phase optimizes `E_search` alone on the same live pose model. Final poses must still fall within `target ± tolerance`; survivors are ranked and written using only the scorer's normal `AnchorDock_Score` and `AnchorDock_Search_Energy`. The restraint energy, formula, weight, and per-phase distances are stored separately as provenance and never mixed into those score fields.
+This is identical to the 0.4 objective when `n=1`. The release phase optimizes `E_search` alone on the same live pose model. Final poses must fall within every requested `target_i ± tolerance_i` window; survivors are ranked and written using only the scorer's normal `AnchorDock_Score` and `AnchorDock_Search_Energy`. Restraint energies, formulae, weights, and per-phase distances are stored separately as provenance and never mixed into those score fields.
 
-A short distance does not by itself establish a particular chemical interaction. The guide is therefore labelled a generic atom-pair distance hypothesis, without hydrogen-bond, salt-bridge, metal, pi-interaction, protonation, tautomer, or compatibility inference.
+A short distance does not by itself establish a particular chemical interaction. Each guide is therefore labelled a generic atom-pair distance hypothesis, without hydrogen-bond, salt-bridge, metal, pi-interaction, protonation, tautomer, or compatibility inference.
 
 ## Custom scorers
 

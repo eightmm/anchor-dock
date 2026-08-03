@@ -7,6 +7,7 @@ import json
 import os
 import re
 from collections import OrderedDict
+from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import islice
 from pathlib import Path
@@ -227,14 +228,48 @@ def extract_pocket_around_residue(
     include_heteroatoms: bool = True,
 ) -> Chem.Mol:
     """Extract complete residues having any atom within ``cutoff`` of a residue."""
+    return extract_pocket_around_residues(
+        protein_mol,
+        [residue_spec],
+        cutoff,
+        include_heteroatoms=include_heteroatoms,
+    )
+
+
+def extract_pocket_around_residues(
+    protein_mol: Chem.Mol,
+    residue_specs: Iterable[str],
+    cutoff: float = 12.0,
+    *,
+    include_heteroatoms: bool = True,
+) -> Chem.Mol:
+    """Extract the union of complete-residue pockets around selected residues.
+
+    ``residue_specs`` is consumed once in order. Semantically duplicate
+    selectors are de-duplicated without changing their first-seen order, while
+    every remaining selector must match at least one residue in the molecule.
+    """
     if cutoff <= 0:
         raise ValueError("cutoff must be positive")
-    target_name, target_number, target_insertion, target_chain = _parse_residue_spec(residue_spec)
+    if isinstance(residue_specs, (str, bytes)):
+        raise TypeError("residue_specs must be an ordered iterable of residue specifiers, not a string")
+
+    parsed_specs: list[tuple[str, tuple[str, int, str | None, str | None]]] = []
+    seen_specs: set[tuple[str, int, str | None, str | None]] = set()
+    for residue_spec in residue_specs:
+        if not isinstance(residue_spec, str):
+            raise TypeError("each residue specifier must be a string")
+        parsed = _parse_residue_spec(residue_spec)
+        if parsed not in seen_specs:
+            parsed_specs.append((residue_spec, parsed))
+            seen_specs.add(parsed)
+    if not parsed_specs:
+        raise ValueError("residue_specs must contain at least one residue specifier")
+
     if protein_mol.GetNumConformers() == 0:
         raise ValueError("protein molecule has no conformer")
     conformer = protein_mol.GetConformer()
 
-    target_atoms: list[int] = []
     residue_members: dict[tuple[str, int, str, str, bool], list[int]] = {}
     for atom in protein_mol.GetAtoms():
         info = atom.GetPDBResidueInfo()
@@ -248,15 +283,21 @@ def extract_pocket_around_residue(
             bool(info.GetIsHeteroAtom()),
         )
         residue_members.setdefault(key, []).append(atom.GetIdx())
-        if (
-            key[0] == target_name
+
+    target_atoms: list[int] = []
+    for residue_spec, (target_name, target_number, target_insertion, target_chain) in parsed_specs:
+        matched_atoms = [
+            atom_idx
+            for key, atom_indices in residue_members.items()
+            if key[0] == target_name
             and key[1] == target_number
             and (target_insertion is None or key[2] == target_insertion)
             and (target_chain is None or key[3] == target_chain)
-        ):
-            target_atoms.append(atom.GetIdx())
-    if not target_atoms:
-        raise ValueError(f"residue {residue_spec} not found")
+            for atom_idx in atom_indices
+        ]
+        if not matched_atoms:
+            raise ValueError(f"residue {residue_spec} not found")
+        target_atoms.extend(matched_atoms)
 
     positions = conformer.GetPositions()
     target_coords = positions[target_atoms]
@@ -268,7 +309,8 @@ def extract_pocket_around_residue(
         if np.linalg.norm(coords[:, None, :] - target_coords[None, :, :], axis=-1).min() <= cutoff:
             selected.update(atom_indices)
     if not selected:
-        raise ValueError(f"no pocket atoms within {cutoff} Å of {residue_spec}")
+        targets = parsed_specs[0][0] if len(parsed_specs) == 1 else ", ".join(spec for spec, _ in parsed_specs)
+        raise ValueError(f"no pocket atoms within {cutoff} Å of {targets}")
 
     ordered = sorted(selected)
     old_to_new: dict[int, int] = {}

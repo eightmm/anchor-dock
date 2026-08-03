@@ -21,6 +21,32 @@ INTERACTION_ARGS = [
     "--distance-tolerance",
     "0.5",
 ]
+MULTI_INTERACTIONS = [
+    {
+        "receptor_residue": "CYS145:A",
+        "receptor_atom": "SG",
+        "ligand_smarts": "[#8:1]",
+        "target_distance": 3.0,
+        "distance_tolerance": 0.5,
+    },
+    {
+        "receptor_residue": "HIS41:A",
+        "receptor_atom": "NE2",
+        "ligand_smarts": "[#7:1]",
+        "target_distance": 3.2,
+        "distance_tolerance": 0.4,
+        "restraint_weight": 4.0,
+    },
+]
+MULTI_INTERACTION_ARGS = [
+    "interaction",
+    "-p",
+    "p.pdb",
+    "-q",
+    "CCO",
+    "--interactions-json",
+    json.dumps(MULTI_INTERACTIONS),
+]
 
 
 def test_cli_exposes_all_native_modes() -> None:
@@ -100,6 +126,7 @@ def test_interaction_cli_defaults_and_selectors(monkeypatch, capsys) -> None:
     assert captured["num_candidates"] == 128
     assert captured["preselect_k"] == 16
     assert captured["max_matches"] == 16
+    assert captured["max_joint_matches"] == 64
     assert captured["opt_steps"] == 50
     assert captured["release_steps"] == 25
     assert captured["opt_batch_size"] == 32
@@ -125,6 +152,37 @@ def test_interaction_cli_optimize_flags_are_mutually_exclusive() -> None:
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args([*INTERACTION_ARGS, "--optimize", "--no-optimize"])
+
+
+def test_interaction_cli_forwards_ordered_multi_interactions(monkeypatch, capsys) -> None:
+    captured = _fake_dock_interaction(monkeypatch)
+    assert main([*MULTI_INTERACTION_ARGS, "--max-joint-matches", "23"]) == 0
+    assert captured["interactions"] == MULTI_INTERACTIONS
+    assert captured["max_joint_matches"] == 23
+    assert "receptor_residue" not in captured
+    assert json.loads(capsys.readouterr().out)["mode"] == "interaction"
+
+
+def test_interaction_cli_rejects_multi_and_single_selector_mix(capsys) -> None:
+    with pytest.raises(SystemExit) as error:
+        main([*MULTI_INTERACTION_ARGS, "--receptor-residue", "ASP189:A"])
+    assert error.value.code == 2
+    assert "cannot be combined" in capsys.readouterr().err
+
+
+def test_interaction_cli_rejects_incomplete_single_selector_set(capsys) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(["interaction", "-p", "p.pdb", "-q", "CCO", "--receptor-residue", "CYS145:A"])
+    assert error.value.code == 2
+    assert "missing:" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("payload", ["[]", "{}", '[{"receptor_residue": "CYS145:A"}, 7]', "@spec.json"])
+def test_interaction_cli_rejects_invalid_inline_interactions_json(payload: str) -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(
+            ["interaction", "-p", "p.pdb", "-q", "CCO", "--interactions-json", payload]
+        )
 
 
 def test_batch_cli_forwards_interaction_fields(monkeypatch, capsys) -> None:
@@ -153,3 +211,45 @@ def test_batch_cli_forwards_interaction_fields(monkeypatch, capsys) -> None:
         "distance_tolerance": 0.5,
     }
     capsys.readouterr()
+
+
+def test_batch_cli_forwards_multi_interactions(monkeypatch, capsys) -> None:
+    captured = {}
+
+    def fake_batch(*args, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr("anchor_dock.cli.dock_batch", fake_batch)
+    assert main(
+        [
+            "batch",
+            "jobs.jsonl",
+            "--mode",
+            "interaction",
+            "--protein",
+            "p.pdb",
+            "--interactions-json",
+            json.dumps(MULTI_INTERACTIONS),
+            "--max-joint-matches",
+            "17",
+        ]
+    ) == 0
+    assert captured["interactions"] == MULTI_INTERACTIONS
+    assert captured["max_joint_matches"] == 17
+    assert captured["receptor_residue"] is None
+    capsys.readouterr()
+
+
+def test_batch_cli_multi_interactions_requires_interaction_mode(capsys) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "batch",
+                "jobs.jsonl",
+                "--interactions-json",
+                json.dumps(MULTI_INTERACTIONS),
+            ]
+        )
+    assert error.value.code == 2
+    assert "requires --mode interaction" in capsys.readouterr().err

@@ -37,10 +37,11 @@ jobs:
           smoke_dir="$(mktemp -d)"
           cd "$smoke_dir"
           uv run --isolated --no-project --with "$wheel" python -c \
-            'import importlib.metadata, importlib.util, anchor_dock; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.4.0"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_interaction", "dock_batch")); assert not hasattr(anchor_dock, "dock_free"); assert importlib.util.find_spec("anchor_dock.free") is None; assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
+            'import importlib.metadata, importlib.util, inspect, anchor_dock; from anchor_dock.core.output import OUTPUT_SCHEMA_VERSION; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.5.0"; assert OUTPUT_SCHEMA_VERSION == "4"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_interaction", "dock_batch")); params = inspect.signature(anchor_dock.dock_interaction).parameters; assert "interactions" in params and "max_joint_matches" in params; assert not hasattr(anchor_dock, "dock_free"); assert importlib.util.find_spec("anchor_dock.free") is None; assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
           for command in reference covalent interaction batch; do
             uv run --isolated --no-project --with "$wheel" anchor-dock "$command" --help
           done
+          uv run --isolated --no-project --with "$wheel" anchor-dock interaction --help | grep -q -- "--interactions-json"
       - name: Pack source snapshot
         run: git archive --format=tar.gz --output=anchor-dock-source.tar.gz HEAD
       - uses: actions/upload-artifact@v4

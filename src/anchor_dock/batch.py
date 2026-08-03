@@ -13,8 +13,9 @@ import math
 import os
 import re
 import tempfile
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from numbers import Real
 from pathlib import Path
 from typing import Literal
 
@@ -25,6 +26,64 @@ from rdkit import Chem, rdBase
 from ._version import __version__
 from .core.io import file_content_fingerprint
 from .core.output import OUTPUT_SCHEMA_VERSION
+from .interaction.spec import InteractionInput, interaction_dicts, normalize_interactions
+
+_INTERACTION_REQUIRED_FIELDS = (
+    "receptor_residue",
+    "receptor_atom",
+    "ligand_smarts",
+    "target_distance",
+    "distance_tolerance",
+)
+
+
+def _finite_number(name: str, value: object, *, allow_zero: bool = False) -> float:
+    if not isinstance(value, Real) or isinstance(value, bool):
+        raise ValueError(f"{name} must be a finite number")
+    number = float(value)
+    outside_domain = number < 0.0 if allow_zero else number <= 0.0
+    if not math.isfinite(number) or outside_domain:
+        qualifier = "non-negative" if allow_zero else "positive"
+        raise ValueError(f"{name} must be a {qualifier} finite number")
+    return number
+
+
+def _positive_int(name: str, value: object) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a positive integer, not a bool")
+    try:
+        numeric = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(f"{name} must be a positive integer") from exc
+    if not math.isfinite(numeric) or numeric <= 0 or not numeric.is_integer():
+        raise ValueError(f"{name} must be a positive integer")
+    return int(numeric)
+
+
+def _normalize_interactions(
+    value: object,
+    *,
+    default_restraint_weight: object = 10.0,
+    include_default_weight: bool = False,
+) -> tuple[dict[str, object], ...]:
+    """Return public-spec-validated ordered JSON-friendly interactions."""
+    try:
+        items = normalize_interactions(
+            interactions=value,  # type: ignore[arg-type]
+            default_restraint_weight=default_restraint_weight,
+        )
+    except TypeError as exc:
+        # Batch preflight consistently reports malformed record values as
+        # ValueError while retaining the canonical validator's explanation.
+        raise ValueError(str(exc)) from exc
+
+    serialized = interaction_dicts(items)
+    if not include_default_weight:
+        assert isinstance(value, Sequence)
+        for source, specification in zip(value, serialized, strict=True):
+            if isinstance(source, Mapping) and "restraint_weight" not in source:
+                specification.pop("restraint_weight")
+    return tuple(serialized)
 
 
 @dataclass
@@ -54,6 +113,8 @@ class DockingJob:
     ligand_smarts: str | None = None
     target_distance: float | None = None
     distance_tolerance: float | None = None
+    interactions: tuple[dict[str, object], ...] | None = None
+    max_joint_matches: int | None = None
 
     @classmethod
     def reference(
@@ -103,15 +164,39 @@ class DockingJob:
         ligand: str | os.PathLike[str] | Chem.Mol,
         *,
         protein_pdb: str | os.PathLike[str],
-        receptor_residue: str,
-        receptor_atom: str,
-        ligand_smarts: str,
-        target_distance: float,
-        distance_tolerance: float,
+        receptor_residue: str | None = None,
+        receptor_atom: str | None = None,
+        ligand_smarts: str | None = None,
+        target_distance: float | None = None,
+        distance_tolerance: float | None = None,
+        interactions: Sequence[InteractionInput] | None = None,
+        max_joint_matches: int = 64,
         id: str | None = None,
         metadata: Mapping[str, object] | None = None,
         **options: object,
     ) -> DockingJob:
+        legacy = {
+            "receptor_residue": receptor_residue,
+            "receptor_atom": receptor_atom,
+            "ligand_smarts": ligand_smarts,
+            "target_distance": target_distance,
+            "distance_tolerance": distance_tolerance,
+        }
+        supplied_legacy = [name for name, value in legacy.items() if value is not None]
+        if interactions is not None and supplied_legacy:
+            raise ValueError("interactions cannot be combined with legacy interaction fields")
+        normalized_interactions = None
+        if interactions is not None:
+            normalized_interactions = _normalize_interactions(
+                interactions,
+                default_restraint_weight=options.get("restraint_weight", 10.0),
+            )
+        else:
+            missing = [name for name, value in legacy.items() if value is None]
+            if missing:
+                raise ValueError(
+                    f"interaction requires interactions or all legacy fields; missing: {', '.join(missing)}"
+                )
         return cls(
             mode="interaction",
             ligand=ligand,
@@ -124,6 +209,8 @@ class DockingJob:
             ligand_smarts=ligand_smarts,
             target_distance=target_distance,
             distance_tolerance=distance_tolerance,
+            interactions=normalized_interactions,
+            max_joint_matches=_positive_int("max_joint_matches", max_joint_matches),
         )
 
 
@@ -167,7 +254,7 @@ _SUPPORTED_SUFFIXES = {
 }
 _COMPRESSED_SUFFIXES = {".gz", ".bz2", ".xz", ".lzma"}
 # Resume-signature epoch: bump whenever older successful artifacts are no longer semantically reusable.
-_BATCH_SCHEMA_VERSION = "4"
+_BATCH_SCHEMA_VERSION = "5"
 _BATCH_MANIFEST_NAMES = ("results.jsonl", "summary.json")
 
 
@@ -302,6 +389,16 @@ def _job_signature(
         "ligand_smarts": job.ligand_smarts,
         "target_distance": job.target_distance,
         "distance_tolerance": job.distance_tolerance,
+        "interactions": _stable_value(
+            _normalize_interactions(
+                job.interactions,
+                default_restraint_weight=options.get("restraint_weight", 10.0),
+                include_default_weight=True,
+            )
+            if job.interactions is not None
+            else None
+        ),
+        "max_joint_matches": job.max_joint_matches,
         "metadata": _stable_value(job.metadata),
         "options": _stable_value(options),
     }
@@ -370,6 +467,8 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
         "ligand_smarts",
         "target_distance",
         "distance_tolerance",
+        "interactions",
+        "max_joint_matches",
         "options",
         "metadata",
     }
@@ -381,6 +480,8 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
         "ligand_smarts",
         "target_distance",
         "distance_tolerance",
+        "interactions",
+        "max_joint_matches",
     )
     for field_name in interaction_fields:
         raw_value = values.get(field_name)
@@ -388,7 +489,7 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
             continue
         value = _coerce_value(raw_value)
         nested = options.get(field_name)
-        if nested is not None and nested != value:
+        if nested is not None and _stable_value(nested) != _stable_value(value):
             raise ValueError(f"conflicting top-level and options values for {field_name}")
         options[field_name] = value
     for key, value in values.items():
@@ -436,28 +537,35 @@ def _mapping_to_item(values: Mapping[str, object]) -> DockingJob | LigandRecord:
         options=options,
         metadata=metadata,
         receptor_residue=(
-            str(interaction_values["receptor_residue"])
-            if interaction_values["receptor_residue"] is not None
-            else None
+            str(interaction_values["receptor_residue"]) if interaction_values["receptor_residue"] is not None else None
         ),
         receptor_atom=(
-            str(interaction_values["receptor_atom"])
-            if interaction_values["receptor_atom"] is not None
-            else None
+            str(interaction_values["receptor_atom"]) if interaction_values["receptor_atom"] is not None else None
         ),
         ligand_smarts=(
-            str(interaction_values["ligand_smarts"])
-            if interaction_values["ligand_smarts"] is not None
-            else None
+            str(interaction_values["ligand_smarts"]) if interaction_values["ligand_smarts"] is not None else None
         ),
         target_distance=(
-            float(interaction_values["target_distance"])
+            _finite_number("target_distance", interaction_values["target_distance"])
             if interaction_values["target_distance"] is not None
             else None
         ),
         distance_tolerance=(
-            float(interaction_values["distance_tolerance"])
+            _finite_number("distance_tolerance", interaction_values["distance_tolerance"])
             if interaction_values["distance_tolerance"] is not None
+            else None
+        ),
+        interactions=(
+            _normalize_interactions(
+                interaction_values["interactions"],
+                default_restraint_weight=options.get("restraint_weight", 10.0),
+            )
+            if interaction_values["interactions"] is not None
+            else None
+        ),
+        max_joint_matches=(
+            _positive_int("max_joint_matches", interaction_values["max_joint_matches"])
+            if interaction_values["max_joint_matches"] is not None
             else None
         ),
     )
@@ -970,6 +1078,8 @@ def _materialize_job(
     ligand_smarts: str | None,
     target_distance: float | None,
     distance_tolerance: float | None,
+    interactions: Sequence[InteractionInput] | None,
+    max_joint_matches: int,
 ) -> DockingJob:
     if isinstance(item, DockingJob):
         if item.mode == "free":
@@ -1003,7 +1113,7 @@ def _materialize_job(
 
     def promoted(name: str, direct: object, fallback: object) -> object:
         nested = _coerce_value(job_options.pop(name)) if name in job_options else None
-        if not _is_missing(direct) and not _is_missing(nested) and direct != nested:
+        if not _is_missing(direct) and not _is_missing(nested) and _stable_value(direct) != _stable_value(nested):
             raise ValueError(f"conflicting DockingJob field and options value for {name}")
         if not _is_missing(direct):
             return direct
@@ -1015,9 +1125,10 @@ def _materialize_job(
     resolved_receptor_atom = promoted("receptor_atom", job.receptor_atom, receptor_atom)
     resolved_ligand_smarts = promoted("ligand_smarts", job.ligand_smarts, ligand_smarts)
     resolved_target_distance = promoted("target_distance", job.target_distance, target_distance)
-    resolved_distance_tolerance = promoted(
-        "distance_tolerance", job.distance_tolerance, distance_tolerance
-    )
+    resolved_distance_tolerance = promoted("distance_tolerance", job.distance_tolerance, distance_tolerance)
+    resolved_interactions = promoted("interactions", job.interactions, interactions)
+    resolved_max_joint_matches = promoted("max_joint_matches", job.max_joint_matches, max_joint_matches)
+
     def optional_float(name: str, value: object) -> float | None:
         if _is_missing(value):
             return None
@@ -1037,32 +1148,35 @@ def _materialize_job(
         reference_ligand=(job.reference_ligand if job.reference_ligand is not None else reference_ligand),
         reactive_residue=(job.reactive_residue if job.reactive_residue is not None else reactive_residue),
         options=job_options,
-        receptor_residue=(
-            str(resolved_receptor_residue) if not _is_missing(resolved_receptor_residue) else None
-        ),
+        receptor_residue=(str(resolved_receptor_residue) if not _is_missing(resolved_receptor_residue) else None),
         receptor_atom=str(resolved_receptor_atom) if not _is_missing(resolved_receptor_atom) else None,
         ligand_smarts=str(resolved_ligand_smarts) if not _is_missing(resolved_ligand_smarts) else None,
         target_distance=optional_float("target_distance", resolved_target_distance),
         distance_tolerance=optional_float("distance_tolerance", resolved_distance_tolerance),
+        interactions=(
+            _normalize_interactions(
+                resolved_interactions,
+                default_restraint_weight=job_options.get("restraint_weight", 10.0),
+            )
+            if resolved_interactions is not None
+            else None
+        ),
+        max_joint_matches=_positive_int("max_joint_matches", resolved_max_joint_matches),
     )
     if job.protein_pdb is None:
         raise ValueError("protein_pdb is required for every docking job")
     if job.mode == "reference" and job.reference_ligand is None:
         raise ValueError("reference_ligand is required for reference jobs")
     if job.mode == "interaction":
-        missing = [
-            name
-            for name in (
-                "receptor_residue",
-                "receptor_atom",
-                "ligand_smarts",
-                "target_distance",
-                "distance_tolerance",
-            )
-            if getattr(job, name) is None
-        ]
-        if missing:
-            raise ValueError(f"interaction jobs require explicit fields: {', '.join(missing)}")
+        supplied_legacy = [name for name in _INTERACTION_REQUIRED_FIELDS if getattr(job, name) is not None]
+        if job.interactions is not None and supplied_legacy:
+            raise ValueError("interactions cannot be combined with legacy interaction fields")
+        if job.interactions is None:
+            missing = [name for name in _INTERACTION_REQUIRED_FIELDS if getattr(job, name) is None]
+            if missing:
+                raise ValueError(
+                    f"interaction jobs require interactions or all legacy fields; missing: {', '.join(missing)}"
+                )
     return job
 
 
@@ -1079,6 +1193,8 @@ def _prepare_batch_entries(
     ligand_smarts: str | None,
     target_distance: float | None,
     distance_tolerance: float | None,
+    interactions: Sequence[InteractionInput] | None,
+    max_joint_matches: int,
     defaults: Mapping[str, object],
 ) -> list[_PreparedBatchEntry]:
     entries: list[_PreparedBatchEntry] = []
@@ -1098,6 +1214,8 @@ def _prepare_batch_entries(
                 ligand_smarts=ligand_smarts,
                 target_distance=target_distance,
                 distance_tolerance=distance_tolerance,
+                interactions=interactions,
+                max_joint_matches=max_joint_matches,
             )
             ligand_text = _canonical_ligand_text(job.ligand)
             raw_id = job.id or "ligand"
@@ -1114,6 +1232,8 @@ def _prepare_batch_entries(
                     job.ligand_smarts,
                     job.target_distance,
                     job.distance_tolerance,
+                    json.dumps(_stable_value(job.interactions), sort_keys=True),
+                    job.max_joint_matches,
                     raw_id,
                 )
             )
@@ -1185,20 +1305,28 @@ def _dispatch(job: DockingJob, output_dir: Path, options: dict[str, object]) -> 
     if job.mode == "interaction":
         from .interaction.pipeline import dock_interaction
 
-        assert job.receptor_residue is not None
-        assert job.receptor_atom is not None
-        assert job.ligand_smarts is not None
-        assert job.target_distance is not None
-        assert job.distance_tolerance is not None
+        assert job.max_joint_matches is not None
+        if job.interactions is not None:
+            selector_options: dict[str, object] = {"interactions": job.interactions}
+        else:
+            assert job.receptor_residue is not None
+            assert job.receptor_atom is not None
+            assert job.ligand_smarts is not None
+            assert job.target_distance is not None
+            assert job.distance_tolerance is not None
+            selector_options = {
+                "receptor_residue": job.receptor_residue,
+                "receptor_atom": job.receptor_atom,
+                "ligand_smarts": job.ligand_smarts,
+                "target_distance": job.target_distance,
+                "distance_tolerance": job.distance_tolerance,
+            }
         return dock_interaction(
             job.protein_pdb,  # type: ignore[arg-type]
             job.ligand,
             output_dir,
-            receptor_residue=job.receptor_residue,
-            receptor_atom=job.receptor_atom,
-            ligand_smarts=job.ligand_smarts,
-            target_distance=job.target_distance,
-            distance_tolerance=job.distance_tolerance,
+            **selector_options,
+            max_joint_matches=job.max_joint_matches,
             **options,
         )
     raise ValueError(f"unsupported docking mode: {job.mode!r}")
@@ -1319,6 +1447,8 @@ def dock_batch(
     ligand_smarts: str | None = None,
     target_distance: float | None = None,
     distance_tolerance: float | None = None,
+    interactions: Sequence[InteractionInput] | None = None,
+    max_joint_matches: int = 64,
     output_dir: str | os.PathLike[str] = "anchor_dock_batch",
     on_error: Literal["record", "raise", "skip"] = "record",
     resume: bool = False,
@@ -1363,6 +1493,8 @@ def dock_batch(
         ligand_smarts=ligand_smarts,
         target_distance=target_distance,
         distance_tolerance=distance_tolerance,
+        interactions=interactions,
+        max_joint_matches=max_joint_matches,
         defaults=defaults,
     )
     owned_directories = [

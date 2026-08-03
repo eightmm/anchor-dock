@@ -14,7 +14,7 @@ from .core.engine import DockingEngine
 from .core.io import clear_receptor_cache
 from .core.scoring import NeuralScorerAdapter, PairwiseScorer, resolve_scorer
 from .covalent.pipeline import clear_covalent_context_cache
-from .interaction import clear_interaction_context_cache, dock_interaction
+from .interaction import InteractionConstraint, clear_interaction_context_cache, dock_interaction
 
 run_batch_docking = dock_covalent_batch
 
@@ -29,6 +29,7 @@ def clear_all_caches() -> None:
 __all__ = [
     "DockingEngine",
     "DockingJob",
+    "InteractionConstraint",
     "LigandRecord",
     "NeuralScorerAdapter",
     "PairwiseScorer",

@@ -17,7 +17,7 @@ A strategy constructs a `PreparedDockingProblem`:
 input strategy
     ├── reference MCS
     ├── residue–warhead covalent adduct
-    └── explicit atom-pair interaction guide
+    └── explicit single/multi atom-pair interaction guide
             ↓
 PreparedDockingProblem
             ↓
@@ -66,15 +66,17 @@ standard AnchorDock SDF/JSON output
 
 ## Interaction strategy
 
-1. Resolve one exact standard-PDB receptor residue/atom and reject hydrogen, alternate-location, duplicate, absent, or ambiguous selectors.
-2. Generate ligand conformers and enumerate every distinct canonical heavy-atom match selected by the single mapped SMARTS atom `:1`; fail rather than truncate at the configured cap.
-3. Extract a residue-centered receptor pocket and seed bounded Haar-uniform candidate orientations with the matched ligand atom exactly at the target distance.
-4. Coarse-score candidates with the unmodified scorer and preselect deterministically, distributing capacity across ligand matches and conformers.
-5. Optimize SE(3) and torsions with a flat-bottom atom-pair distance guide, then continue on the same live pose model for a restraint-free release phase.
-6. Reject released poses outside the requested distance window and rank survivors only by the unmodified scorer.
+1. Normalize the five single-interaction keywords or the canonical ordered `interactions` list into one to eight `ALL`/`AND` constraints; mixed forms and exact duplicate items fail closed.
+2. Resolve every exact standard-PDB receptor residue/atom and reject hydrogen, alternate-location, duplicate, absent, or ambiguous selectors.
+3. Generate ligand conformers and independently enumerate every distinct canonical heavy-atom match selected by each SMARTS `:1` atom. Each selector is capped by `max_matches=16`; the deterministic Cartesian joint assignments are capped by `max_joint_matches=64`, with errors instead of truncation.
+4. Score the union of complete residue-centered pockets around all selected receptor residues. The bounded cache key includes the complete ordered receptor selector set.
+5. Apply conservative pairwise shell-distance feasibility checks to every conformer/joint-assignment pair. Passing is not a global feasibility proof; failing must mean the rigid conformer cannot satisfy that pair of shells.
+6. Choose the constraint with the fewest ligand matches as the deterministic primary anchor. Seed bounded Haar-uniform orientations with its ligand atom exactly at target distance, and include every secondary flat-bottom violation in coarse preselection while distributing capacity across viable assignments and conformers.
+7. Optimize SE(3) and torsions with the mean of the per-constraint weighted flat-bottom penalties, then continue on the same live pose model with all restraints removed.
+8. After output-coordinate quantization, reject any released pose outside any requested window and rank survivors only by the unmodified scorer.
 
-The selector and restraint represent a generic atom-pair distance hypothesis. They do not discover an interaction site or infer hydrogen bonds, salt bridges, metal interactions, pi interactions, protonation, tautomers, or chemical compatibility.
+One ligand atom may satisfy multiple constraints, and each pose records its exact joint assignment. The constraints are generic atom-pair distance hypotheses. They do not discover receptor atoms or infer hydrogen bonds, salt bridges, metal interactions, pi interactions, protonation, tautomers, or chemical compatibility. `OR`, `ANY`, and k-of-n alternatives are separate jobs.
 
 ## Receptor contexts
 
-`ReceptorContext` stores receptor coordinates, inferred atom features, an exact scoring-structure fingerprint, and the input PDB content fingerprint. Cache keys use content hash, device, and atom-typing version. Covalent and interaction modes additionally key bounded residue-centered pocket contexts by their resolved selectors, cutoff, heteroatom policy, device, and typing version. Product-state retyping is copy-on-write, so cached reactant contexts cannot be polluted across warheads; the consumed product features receive a new structure fingerprint while retaining the source and reactant fingerprints. Pocket extraction preserves PDB residue metadata and includes heteroatoms by default.
+`ReceptorContext` stores receptor coordinates, inferred atom features, an exact scoring-structure fingerprint, and the input PDB content fingerprint. Cache keys use content hash, device, and atom-typing version. Covalent mode additionally keys its bounded residue-centered pocket by the resolved selector. Interaction mode keys the union pocket by the complete ordered receptor selector set, cutoff, heteroatom policy, device, and typing version. Product-state retyping is copy-on-write, so cached reactant contexts cannot be polluted across warheads; the consumed product features receive a new structure fingerprint while retaining the source and reactant fingerprints. Pocket extraction preserves PDB residue metadata and includes heteroatoms by default.

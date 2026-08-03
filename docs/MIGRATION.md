@@ -1,5 +1,37 @@
 # Migration
 
+## Migrating from 0.4 to 0.5
+
+AnchorDock 0.5 keeps every valid 0.4 single-interaction call source-compatible. The five keyword arguments normalize internally to a one-item constraint list. New simultaneous constraints use the canonical ordered form:
+
+```python
+interactions = [
+    {
+        "receptor_residue": "ASP189:A",
+        "receptor_atom": "OD1",
+        "ligand_smarts": "[N:1]",
+        "target_distance": 3.0,
+        "distance_tolerance": 0.5,
+    },
+    {
+        "receptor_residue": "SER190:A",
+        "receptor_atom": "OG",
+        "ligand_smarts": "[O:1]",
+        "target_distance": 2.9,
+        "distance_tolerance": 0.4,
+        "restraint_weight": 12.0,
+    },
+]
+```
+
+Supplying this list together with any single-interaction selector/geometry keyword is an error. The CLI equivalent is one JSON array passed to `--interactions-json`; do not combine it with the single-selector flags.
+
+All items are simultaneous `ALL`/`AND` constraints. Use separate jobs for `OR`, `ANY`, or k-of-n alternatives. A list contains at most eight items. Each SMARTS still contains exactly one mapped `:1` atom and automatically enumerates at most `max_matches=16` distinct ligand atoms. The Cartesian joint assignments are bounded by `max_joint_matches=64`; neither cap silently truncates.
+
+Multi runs score the union pocket around all selected residues. The interaction with the fewest ligand matches supplies primary placement, conservative pairwise geometry checks remove provably infeasible conformer/assignment pairs, and all secondary violations participate in preselection. Guidance averages per-item weighted penalties, release removes all penalties, final filtering requires every window, and ranking remains scorer-only. No receptor selection, interaction chemistry, protonation, or tautomer state is inferred.
+
+Output schema advances to `4`, and the batch resume epoch advances to `5`. Multi-interaction provenance includes the ordered specifications, resolved receptor atoms, per-selector matches, selected joint assignment, and per-interaction initial/guided/final distances. Older successful batch artifacts are not reused.
+
 ## Migrating from 0.3 to 0.4
 
 AnchorDock 0.4 removes unconstrained local search from the public Python API, CLI, batch enum/factory, examples, and current documentation. Replace it with the explicit interaction-guided interface only when the scientific input includes all five required fields:

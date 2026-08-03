@@ -6,13 +6,30 @@ import argparse
 import json
 import sys
 import warnings
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from .batch import dock_batch
 from .covalent import dock_covalent
 from .interaction import dock_interaction
 from .reference import dock_reference
+
+
+def _parse_interactions_json(value: str) -> list[dict[str, object]]:
+    """Parse one inline JSON array of interaction mappings."""
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise argparse.ArgumentTypeError(
+            "--interactions-json must be an inline JSON array"
+        ) from exc
+    if not isinstance(parsed, list) or not parsed:
+        raise argparse.ArgumentTypeError("--interactions-json must be a non-empty JSON array")
+    if any(not isinstance(item, Mapping) for item in parsed):
+        raise argparse.ArgumentTypeError(
+            "--interactions-json items must be JSON objects"
+        )
+    return [dict(item) for item in parsed]
 
 
 def _optimization_arguments(parser: argparse.ArgumentParser) -> None:
@@ -77,11 +94,16 @@ def build_parser() -> argparse.ArgumentParser:
     interaction.add_argument("-p", "--protein", required=True)
     interaction.add_argument("-q", "--query", required=True)
     interaction.add_argument("-o", "--output", default="anchor_dock_interaction")
-    interaction.add_argument("--receptor-residue", required=True)
-    interaction.add_argument("--receptor-atom", required=True)
-    interaction.add_argument("--ligand-smarts", required=True)
-    interaction.add_argument("--target-distance", required=True, type=float)
-    interaction.add_argument("--distance-tolerance", required=True, type=float)
+    interaction.add_argument("--receptor-residue")
+    interaction.add_argument("--receptor-atom")
+    interaction.add_argument("--ligand-smarts")
+    interaction.add_argument("--target-distance", type=float)
+    interaction.add_argument("--distance-tolerance", type=float)
+    interaction.add_argument(
+        "--interactions-json",
+        type=_parse_interactions_json,
+        help="inline non-empty JSON array of simultaneous interaction objects",
+    )
     interaction.add_argument("--pocket-cutoff", type=float, default=12.0)
     heteroatoms = interaction.add_mutually_exclusive_group()
     heteroatoms.add_argument("--include-heteroatoms", dest="include_heteroatoms", action="store_true")
@@ -91,6 +113,7 @@ def build_parser() -> argparse.ArgumentParser:
     interaction.add_argument("--num-candidates", type=int, default=128)
     interaction.add_argument("--preselect-k", type=int, default=16)
     interaction.add_argument("--max-matches", type=int, default=16)
+    interaction.add_argument("--max-joint-matches", type=int, default=64)
     interaction.add_argument("--release-steps", type=int, default=25)
     interaction.add_argument("--restraint-weight", type=float, default=10.0)
     interaction.add_argument("--top-k", type=int, default=10)
@@ -117,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--ligand-smarts", default=None)
     batch.add_argument("--target-distance", type=float, default=None)
     batch.add_argument("--distance-tolerance", type=float, default=None)
+    batch.add_argument(
+        "--interactions-json",
+        type=_parse_interactions_json,
+        help="inline non-empty JSON array for homogeneous multi-interaction jobs",
+    )
+    batch.add_argument("--max-joint-matches", type=int, default=64)
     batch.add_argument("-o", "--output", default="anchor_dock_batch")
     batch.add_argument("--on-error", choices=("record", "raise", "skip"), default="record")
     batch.add_argument("--resume", action="store_true")
@@ -148,6 +177,32 @@ def main(argv: Sequence[str] | None = None) -> int:
             "the unvalidated 0.2 'vina_lp' preset was removed; use vina, "
             "vinardo, or an explicitly configured custom scorer"
         )
+    if args.command in {"interaction", "batch"}:
+        selector_names = (
+            "receptor_residue",
+            "receptor_atom",
+            "ligand_smarts",
+            "target_distance",
+            "distance_tolerance",
+        )
+        supplied_selectors = [name for name in selector_names if getattr(args, name) is not None]
+        if args.interactions_json is not None and supplied_selectors:
+            parser.error(
+                "--interactions-json cannot be combined with single-interaction selector flags"
+            )
+        if (
+            args.command == "batch"
+            and args.interactions_json is not None
+            and args.mode != "interaction"
+        ):
+            parser.error("batch --interactions-json requires --mode interaction")
+        if args.command == "interaction" and args.interactions_json is None:
+            missing = [name for name in selector_names if getattr(args, name) is None]
+            if missing:
+                parser.error(
+                    "interaction requires --interactions-json or all five single-interaction "
+                    f"selector flags; missing: {', '.join('--' + name.replace('_', '-') for name in missing)}"
+                )
     exit_code = 0
     if args.command == "reference":
         result = dock_reference(
@@ -209,15 +264,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             verbose=not args.quiet,
         )
     elif args.command == "interaction":
+        if args.interactions_json is not None:
+            selector_options = {"interactions": args.interactions_json}
+        else:
+            selector_options = {
+                "receptor_residue": args.receptor_residue,
+                "receptor_atom": args.receptor_atom,
+                "ligand_smarts": args.ligand_smarts,
+                "target_distance": args.target_distance,
+                "distance_tolerance": args.distance_tolerance,
+            }
         result = dock_interaction(
             args.protein,
             args.query,
             args.output,
-            receptor_residue=args.receptor_residue,
-            receptor_atom=args.receptor_atom,
-            ligand_smarts=args.ligand_smarts,
-            target_distance=args.target_distance,
-            distance_tolerance=args.distance_tolerance,
+            **selector_options,
             pocket_cutoff=args.pocket_cutoff,
             include_heteroatoms=args.include_heteroatoms,
             num_confs=args.num_confs,
@@ -225,6 +286,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             num_candidates=args.num_candidates,
             preselect_k=args.preselect_k,
             max_matches=args.max_matches,
+            max_joint_matches=args.max_joint_matches,
             optimize=args.optimize,
             optimizer=args.optimizer,
             opt_steps=args.opt_steps,
@@ -255,6 +317,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             ligand_smarts=args.ligand_smarts,
             target_distance=args.target_distance,
             distance_tolerance=args.distance_tolerance,
+            interactions=args.interactions_json,
+            max_joint_matches=args.max_joint_matches,
             output_dir=args.output,
             on_error=args.on_error,
             resume=args.resume,
