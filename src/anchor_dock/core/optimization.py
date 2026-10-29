@@ -45,11 +45,14 @@ def _batch_parameters(model: nn.Module, batch_size: int) -> list[nn.Parameter]:
 
 
 def _restore_rows(parameters: list[nn.Parameter], snapshots: list[torch.Tensor], rows: torch.Tensor) -> None:
-    if not rows.any():
+    # Keep the cheap empty-mask shortcut on CPU, but never read a CUDA mask on
+    # the host here: these helpers run several times per optimization step.
+    if rows.device.type == "cpu" and not rows.any():
         return
     with torch.no_grad():
         for parameter, snapshot in zip(parameters, snapshots, strict=True):
-            parameter[rows] = snapshot[rows]
+            mask = rows.reshape((rows.shape[0],) + (1,) * (parameter.ndim - 1))
+            parameter.copy_(torch.where(mask, snapshot, parameter))
 
 
 def _update_best_rows(
@@ -57,22 +60,24 @@ def _update_best_rows(
     snapshots: list[torch.Tensor],
     improved: torch.Tensor,
 ) -> None:
-    if not improved.any():
+    if improved.device.type == "cpu" and not improved.any():
         return
     with torch.no_grad():
         for parameter, snapshot in zip(parameters, snapshots, strict=True):
-            snapshot[improved] = parameter.detach()[improved]
+            mask = improved.reshape((improved.shape[0],) + (1,) * (parameter.ndim - 1))
+            snapshot.copy_(torch.where(mask, parameter.detach(), snapshot))
 
 
 def _clear_adam_rows(optimizer: torch.optim.Optimizer, parameters: list[nn.Parameter], rows: torch.Tensor) -> None:
-    if not rows.any():
+    if rows.device.type == "cpu" and not rows.any():
         return
     for parameter in parameters:
         state = optimizer.state.get(parameter, {})
         for key in ("exp_avg", "exp_avg_sq", "max_exp_avg_sq"):
             value = state.get(key)
             if isinstance(value, torch.Tensor) and value.ndim > 0 and value.shape[0] == rows.shape[0]:
-                value[rows] = 0
+                mask = rows.reshape((rows.shape[0],) + (1,) * (value.ndim - 1))
+                value.masked_fill_(mask, 0)
 
 
 def _checked_losses(values: torch.Tensor, batch_size: int) -> torch.Tensor:
@@ -187,14 +192,15 @@ def optimize_pose_module(
             _assign_pose_gradients(loss, parameters)
             for parameter in parameters:
                 if parameter.grad is not None:
-                    parameter.grad[~active] = 0
+                    mask = (~active).reshape((batch_size,) + (1,) * (parameter.ndim - 1))
+                    parameter.grad.masked_fill_(mask, 0)
             if gradient_clip is not None:
                 torch.nn.utils.clip_grad_norm_(parameters, gradient_clip)
             torch_optimizer.step()
             _restore_rows(parameters, best_parameters, ~active)
             _clear_adam_rows(torch_optimizer, parameters, ~active)
 
-        step_counts[active] += 1
+        step_counts.add_(active)
         with torch.no_grad():
             new_losses = _checked_losses(energy_fn(model()), batch_size).detach()
         improved = active & (new_losses < best_losses - min_delta)
@@ -358,3 +364,4 @@ class SE3PoseModel(nn.Module):
         rotation = get_batched_rotation_matrix(self.rotation_vectors, angle)
         rotated = torch.matmul(centered, rotation.transpose(1, 2))
         return rotated + self.translations[:, None, :]
+

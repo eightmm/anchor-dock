@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
 
 import torch
 from rdkit import Chem, RDConfig
@@ -178,7 +177,11 @@ def infer_xs_atom_types(mol: Chem.Mol) -> list[str]:
     """
     donors, acceptors = _feature_atom_sets(mol)
     _apply_pdb_fallbacks(mol, donors, acceptors)
+    return _infer_xs_atom_types_from_sets(mol, donors, acceptors)
 
+
+def _infer_xs_atom_types_from_sets(mol: Chem.Mol, donors: set[int], acceptors: set[int]) -> list[str]:
+    """Type atoms using the same donor/acceptor assignment as their features."""
     result: list[str] = []
     for atom in mol.GetAtoms():
         idx = atom.GetIdx()
@@ -217,20 +220,27 @@ def infer_xs_atom_types(mol: Chem.Mol) -> list[str]:
     return result
 
 
-def _to_indicator(indices: Iterable[int], size: int, device: torch.device) -> torch.Tensor:
-    values = torch.zeros(size, dtype=torch.float32, device=device)
-    valid = [idx for idx in indices if 0 <= idx < size]
-    if valid:
-        values[torch.tensor(valid, dtype=torch.long, device=device)] = 1.0
-    return values
-
-
 def compute_atom_features(mol: Chem.Mol, device: torch.device | str) -> dict[str, torch.Tensor | tuple[str, ...] | str]:
     """Return tensors required by Vina, Vinardo and SoftDock scorers."""
     device = torch.device(device)
-    atom_types = infer_xs_atom_types(mol)
     donors, acceptors = _feature_atom_sets(mol)
     _apply_pdb_fallbacks(mol, donors, acceptors)
+    atom_types = _infer_xs_atom_types_from_sets(mol, donors, acceptors)
+
+    # Resolve exceptions before transferring the completed indicators. In
+    # particular, avoid one CUDA indexing kernel per H/S/metal atom.
+    donor_values: list[float] = []
+    acceptor_values: list[float] = []
+    for idx, atom_type in enumerate(atom_types):
+        if atom_type in {"S_P", "H"}:
+            donor_values.append(0.0)
+            acceptor_values.append(0.0)
+        elif atom_type == "Met_D":
+            donor_values.append(1.0)
+            acceptor_values.append(0.0)
+        else:
+            donor_values.append(float(idx in donors))
+            acceptor_values.append(float(idx in acceptors))
 
     radius_vina = torch.tensor(
         [_VINA_RADIUS[atom_type] for atom_type in atom_types], dtype=torch.float32, device=device
@@ -244,21 +254,10 @@ def compute_atom_features(mol: Chem.Mol, device: torch.device | str) -> dict[str
         dtype=torch.float32,
         device=device,
     )
-    donor = _to_indicator(donors, mol.GetNumAtoms(), device)
-    acceptor = _to_indicator(acceptors, mol.GetNumAtoms(), device)
-
     # Match official XS semantics: sulfur is S_P and does not participate in the
     # non-directional hydrogen-bond term; metals are donors.
-    for idx, atom_type in enumerate(atom_types):
-        if atom_type == "S_P":
-            donor[idx] = 0.0
-            acceptor[idx] = 0.0
-        elif atom_type == "Met_D":
-            donor[idx] = 1.0
-            acceptor[idx] = 0.0
-        elif atom_type == "H":
-            donor[idx] = 0.0
-            acceptor[idx] = 0.0
+    donor = torch.tensor(donor_values, dtype=torch.float32, device=device)
+    acceptor = torch.tensor(acceptor_values, dtype=torch.float32, device=device)
 
     return {
         "radius_vina": radius_vina,
@@ -270,3 +269,4 @@ def compute_atom_features(mol: Chem.Mol, device: torch.device | str) -> dict[str
         "xs_types": tuple(atom_types),
         "typing_version": ATOM_TYPING_VERSION,
     }
+

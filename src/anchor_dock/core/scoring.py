@@ -147,8 +147,8 @@ def _slope_step(bad: float, good: float, value: torch.Tensor) -> torch.Tensor:
     fraction = (value - bad) / (good - bad)
     return torch.where(
         value <= low,
-        torch.tensor(float(good == low), device=value.device, dtype=value.dtype),
-        torch.where(value >= high, torch.tensor(float(good == high), device=value.device, dtype=value.dtype), fraction),
+        float(good == low),
+        torch.where(value >= high, float(good == high), fraction),
     )
 
 
@@ -1137,3 +1137,4 @@ def resolve_scorer(scorer: ScorerLike) -> PairwiseScorer | NeuralScorerAdapter:
     if hasattr(scorer, "prepare"):
         return scorer
     raise TypeError("scorer must be a scorer name, nn.Module, or object with prepare()")
+
