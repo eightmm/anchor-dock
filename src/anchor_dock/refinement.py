@@ -133,13 +133,11 @@ def refine_pose(
     preparation: str = "auto", preparation_options: Mapping[str, object] | None = None,
     optimizer: str | None = None, num_steps: int = 100, learning_rate: float | None = None,
     optimizer_options: Mapping[str, object] | None = None, seed: int = 42,
-    native_options: Mapping[str, object] | None = None,
     device: str | torch.device = "cpu", output_dir: str | Path | None = None,
 ) -> PoseRefinementResult:
     """Optimize one supplied pose; retain its graph/order and existing 3D pose.
 
-    Native backends perform their own local minimization. Torch-compatible
-    models share SE(3)+torsion optimization; nondifferentiable native-table
+    Torch-compatible models share SE(3)+torsion optimization; table-reference
     objectives require explicit pattern search. No raw scores are combined.
     AMBER topology contains the receptor, so ``protein=None`` is permitted.
     """
@@ -163,7 +161,7 @@ def refine_pose(
         raise ValueError("receptor preparation options cannot alter an already prepared receptor")
     info = scoring_function_info(scorer) if isinstance(scorer, str) else None
     if info:
-        if info.backend == "native":
+        if info.name in {"amber", "ad4", "adgpu"}:
             options.setdefault("device", str(device))
         model_factory = create_scoring_function(scorer, **options)
         selected_name, profile = info.name, info.preparation
@@ -179,141 +177,115 @@ def refine_pose(
                                      requested_device=str(device), torch_threads=torch.get_num_threads(),
                                      deterministic_algorithms=torch.are_deterministic_algorithms_enabled()),
                         independent_local_refinement=True, registry_info=info.as_dict() if info else None)
-        if info and info.backend == "native":
-            if optimizer not in (None, "native") or optimizer_options or learning_rate is not None:
-                raise ValueError("native SFs use their native optimizer; Torch optimizer settings do not apply")
-            if preparation == "inferred":
-                raise ValueError("native refinement requires prepared types/charges; use preparation=auto or meeko")
-            ligand_options.setdefault("generate_coordinates_if_missing", False)
-            lp = ligand if isinstance(ligand, LigandPreparation) else prepare_ligand(ligand, seed=seed, **ligand_options)
-            rp = protein if isinstance(protein, ReceptorPreparation) else prepare_receptor(protein, **receptor_options)
-            execution = dict(native_options or {})
-            if set(execution) - {"cpu", "timeout", "padding"}:
-                raise ValueError("native_options accepts cpu, timeout and padding")
-            native = model_factory.refine(rp.pdbqt, lp.pdbqt, lp.prepared, seed=int(seed), max_steps=int(num_steps), **execution)
-            metadata.update(native=native.metadata, scorer_fingerprint=native.metadata["scorer_fingerprint"],
-                            ligand_preparation=lp.metadata, receptor_preparation=rp.metadata,
-                            ligand_preparation_fingerprint=lp.fingerprint, receptor_preparation_fingerprint=rp.fingerprint,
-                            output_atom_to_input_atom=lp.metadata.get("output_atom_to_input_atom", list(lp.prepared.original_atom_indices)),
-                            pdbqt_serials=list(lp.prepared.pdbqt_serials), optimization_route="native",
-                            requested_num_steps=int(num_steps), native_options=execution,
-                            effective_native_device=getattr(model_factory, "device", str(device)))
-            result = PoseRefinementResult(selected_name, native.mol, native.coordinates,
-                                          {key: value.as_dict() for key, value in native.scores.items()},
-                                          {key: value.as_dict() for key, value in native.initial_scores.items()},
-                                          native.optimized_objective, metadata)
+        target_device = torch.device(device)
+        amber = profile == "amber-topology"
+        prepared_ligand = None
+        if amber:
+            if preparation != "auto" or prep_options:
+                raise ValueError("AMBER uses its explicit topology/coordinates, not Meeko preparation")
+            mol = load_ligand_for_refinement(ligand, seed=seed, add_hydrogens=False, generate_coordinates_if_missing=False)
+            model_factory.validate_ligand(mol)
+            expected_receptor = model_factory.receptor_coordinates(device=target_device, dtype=torch.float64)
+            if protein is not None:
+                supplied = protein if isinstance(protein, ReceptorContext) else load_receptor_context(protein, target_device)
+                if supplied.coords.shape != expected_receptor.shape or not torch.allclose(
+                    supplied.coords.to(expected_receptor), expected_receptor, atol=.002, rtol=0,
+                ):
+                    raise ValueError("protein coordinates/order disagree with AMBER topology; use its matching receptor or protein=None")
+            coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float64, device=target_device)[None]
+            prepared = model_factory.prepare({"active": torch.ones(mol.GetNumAtoms(), dtype=torch.bool)}, expected_receptor, {})
+            metadata.update(amber=model_factory.metadata, receptor_source="explicit AMBER System",
+                            component_semantics=prepared.component_semantics)
         else:
-            if native_options:
-                raise ValueError("native_options apply only to native backends")
-            target_device = torch.device(device)
-            amber = profile == "amber-topology"
-            prepared_ligand = None
-            if amber:
-                if preparation != "auto" or prep_options:
-                    raise ValueError("AMBER uses its explicit topology/coordinates, not Meeko preparation")
-                mol = load_ligand_for_refinement(ligand, seed=seed, add_hydrogens=False, generate_coordinates_if_missing=False)
-                model_factory.validate_ligand(mol)
-                expected_receptor = model_factory.receptor_coordinates(target_device, dtype=torch.float64)
-                if protein is not None:
-                    supplied = protein if isinstance(protein, ReceptorContext) else load_receptor_context(protein, target_device)
-                    if supplied.coords.shape != expected_receptor.shape or not torch.allclose(
-                        supplied.coords.to(expected_receptor), expected_receptor, atol=.002, rtol=0,
-                    ):
-                        raise ValueError("protein coordinates/order disagree with AMBER topology; use its matching receptor or protein=None")
-                coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float64, device=target_device)[None]
-                prepared = model_factory.prepare({"active": torch.ones(mol.GetNumAtoms(), dtype=torch.bool)}, expected_receptor, {})
-                metadata.update(amber=model_factory.metadata, receptor_source="explicit AMBER System",
-                                component_semantics=prepared.component_semantics)
-            else:
-                use_prepared = (profile == "prepared-ad4" or preparation == "meeko"
-                                or isinstance(ligand, (PreparedLigand, LigandPreparation))
-                                or isinstance(protein, ReceptorPreparation))
-                if profile == "prepared-ad4" and preparation == "inferred":
-                    raise ValueError("this SF requires prepared AD4 types and charges")
-                if use_prepared:
-                    ligand_options.setdefault("generate_coordinates_if_missing", False)
-                    lp = ligand if isinstance(ligand, (LigandPreparation, PreparedLigand)) else prepare_ligand(ligand, seed=seed, **ligand_options)
-                    prepared_ligand = lp if isinstance(lp, PreparedLigand) else lp.prepared
-                    mol = prepared_ligand.mol
-                    coords = prepared_ligand.coordinates(target_device)[None]
-                    if isinstance(protein, ReceptorContext):
-                        receptor = protein
-                    else:
-                        rp = protein if isinstance(protein, ReceptorPreparation) else prepare_receptor(protein, **receptor_options)
-                        receptor = rp.context(target_device)
-                        metadata.update(receptor_preparation=rp.metadata, receptor_preparation_fingerprint=rp.fingerprint)
-                    metadata.update(ligand_preparation=getattr(lp, "metadata", {"contract": "supplied PreparedLigand"}),
-                                    ligand_preparation_fingerprint=prepared_ligand.fingerprint,
-                                    output_atom_to_input_atom=getattr(lp, "metadata", {}).get(
-                                        "output_atom_to_input_atom", list(prepared_ligand.original_atom_indices)),
-                                    pdbqt_serials=list(prepared_ligand.pdbqt_serials))
+            use_prepared = (profile == "prepared-ad4" or preparation == "meeko"
+                            or isinstance(ligand, (PreparedLigand, LigandPreparation))
+                            or isinstance(protein, ReceptorPreparation))
+            if profile == "prepared-ad4" and preparation == "inferred":
+                raise ValueError("this SF requires prepared AD4 types and charges")
+            if use_prepared:
+                ligand_options.setdefault("generate_coordinates_if_missing", False)
+                lp = ligand if isinstance(ligand, (LigandPreparation, PreparedLigand)) else prepare_ligand(ligand, seed=seed, **ligand_options)
+                prepared_ligand = lp if isinstance(lp, PreparedLigand) else lp.prepared
+                mol = prepared_ligand.mol
+                coords = prepared_ligand.coordinates(target_device)[None]
+                if isinstance(protein, ReceptorContext):
+                    receptor = protein
                 else:
-                    if prep_options:
-                        raise ValueError("preparation_options require preparation=meeko or a prepared SF")
-                    mol = load_ligand_for_refinement(ligand, seed=seed, add_hydrogens=False, generate_coordinates_if_missing=False)
-                    coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float32, device=target_device)[None]
-                    receptor = protein if isinstance(protein, ReceptorContext) else load_receptor_context(protein, target_device)
-                needs_pattern = (getattr(model_factory, "supports_autograd", True) is False
-                                 or (info is not None and "autograd" not in info.optimization))
-                engine = DockingEngine(model_factory, device=target_device, optimizer="pattern" if needs_pattern else "adam")
-                problem = engine.prepare(mol, receptor, prepared_ligand=prepared_ligand,
-                                         num_rotatable_bonds=None if prepared_ligand else len(find_rotatable_bonds(mol)))
-                mol, prepared = problem.mol, problem.scorer
-                metadata.update(receptor_fingerprint=receptor.structure_fingerprint,
-                                receptor_source_fingerprint=receptor.source_fingerprint)
+                    rp = protein if isinstance(protein, ReceptorPreparation) else prepare_receptor(protein, **receptor_options)
+                    receptor = rp.context(target_device)
+                    metadata.update(receptor_preparation=rp.metadata, receptor_preparation_fingerprint=rp.fingerprint)
+                metadata.update(ligand_preparation=getattr(lp, "metadata", {"contract": "supplied PreparedLigand"}),
+                                ligand_preparation_fingerprint=prepared_ligand.fingerprint,
+                                output_atom_to_input_atom=getattr(lp, "metadata", {}).get(
+                                    "output_atom_to_input_atom", list(prepared_ligand.original_atom_indices)),
+                                pdbqt_serials=list(prepared_ligand.pdbqt_serials))
+            else:
+                if prep_options:
+                    raise ValueError("preparation_options require preparation=meeko or a prepared SF")
+                mol = load_ligand_for_refinement(ligand, seed=seed, add_hydrogens=False, generate_coordinates_if_missing=False)
+                coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float32, device=target_device)[None]
+                receptor = protein if isinstance(protein, ReceptorContext) else load_receptor_context(protein, target_device)
             needs_pattern = (getattr(model_factory, "supports_autograd", True) is False
                              or (info is not None and "autograd" not in info.optimization))
-            route = optimizer or ("pattern" if needs_pattern else "adam")
-            required_route = "pattern" if route == "pattern" else "autograd"
-            if info is not None and required_route not in info.optimization:
-                raise ValueError(f"{info.name} does not support the {required_route} optimization route")
-            if getattr(model_factory, "supports_autograd", True) is False and route != "pattern":
-                raise ValueError("nondifferentiable SF requires optimizer=pattern")
-            rate = learning_rate if learning_rate is not None else {"adam": .05, "adamw": .05, "lbfgs": .5, "cartesian": 1., "pattern": .1}.get(route, .05)
-            opt_options = dict(optimizer_options or {})
-            if set(opt_options) & {"optimizer", "learning_rate", "num_steps"}:
-                raise ValueError("set optimizer, learning_rate and num_steps through their explicit arguments")
-            pivot = next((atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() != 1), None)
-            if pivot is None:
-                raise ValueError("a ligand must contain at least one heavy atom")
-            pose = SE3PoseModel(mol, coords, pivot, coords[:, pivot], torch.zeros(1, 3, device=target_device), target_device)
-            if amber:
-                pose = pose.double()
-            initial = pose().detach()
-            final, stats = optimize_pose_module(pose, prepared.search_energy, optimizer=route, num_steps=int(num_steps),
-                                                learning_rate=rate, **opt_options)
-            if final.ndim == 2:
-                final = final[None]
-            with torch.no_grad():
-                initial_raw, final_raw = prepared.raw_components(initial), prepared.raw_components(final)
-                reference = final_raw.intramolecular[0]
-                before, after = prepared.report(initial_raw, reference), prepared.report(final_raw, reference)
-            @torch.no_grad()
-            def metrics(raw, report, xyz):
-                direction = info.direction if info else getattr(model_factory, "direction", "lower")
-                values = {"score": _metric(report.score[0], prepared.units, direction=direction),
-                          "search_energy": _metric(raw.search_energy[0], prepared.units, role="optimization_objective")}
-                if getattr(prepared, "component_semantics", "pairwise") == "undecomposed-full-complex-potential":
-                    for key, value in prepared.components(xyz).items():
-                        values[key] = _metric(value[0], prepared.units, role="physical_potential")
-                else:
-                    values.update(intermolecular=_metric(raw.intermolecular[0], prepared.units, role="component"),
-                                  intramolecular=_metric(raw.intramolecular[0], prepared.units, role="component"))
-                return values
-            metadata.update(scorer_fingerprint=prepared.fingerprint, optimization_route=route,
-                            optimization_contract=OPTIMIZATION_CONTRACT, optimization=stats.as_dict(),
-                            effective_tensor_device=str(initial.device), coordinate_dtype=str(initial.dtype),
-                            learning_rate=float(rate), initial_coordinates_sha256="sha256:" + hashlib.sha256(
-                                initial.detach().cpu().contiguous().numpy().tobytes()).hexdigest())
-            effective = inspect.signature(optimize_pose_module).bind_partial(
-                optimizer=route, num_steps=int(num_steps), learning_rate=rate, **opt_options)
-            effective.apply_defaults()
-            metadata["optimization_parameters"] = _configuration({key: value for key, value in effective.arguments.items()
-                                                                   if key not in {"model", "energy_fn"}})
-            metadata.setdefault("output_atom_to_input_atom", list(range(mol.GetNumAtoms())))
-            result = PoseRefinementResult(selected_name, _mol_with_coordinates(mol, final[0]), final[0].detach().cpu(),
-                                          metrics(final_raw, after, final), metrics(initial_raw, before, initial),
-                                          getattr(model_factory, "objective", "scorer-defined lower-is-better search energy"), metadata)
+            engine = DockingEngine(model_factory, device=target_device, optimizer="pattern" if needs_pattern else "adam")
+            problem = engine.prepare(mol, receptor, prepared_ligand=prepared_ligand,
+                                     num_rotatable_bonds=None if prepared_ligand else len(find_rotatable_bonds(mol)))
+            mol, prepared = problem.mol, problem.scorer
+            metadata.update(receptor_fingerprint=receptor.structure_fingerprint,
+                            receptor_source_fingerprint=receptor.source_fingerprint)
+        needs_pattern = (getattr(model_factory, "supports_autograd", True) is False
+                         or (info is not None and "autograd" not in info.optimization))
+        route = optimizer or ("pattern" if needs_pattern else "adam")
+        required_route = "pattern" if route == "pattern" else "autograd"
+        if info is not None and required_route not in info.optimization:
+            raise ValueError(f"{info.name} does not support the {required_route} optimization route")
+        if getattr(model_factory, "supports_autograd", True) is False and route != "pattern":
+            raise ValueError("nondifferentiable SF requires optimizer=pattern")
+        rate = learning_rate if learning_rate is not None else {"adam": .05, "adamw": .05, "lbfgs": .5, "cartesian": 1., "pattern": .1}.get(route, .05)
+        opt_options = dict(optimizer_options or {})
+        if set(opt_options) & {"optimizer", "learning_rate", "num_steps"}:
+            raise ValueError("set optimizer, learning_rate and num_steps through their explicit arguments")
+        pivot = next((atom.GetIdx() for atom in mol.GetAtoms() if atom.GetAtomicNum() != 1), None)
+        if pivot is None:
+            raise ValueError("a ligand must contain at least one heavy atom")
+        pose = SE3PoseModel(mol, coords, pivot, coords[:, pivot], torch.zeros(1, 3, device=target_device), target_device)
+        if amber:
+            pose = pose.double()
+        initial = pose().detach()
+        final, stats = optimize_pose_module(pose, prepared.search_energy, optimizer=route, num_steps=int(num_steps),
+                                            learning_rate=rate, **opt_options)
+        if final.ndim == 2:
+            final = final[None]
+        with torch.no_grad():
+            initial_raw, final_raw = prepared.raw_components(initial), prepared.raw_components(final)
+            reference = final_raw.intramolecular[0]
+            before, after = prepared.report(initial_raw, reference), prepared.report(final_raw, reference)
+        @torch.no_grad()
+        def metrics(raw, report, xyz):
+            direction = info.direction if info else getattr(model_factory, "direction", "lower")
+            values = {"score": _metric(report.score[0], prepared.units, direction=direction),
+                      "search_energy": _metric(raw.search_energy[0], prepared.units, role="optimization_objective")}
+            if getattr(prepared, "component_semantics", "pairwise") == "undecomposed-full-complex-potential":
+                for key, value in prepared.components(xyz).items():
+                    values[key] = _metric(value[0], prepared.units, role="physical_potential")
+            else:
+                values.update(intermolecular=_metric(raw.intermolecular[0], prepared.units, role="component"),
+                              intramolecular=_metric(raw.intramolecular[0], prepared.units, role="component"))
+            return values
+        metadata.update(scorer_fingerprint=prepared.fingerprint, optimization_route=route,
+                        optimization_contract=OPTIMIZATION_CONTRACT, optimization=stats.as_dict(),
+                        effective_tensor_device=str(initial.device), coordinate_dtype=str(initial.dtype),
+                        learning_rate=float(rate), initial_coordinates_sha256="sha256:" + hashlib.sha256(
+                            initial.detach().cpu().contiguous().numpy().tobytes()).hexdigest())
+        effective = inspect.signature(optimize_pose_module).bind_partial(
+            optimizer=route, num_steps=int(num_steps), learning_rate=rate, **opt_options)
+        effective.apply_defaults()
+        metadata["optimization_parameters"] = _configuration({key: value for key, value in effective.arguments.items()
+                                                               if key not in {"model", "energy_fn"}})
+        metadata.setdefault("output_atom_to_input_atom", list(range(mol.GetNumAtoms())))
+        result = PoseRefinementResult(selected_name, _mol_with_coordinates(mol, final[0]), final[0].detach().cpu(),
+                                      metrics(final_raw, after, final), metrics(initial_raw, before, initial),
+                                      getattr(model_factory, "objective", "scorer-defined lower-is-better search energy"), metadata)
         result.metadata["output_atomic_numbers"] = [atom.GetAtomicNum() for atom in result.mol.GetAtoms()]
         result.metadata["output_isomeric_smiles"] = Chem.MolToSmiles(result.mol, canonical=False, isomericSmiles=True)
         result.metadata["scorer_options"] = _configuration(options)

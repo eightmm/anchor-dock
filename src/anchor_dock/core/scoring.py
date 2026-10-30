@@ -202,11 +202,35 @@ def positive_energy_curl(energy: torch.Tensor, cap: float | None) -> torch.Tenso
     return torch.where(energy > 0.0, energy / denominator, energy)
 
 
-def _pairwise_fingerprint(config: ScoringConfig, cap: float | None) -> str:
-    if cap is None:
-        return scoring_config_fingerprint(config)
-    payload = {"config": asdict(config), "positive_energy_cap": cap, "wrapper": "vina-per-atom-inter-per-pair-intra-v1"}
+def _pairwise_fingerprint(config: ScoringConfig, cap: float | None, intra_mode: str = "dense") -> str:
+    payload = {
+        "config": asdict(config), "positive_energy_cap": cap,
+        "wrapper": "vina-per-atom-inter-per-pair-intra-v1", "intra_mode": intra_mode,
+        "intra_contract": "dense-half-sum-v1" if intra_mode == "dense" else "sparse-unordered-mask-half-sum-v1",
+    }
     return "sha256:" + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def _prepare_sparse_intra(mask, matrices, device):
+    """Snapshot contributors once, retaining legacy asymmetric/diagonal weights."""
+    if mask is None:
+        return None, None, None
+    atoms = matrices["radius_sum"].shape[0]
+    batch = mask.shape[0] if mask.ndim == 3 else 1
+    normalized = normalize_pair_mask(mask, batch, atoms, atoms, device=device).clone()
+    # Scoring attributes are symmetric for ligand-ligand pairs. Evaluate each
+    # unordered pair once; averaging the two directed mask entries preserves
+    # the dense half-sum even for an explicitly asymmetric user mask.
+    selected = (normalized | normalized.transpose(-1, -2)).any(dim=0) & matrices["active"]
+    pairs = torch.triu(selected).nonzero(as_tuple=False)
+    left, right = pairs.unbind(-1)
+    weights = (normalized[:, left, right].to(torch.float32)
+               + normalized[:, right, left].to(torch.float32)) * .5
+    # A diagonal entry occurs only once in the dense sum, which still has its
+    # global factor 1/2. Ordinary prepared molecular masks exclude diagonals.
+    weights = weights * torch.where(left == right, .5, 1.)
+    attributes = {name: value[left, right] for name, value in matrices.items()}
+    return pairs, weights, attributes
 
 
 @runtime_checkable
@@ -240,6 +264,10 @@ class PreparedPairwiseScorer:
     intermolecular_matrices: dict[str, torch.Tensor]
     intramolecular_matrices: dict[str, torch.Tensor]
     positive_energy_cap: float | None = None
+    intra_mode: str = "dense"
+    sparse_intra_pairs: torch.Tensor | None = None
+    sparse_intra_weights: torch.Tensor | None = None
+    sparse_intra_matrices: dict[str, torch.Tensor] | None = None
 
     @property
     def name(self) -> str:
@@ -251,7 +279,7 @@ class PreparedPairwiseScorer:
 
     @property
     def fingerprint(self) -> str:
-        return _pairwise_fingerprint(self.config, self.positive_energy_cap)
+        return _pairwise_fingerprint(self.config, self.positive_energy_cap, self.intra_mode)
 
     @property
     def effective_rotatable_bonds(self) -> int | float:
@@ -291,6 +319,8 @@ class PreparedPairwiseScorer:
 
         if self.intramolecular_mask is None:
             intramolecular = torch.zeros_like(intermolecular)
+        elif self.intra_mode == "sparse":
+            intramolecular = self._sparse_intramolecular(ligand_coords)
         else:
             intra_distances = torch.cdist(ligand_coords, ligand_coords)
             intra_energy = _weighted_pair_energy(intra_distances, self.intramolecular_matrices, self.config)
@@ -305,6 +335,21 @@ class PreparedPairwiseScorer:
             intramolecular = (intra_energy * intra_mask).sum(dim=(1, 2)) * 0.5
         search_energy = intermolecular + intramolecular
         return RawScoreComponents(intermolecular, intramolecular, search_energy)
+
+    def _sparse_intramolecular(self, coordinates: torch.Tensor) -> torch.Tensor:
+        if coordinates.shape[1] != self.intramolecular_matrices["radius_sum"].shape[0]:
+            raise ValueError("ligand coordinates must match the prepared intramolecular atom count")
+        weights = self.sparse_intra_weights.to(device=coordinates.device, dtype=coordinates.dtype)
+        if weights.shape[0] not in (1, coordinates.shape[0]):
+            raise ValueError(f"pair mask batch {weights.shape[0]} != {coordinates.shape[0]}")
+        pairs = self.sparse_intra_pairs.to(device=coordinates.device)
+        if pairs.shape[0] == 0:
+            return coordinates.sum(dim=(1, 2)) * 0.
+        left, right = pairs.unbind(-1)
+        distances = torch.linalg.vector_norm(coordinates[:, left] - coordinates[:, right], dim=-1)
+        energy = _weighted_pair_energy(distances, self.sparse_intra_matrices, self.config)
+        energy = positive_energy_curl(energy, self.positive_energy_cap)
+        return (energy * weights).sum(dim=1)
 
     def search_energy(self, ligand_coords: torch.Tensor) -> torch.Tensor:
         return self.raw_components(ligand_coords).search_energy
@@ -342,9 +387,16 @@ class PreparedPairwiseScorer:
 
 
 class PairwiseScorer:
-    """Factory for prepared Vina-family analytic scorers."""
+    """Factory for prepared Vina-family analytic scorers.
 
-    def __init__(self, config: ScoringConfig | str, *, positive_energy_cap: float | None = None):
+    ``intra_mode='sparse'`` evaluates only prepared contributor pairs, with
+    masks snapshotted by ``prepare``. Dense remains the default: direct pair
+    norms and a shorter reduction can differ from dense cdist by roundoff and
+    thereby change an optimization trajectory. Formulae and cutoffs are shared.
+    """
+
+    def __init__(self, config: ScoringConfig | str, *, positive_energy_cap: float | None = None,
+                 intra_mode: str = "dense"):
         if isinstance(config, str):
             if config.lower() == "softdock":
                 raise ValueError("softdock was removed; choose a validated scoring function such as vina or vinardo")
@@ -354,6 +406,8 @@ class PairwiseScorer:
                 raise ValueError(f"unknown scorer {config!r}; choose from {sorted(SCORING_CONFIGS)}") from exc
         if config.formula != "vina":
             raise ValueError("PairwiseScorer requires the Vina-family formula")
+        if intra_mode not in {"dense", "sparse"}:
+            raise ValueError("intra_mode must be dense or sparse")
         if positive_energy_cap is not None:
             if config.formula != "vina":
                 raise ValueError("positive_energy_cap is supported only for Vina/Vinardo pair functions")
@@ -361,10 +415,11 @@ class PairwiseScorer:
                 raise ValueError("positive_energy_cap must be finite and positive")
             positive_energy_cap = float(positive_energy_cap)
         self.config = config
+        self.intra_mode = intra_mode
         self.positive_energy_cap = positive_energy_cap
         self.name = config.name
         self.units = config.units
-        self.fingerprint = _pairwise_fingerprint(config, positive_energy_cap)
+        self.fingerprint = _pairwise_fingerprint(config, positive_energy_cap, intra_mode)
 
     def prepare(
         self,
@@ -394,6 +449,8 @@ class PairwiseScorer:
                 )
         inter = prepare_interaction_matrices(ligand_features, receptor_features, self.config, device)
         intra = prepare_interaction_matrices(ligand_features, ligand_features, self.config, device)
+        sparse = (_prepare_sparse_intra(intramolecular_mask, intra, device)
+                  if self.intra_mode == "sparse" else (None, None, None))
         return PreparedPairwiseScorer(
             config=self.config,
             receptor_coords=receptor_coords,
@@ -405,6 +462,8 @@ class PairwiseScorer:
             intermolecular_matrices=inter,
             intramolecular_matrices=intra,
             positive_energy_cap=self.positive_energy_cap,
+            intra_mode=self.intra_mode,
+            sparse_intra_pairs=sparse[0], sparse_intra_weights=sparse[1], sparse_intra_matrices=sparse[2],
         )
 
 
@@ -1148,10 +1207,7 @@ def scorer_fingerprint(scorer: object) -> str:
 
 def resolve_scorer(scorer: ScorerLike) -> PairwiseScorer | NeuralScorerAdapter:
     if isinstance(scorer, str):
-        from .registry import create_scoring_function, scoring_function_info
-        info = scoring_function_info(scorer)
-        if info.backend == "native":
-            raise ValueError("native scoring functions use refine_pose(), not Torch DockingEngine optimization")
+        from .registry import create_scoring_function
         return create_scoring_function(scorer)
     if isinstance(scorer, nn.Module):
         return NeuralScorerAdapter(scorer)

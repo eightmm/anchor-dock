@@ -17,7 +17,7 @@ from .kinematics import LigandKinematics, rotation_vector_to_matrix
 from .scoring import PreparedScorer
 
 OptimizerName = Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"]
-OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1"
+OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v2-pattern-v1"
 
 
 @dataclass(frozen=True)
@@ -306,7 +306,7 @@ def _optimize_cartesian_pullback(
                             continue
                         try:
                             trial_losses = energy_fn(trial_coords)
-                        except GridBoundsError:
+                        except (GridBoundsError, FloatingPointError):
                             alpha *= 0.5
                             continue
                         if trial_losses.ndim == 0 and batch_size == 1:

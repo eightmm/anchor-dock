@@ -56,7 +56,7 @@ def _optimization_arguments(parser: argparse.ArgumentParser) -> None:
         "--scorer",
         "--weight-preset",
         dest="scorer",
-        choices=("vina", "vinardo", "dkoes_fast", "dkoes_scoring_old", "vina_lp"),
+        choices=("vina", "vinardo", "vina_lp"),
         default="vina",
     )
     parser.add_argument("--device", choices=("cpu", "cuda"), default=None)
@@ -168,7 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--scorer",
         "--weight-preset",
         dest="scorer",
-        choices=("vina", "vinardo", "dkoes_fast", "dkoes_scoring_old", "vina_lp"),
+        choices=("vina", "vinardo", "vina_lp"),
         default=None,
     )
     batch.add_argument("--device", choices=("cpu", "cuda"), default=None)
@@ -181,9 +181,8 @@ def build_parser() -> argparse.ArgumentParser:
     refine.add_argument("--scorer-options", type=_parse_options_json, default={}, help="JSON mapping SF names to constructor options")
     refine.add_argument("--preparation", choices=("auto", "inferred", "meeko"), default="auto")
     refine.add_argument("--preparation-options", type=_parse_options_json, default={})
-    refine.add_argument("--optimizer", choices=("auto", "adam", "adamw", "lbfgs", "cartesian", "pattern", "native"), default="auto")
+    refine.add_argument("--optimizer", choices=("auto", "adam", "adamw", "lbfgs", "cartesian", "pattern"), default="auto")
     refine.add_argument("--optimizer-options", type=_parse_options_json, default={})
-    refine.add_argument("--native-options", type=_parse_options_json, default={})
     refine.add_argument("--steps", type=int, default=100)
     refine.add_argument("--learning-rate", type=float, default=None)
     refine.add_argument("--seed", type=int, default=42)
@@ -206,7 +205,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preparation=args.preparation, preparation_options=args.preparation_options,
             optimizer=None if args.optimizer == "auto" else args.optimizer, num_steps=args.steps,
             learning_rate=args.learning_rate, optimizer_options=args.optimizer_options,
-            native_options=args.native_options, seed=args.seed, device=args.device,
+            seed=args.seed, device=args.device,
             on_error=args.on_error, output_dir=args.output,
         )
         print(json.dumps(result, indent=2))

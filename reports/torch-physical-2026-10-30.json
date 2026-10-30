@@ -1,0 +1,2807 @@
+{
+  "schema": "anchor-dock-torch-physical-validation-v1",
+  "version": "0.6.1",
+  "public_baseline_commit": "3ef03f25d2143abdde0b5c9ffa22ce5ca00be970",
+  "scope": "CPU numerical contracts and local kernel microbenchmarks, not docking accuracy or GPU throughput",
+  "source_file_sha256": {
+    "src/anchor_dock/__init__.py": "93d47f6b49f8234a18a567f9f48433ec9db941b78cdcd5d347898706cda29206",
+    "src/anchor_dock/_compat.py": "fd5600f422000103c41c67b0aa1c698482d6b1011ae45a3cb254fa2da2f13e4c",
+    "src/anchor_dock/_version.py": "3582ca0350390cfb9b4c2f9bb44c81e880a5598f4a370b24ef9610e863f09eac",
+    "src/anchor_dock/batch.py": "d7cb1d80462cc24e630c2a4c45969b506dc0f160d75bb0a3d17fdbdb503ce666",
+    "src/anchor_dock/cli.py": "a7cabd76c58de32012e730cfc2a5b01add3e92d42e182376dec25a49e98f5030",
+    "src/anchor_dock/core/__init__.py": "6de674557ee84d1f5a196d5463702070412e46ae718fc31241f502632c85e97f",
+    "src/anchor_dock/core/ad4.py": "7899c5d51c8552d827e37ca926ab5deb9b49f5fe232a56609c7fda3a400af774",
+    "src/anchor_dock/core/amber.py": "43dd81279db75a15dad8616b480eb46e917ba881c5a621615c7721e7af7b23f3",
+    "src/anchor_dock/core/autogrid.py": "f72afeb0a80b1ce6c96df3336e1b354fa1c34bf8ad90864d7ff041ad120b2e32",
+    "src/anchor_dock/core/conformers.py": "22d30592ad25798ab470f78d973ffdfe6d3472b1f9cf7f34b1b0d627e63ca331",
+    "src/anchor_dock/core/engine.py": "c3c75cf059ebd98d877be08b214e124c04fa644ed895fcb563fcdac3a2058270",
+    "src/anchor_dock/core/features.py": "4028b9536bd3c186f73f30aabe739b1263d7605caec0a62357ce6e0d7e100695",
+    "src/anchor_dock/core/geometry.py": "8b043ab4b756682ddb0829577148b2ea401f58eae7aef36ee675573444f73486",
+    "src/anchor_dock/core/grid.py": "6cce9348248bd70f3d61f5a73b21b46c13b6277658146113227966cf1be93f70",
+    "src/anchor_dock/core/io.py": "97ee9598ec3589f6633656c37e5958a63f4d27fea4a2a5fd398028b4ea50df14",
+    "src/anchor_dock/core/kinematics.py": "53b0b261b490f3cfc9755da409dae1277556738b45fd4ee1b9d6bca8042d4eec",
+    "src/anchor_dock/core/masks.py": "d21f6cdc937e54243ce7611f3d8d17e1b8de1659f98464bf5b38028f063104a7",
+    "src/anchor_dock/core/native_vina.py": "25543fd24cd2252ca9cc11b3c887fd19d3393095663a5d088e2c60be8a30c846",
+    "src/anchor_dock/core/optimization.py": "e227b5e63a54aa2d2ba08d5569e8724eb38190f77c04656922876c7147d8cab6",
+    "src/anchor_dock/core/output.py": "b6fa49464722cac8c77446eeb1531d9536030aa3d963f3be26e7eb77f518c9a8",
+    "src/anchor_dock/core/prepared.py": "d9f33f57d5194f3ed534187cbdf920345f036acb7d9d86946bc3d857771cc0e9",
+    "src/anchor_dock/core/registry.py": "f618895b707868742be91eee25c106cbf40e4999602f6be28c6ffd535ce46b54",
+    "src/anchor_dock/core/scoring.py": "a5322fd0da345ad50d02323b7c0b3b48e523f3a1345cb075348ce73efcdcb942",
+    "src/anchor_dock/core/topology.py": "9a72dd4cec37df97ae59ef14b401be78d067c7a77619290684ddd01b7bf93260",
+    "src/anchor_dock/core/torch_amber.py": "07b02d571a55f8779e3771e5bf6e5c7c043fc99901f3bf0e821e3f0693b6356d",
+    "src/anchor_dock/covalent/__init__.py": "ed9aef2275a5e92569ebecef8bd0ba07ef0e1f8bedf729ce1e32e1c1b61d5e24",
+    "src/anchor_dock/covalent/adduct.py": "41dad55c753d69752f8c8054b004a0ef78e2707c968a182d7d9b8cbc22c8f9ac",
+    "src/anchor_dock/covalent/anchor.py": "61641e0dea06f2e81040fa449cba3c100d9d69b8e9dbc124f29bbb9a4ab3abf7",
+    "src/anchor_dock/covalent/pipeline.py": "0e657c81a91be62de891228a89a258157595ded46460d8ee98daf4a6f95b8a4a",
+    "src/anchor_dock/interaction/__init__.py": "c0f2ebccbdbf06fa85884d4f622524386dcfc53f0c85674b441a03eb07cf5a97",
+    "src/anchor_dock/interaction/hypotheses.py": "724a01159d74c3196984270e0c8b0f7470664fbbbcb2a66825ce56731ace3887",
+    "src/anchor_dock/interaction/pipeline.py": "8e06493740b67dfdf2b8cd1d339a259d23c0bcc8b26967bd13ea23c880901c63",
+    "src/anchor_dock/interaction/restraint.py": "fc01b03bd6d9eb38d6bd686613ddf2d3ae5a0ed5243a13cf5898d2cae312ab39",
+    "src/anchor_dock/interaction/selectors.py": "fce840f5f0d1a6e8249b3bed0cd86bd5c479c5a5c481fd6e5eb3b074a0985fba",
+    "src/anchor_dock/interaction/spec.py": "a890b172d9fb51179ec24f1de99ce4fe54af84ad543fb8a7a0f453a5ba835d18",
+    "src/anchor_dock/preparation.py": "6e0e2c1c2471ec96e556b3aa8e67b434cfc9380610b3211f8f3e2ed1cd4981ec",
+    "src/anchor_dock/reference/__init__.py": "89833c2ee2b99eadacde19bad2661863607daac0fa57c257a9518e936d04e7af",
+    "src/anchor_dock/reference/mcs.py": "b6338eef46cf49304ebf6ba1984ced978d25f781e17393e60ef58f53a285fd70",
+    "src/anchor_dock/reference/pipeline.py": "4debecdb532816bbb517e59828c607898bc02477833de23a60969f19b03f8754",
+    "src/anchor_dock/reference/relax.py": "386b730d6b94704189ca93db89eafc9251432a637d503c5e072922800a8cd2df",
+    "src/anchor_dock/refinement.py": "65b7fdde7310365d060212fe2f6f4ba9054b0a293f03448ff6d3b2a7931a77d8"
+  },
+  "source_package_hash_convention": "SHA256 of compact sorted-key JSON mapping repository-relative Python source paths to SHA256 digests",
+  "source_package_sha256": "e73270fa6078799bfabcc48cfda08746b51d83ef3d6c1967fe5b97541fd3e8cd",
+  "catalog": [
+    {
+      "name": "ad4",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "adgpu",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "amber",
+      "family": "amber",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "amber-topology",
+      "units": "kcal/mol",
+      "direction": "lower",
+      "required_options": [
+        "prmtop",
+        "inpcrd",
+        "ligand_atom_indices"
+      ],
+      "optional_modules": [
+        "openmm"
+      ],
+      "description": "Torch fixed-charge vacuum potential; OpenMM only imports parameters",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "vina",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vina-final",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo-final",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    }
+  ],
+  "validation": {
+    "frozen_all_extras": {
+      "passed": 970,
+      "cuda_skipped": 18
+    },
+    "ruff": "passed",
+    "uv_lock_check": "passed",
+    "wheel_build": "passed",
+    "installed_wheel": {
+      "version": "0.6.1",
+      "wheel": "/workspace/scratch/c3c1d08a64cf/work/anchor-dock/dist/anchor_dock-0.6.1-py3-none-any.whl",
+      "target": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final",
+      "cwd": "/workspace/scratch/c3c1d08a64cf/anchor-checks",
+      "wheel_sha256": "973f0f1e4c9fb639621e286405b3a59b454231293604c547fb48a030f831bb31",
+      "catalog": [
+        {
+          "name": "ad4",
+          "family": "ad4",
+          "backend": "torch",
+          "optimization": [
+            "autograd",
+            "pattern"
+          ],
+          "preparation": "prepared-ad4",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [
+            "maps_prefix",
+            "atom_types"
+          ],
+          "optional_modules": [
+            "meeko"
+          ],
+          "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": true
+        },
+        {
+          "name": "adgpu",
+          "family": "ad4",
+          "backend": "torch",
+          "optimization": [
+            "autograd",
+            "pattern"
+          ],
+          "preparation": "prepared-ad4",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [
+            "maps_prefix",
+            "atom_types"
+          ],
+          "optional_modules": [
+            "meeko"
+          ],
+          "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": true
+        },
+        {
+          "name": "amber",
+          "family": "amber",
+          "backend": "torch",
+          "optimization": [
+            "autograd",
+            "pattern"
+          ],
+          "preparation": "amber-topology",
+          "units": "kcal/mol",
+          "direction": "lower",
+          "required_options": [
+            "prmtop",
+            "inpcrd",
+            "ligand_atom_indices"
+          ],
+          "optional_modules": [
+            "openmm"
+          ],
+          "description": "Torch fixed-charge vacuum potential; OpenMM only imports parameters",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": true
+        },
+        {
+          "name": "vina",
+          "family": "vina",
+          "backend": "torch",
+          "optimization": [
+            "autograd",
+            "pattern"
+          ],
+          "preparation": "inferred",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [],
+          "optional_modules": [],
+          "description": "",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": false
+        },
+        {
+          "name": "vina-final",
+          "family": "vina",
+          "backend": "torch",
+          "optimization": [
+            "pattern"
+          ],
+          "preparation": "prepared-ad4",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [],
+          "optional_modules": [
+            "meeko"
+          ],
+          "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": false
+        },
+        {
+          "name": "vinardo",
+          "family": "vinardo",
+          "backend": "torch",
+          "optimization": [
+            "autograd",
+            "pattern"
+          ],
+          "preparation": "inferred",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [],
+          "optional_modules": [],
+          "description": "",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": false
+        },
+        {
+          "name": "vinardo-final",
+          "family": "vinardo",
+          "backend": "torch",
+          "optimization": [
+            "pattern"
+          ],
+          "preparation": "prepared-ad4",
+          "units": "kcal/mol-like",
+          "direction": "lower",
+          "required_options": [],
+          "optional_modules": [
+            "meeko"
+          ],
+          "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+          "dependencies_available": true,
+          "missing_dependencies": [],
+          "requires_configuration": false
+        }
+      ],
+      "package_sources_sha256": {
+        "anchor_dock/__init__.py": "93d47f6b49f8234a18a567f9f48433ec9db941b78cdcd5d347898706cda29206",
+        "anchor_dock/_compat.py": "fd5600f422000103c41c67b0aa1c698482d6b1011ae45a3cb254fa2da2f13e4c",
+        "anchor_dock/_version.py": "3582ca0350390cfb9b4c2f9bb44c81e880a5598f4a370b24ef9610e863f09eac",
+        "anchor_dock/batch.py": "d7cb1d80462cc24e630c2a4c45969b506dc0f160d75bb0a3d17fdbdb503ce666",
+        "anchor_dock/cli.py": "a7cabd76c58de32012e730cfc2a5b01add3e92d42e182376dec25a49e98f5030",
+        "anchor_dock/core/__init__.py": "6de674557ee84d1f5a196d5463702070412e46ae718fc31241f502632c85e97f",
+        "anchor_dock/core/ad4.py": "7899c5d51c8552d827e37ca926ab5deb9b49f5fe232a56609c7fda3a400af774",
+        "anchor_dock/core/amber.py": "43dd81279db75a15dad8616b480eb46e917ba881c5a621615c7721e7af7b23f3",
+        "anchor_dock/core/autogrid.py": "f72afeb0a80b1ce6c96df3336e1b354fa1c34bf8ad90864d7ff041ad120b2e32",
+        "anchor_dock/core/conformers.py": "22d30592ad25798ab470f78d973ffdfe6d3472b1f9cf7f34b1b0d627e63ca331",
+        "anchor_dock/core/engine.py": "c3c75cf059ebd98d877be08b214e124c04fa644ed895fcb563fcdac3a2058270",
+        "anchor_dock/core/features.py": "4028b9536bd3c186f73f30aabe739b1263d7605caec0a62357ce6e0d7e100695",
+        "anchor_dock/core/geometry.py": "8b043ab4b756682ddb0829577148b2ea401f58eae7aef36ee675573444f73486",
+        "anchor_dock/core/grid.py": "6cce9348248bd70f3d61f5a73b21b46c13b6277658146113227966cf1be93f70",
+        "anchor_dock/core/io.py": "97ee9598ec3589f6633656c37e5958a63f4d27fea4a2a5fd398028b4ea50df14",
+        "anchor_dock/core/kinematics.py": "53b0b261b490f3cfc9755da409dae1277556738b45fd4ee1b9d6bca8042d4eec",
+        "anchor_dock/core/masks.py": "d21f6cdc937e54243ce7611f3d8d17e1b8de1659f98464bf5b38028f063104a7",
+        "anchor_dock/core/native_vina.py": "25543fd24cd2252ca9cc11b3c887fd19d3393095663a5d088e2c60be8a30c846",
+        "anchor_dock/core/optimization.py": "e227b5e63a54aa2d2ba08d5569e8724eb38190f77c04656922876c7147d8cab6",
+        "anchor_dock/core/output.py": "b6fa49464722cac8c77446eeb1531d9536030aa3d963f3be26e7eb77f518c9a8",
+        "anchor_dock/core/prepared.py": "d9f33f57d5194f3ed534187cbdf920345f036acb7d9d86946bc3d857771cc0e9",
+        "anchor_dock/core/registry.py": "f618895b707868742be91eee25c106cbf40e4999602f6be28c6ffd535ce46b54",
+        "anchor_dock/core/scoring.py": "a5322fd0da345ad50d02323b7c0b3b48e523f3a1345cb075348ce73efcdcb942",
+        "anchor_dock/core/topology.py": "9a72dd4cec37df97ae59ef14b401be78d067c7a77619290684ddd01b7bf93260",
+        "anchor_dock/core/torch_amber.py": "07b02d571a55f8779e3771e5bf6e5c7c043fc99901f3bf0e821e3f0693b6356d",
+        "anchor_dock/covalent/__init__.py": "ed9aef2275a5e92569ebecef8bd0ba07ef0e1f8bedf729ce1e32e1c1b61d5e24",
+        "anchor_dock/covalent/adduct.py": "41dad55c753d69752f8c8054b004a0ef78e2707c968a182d7d9b8cbc22c8f9ac",
+        "anchor_dock/covalent/anchor.py": "61641e0dea06f2e81040fa449cba3c100d9d69b8e9dbc124f29bbb9a4ab3abf7",
+        "anchor_dock/covalent/pipeline.py": "0e657c81a91be62de891228a89a258157595ded46460d8ee98daf4a6f95b8a4a",
+        "anchor_dock/interaction/__init__.py": "c0f2ebccbdbf06fa85884d4f622524386dcfc53f0c85674b441a03eb07cf5a97",
+        "anchor_dock/interaction/hypotheses.py": "724a01159d74c3196984270e0c8b0f7470664fbbbcb2a66825ce56731ace3887",
+        "anchor_dock/interaction/pipeline.py": "8e06493740b67dfdf2b8cd1d339a259d23c0bcc8b26967bd13ea23c880901c63",
+        "anchor_dock/interaction/restraint.py": "fc01b03bd6d9eb38d6bd686613ddf2d3ae5a0ed5243a13cf5898d2cae312ab39",
+        "anchor_dock/interaction/selectors.py": "fce840f5f0d1a6e8249b3bed0cd86bd5c479c5a5c481fd6e5eb3b074a0985fba",
+        "anchor_dock/interaction/spec.py": "a890b172d9fb51179ec24f1de99ce4fe54af84ad543fb8a7a0f453a5ba835d18",
+        "anchor_dock/preparation.py": "6e0e2c1c2471ec96e556b3aa8e67b434cfc9380610b3211f8f3e2ed1cd4981ec",
+        "anchor_dock/reference/__init__.py": "89833c2ee2b99eadacde19bad2661863607daac0fa57c257a9518e936d04e7af",
+        "anchor_dock/reference/mcs.py": "b6338eef46cf49304ebf6ba1984ced978d25f781e17393e60ef58f53a285fd70",
+        "anchor_dock/reference/pipeline.py": "4debecdb532816bbb517e59828c607898bc02477833de23a60969f19b03f8754",
+        "anchor_dock/reference/relax.py": "386b730d6b94704189ca93db89eafc9251432a637d503c5e072922800a8cd2df",
+        "anchor_dock/refinement.py": "65b7fdde7310365d060212fe2f6f4ba9054b0a293f03448ff6d3b2a7931a77d8"
+      },
+      "package_python_file_count": 41,
+      "removed_native_modules_absent": true,
+      "removed_smina_export_absent": true,
+      "independent_pair_sweep": {
+        "success": true,
+        "input_bytes_unchanged": true,
+        "results": {
+          "vinardo": {
+            "score": {
+              "value": -0.08237790316343307,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "reported_score"
+            },
+            "search_energy": {
+              "value": -0.08237790316343307,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "optimization_objective"
+            },
+            "intermolecular": {
+              "value": -0.08237790316343307,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "component"
+            },
+            "intramolecular": {
+              "value": 0.0,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "component"
+            }
+          },
+          "vina": {
+            "score": {
+              "value": -0.07882281392812729,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "reported_score"
+            },
+            "search_energy": {
+              "value": -0.07882281392812729,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "optimization_objective"
+            },
+            "intermolecular": {
+              "value": -0.07882281392812729,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "component"
+            },
+            "intramolecular": {
+              "value": 0.0,
+              "units": "kcal/mol-like",
+              "direction": "lower",
+              "role": "component"
+            }
+          }
+        }
+      },
+      "official_amber_fixture": {
+        "fixture_source": "OpenMM official test fixture pinned ad0c51cf041081c138507e23cdbf8360d983ac4e",
+        "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+        "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+        "atom_count": 22,
+        "energy_kcal_mol": -21.053677959077117,
+        "gradient_max_absolute_kcal_mol_angstrom": 18.88431286792372,
+        "context_forbidden": true,
+        "runtime_parameter_import_forbidden": true,
+        "optimizer": "cartesian",
+        "steps": 3,
+        "result": {
+          "schema": "anchor-dock-sf-refinement-v1",
+          "success": true,
+          "scorer": "amber",
+          "scores": {
+            "score": {
+              "value": -25.634158969049068,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "reported_score"
+            },
+            "search_energy": {
+              "value": -4.580481009971951,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "optimization_objective"
+            },
+            "complex_potential": {
+              "value": -25.634158969049068,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "physical_potential"
+            }
+          },
+          "initial_scores": {
+            "score": {
+              "value": -21.053671539258634,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "reported_score"
+            },
+            "search_energy": {
+              "value": 6.419818483038853e-06,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "optimization_objective"
+            },
+            "complex_potential": {
+              "value": -21.053671539258634,
+              "units": "kcal/mol",
+              "direction": "lower",
+              "role": "physical_potential"
+            }
+          },
+          "optimized_objective": "full_complex_potential",
+          "metadata": {
+            "version": "0.6.1",
+            "input_ligand_sha256": "sha256:9af877d2b5ac95c918b7dd8d5624453f2a9d2478895d3e235ba54fc82f2c32fd",
+            "seed": 42,
+            "runtime": {
+              "python": "3.12.14",
+              "torch": "2.10.0+cu128",
+              "rdkit": "2025.09.5",
+              "requested_device": "cpu",
+              "torch_threads": 1,
+              "deterministic_algorithms": false
+            },
+            "independent_local_refinement": true,
+            "registry_info": {
+              "name": "amber",
+              "family": "amber",
+              "backend": "torch",
+              "optimization": [
+                "autograd",
+                "pattern"
+              ],
+              "preparation": "amber-topology",
+              "units": "kcal/mol",
+              "direction": "lower",
+              "required_options": [
+                "prmtop",
+                "inpcrd",
+                "ligand_atom_indices"
+              ],
+              "optional_modules": [
+                "openmm"
+              ],
+              "description": "Torch fixed-charge vacuum potential; OpenMM only imports parameters",
+              "dependencies_available": true,
+              "missing_dependencies": [],
+              "requires_configuration": true
+            },
+            "amber": {
+              "contract": "torch-fixed-charge-vacuum-nocutoff-fp64-v2",
+              "objective": "full_complex_potential",
+              "component_semantics": "undecomposed-full-complex-potential",
+              "units": "kcal/mol",
+              "direction": "lower",
+              "runtime": "pure-torch",
+              "compute_dtype": "float64",
+              "device": "cpu",
+              "openmm_import_version": "8.6.1",
+              "force_counts": {
+                "HarmonicBondForce": 1,
+                "HarmonicAngleForce": 1,
+                "PeriodicTorsionForce": 1,
+                "NonbondedForce": 1
+              },
+              "source": {
+                "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+                "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+                "implicit_solvent": null,
+                "nonbonded_method": "NoCutoff"
+              },
+              "pair_cache": {
+                "enabled": true,
+                "max_candidate_pairs": 200000,
+                "moving_candidate_pairs": 231,
+                "cached_active_pairs": 174,
+                "evaluation_pair_chunk_size": 16384,
+                "bound_policy": "candidate count before exclusions; zero disables caching"
+              },
+              "reference_energy_kcal_mol": -21.053677959077117,
+              "fixed_energy_kcal_mol": 0.0,
+              "search_reference": "input full-complex potential; fixed-fixed terms removed analytically",
+              "constraints": "not enforced; supplied potential terms retained",
+              "ligand_graph_validation": "count/elements and induced topology edges; bond orders not validated",
+              "atom_mapping": "explicit caller-supplied ordered map; never inferred",
+              "singular_geometry": "reject active zero separations/collinear angles/degenerate torsions",
+              "fingerprint": "sha256:f48116081540b881a09bf3195deed8c6ec31282662c9dd027bbde771082f0955",
+              "fixed_receptor": true
+            },
+            "receptor_source": "explicit AMBER System",
+            "component_semantics": "undecomposed-full-complex-potential",
+            "scorer_fingerprint": "sha256:f48116081540b881a09bf3195deed8c6ec31282662c9dd027bbde771082f0955",
+            "optimization_route": "cartesian",
+            "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v2-pattern-v1",
+            "optimization": {
+              "average_steps": 3.0,
+              "minimum_steps": 3,
+              "maximum_steps": 3,
+              "num_poses": 1,
+              "initial_best_energy": 6.419818483038853e-06,
+              "final_best_energy": -4.580481009971951
+            },
+            "effective_tensor_device": "cpu",
+            "coordinate_dtype": "torch.float64",
+            "learning_rate": 1.0,
+            "initial_coordinates_sha256": "sha256:241d1d233e9077637d73cc6a85dcd3ad192b9c6f96173eb4e6d8fa74a5e7a48a",
+            "optimization_parameters": {
+              "num_steps": 3,
+              "learning_rate": 1.0,
+              "optimizer": "cartesian",
+              "early_stopping": true,
+              "patience": 30,
+              "min_delta": 1e-05,
+              "gradient_clip": 1.0,
+              "geometry_damping": 0.001,
+              "max_atom_displacement": 0.25,
+              "max_backtracks": 12,
+              "pattern_step": null,
+              "pattern_shrink": 0.5,
+              "pattern_min_step": 0.0001,
+              "pattern_max_evaluations": 10000
+            },
+            "output_atom_to_input_atom": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21
+            ],
+            "output_atomic_numbers": [
+              1,
+              6,
+              1,
+              1,
+              6,
+              8,
+              7,
+              1,
+              6,
+              1,
+              6,
+              1,
+              1,
+              1,
+              6,
+              8,
+              7,
+              1,
+              6,
+              1,
+              1,
+              1
+            ],
+            "output_isomeric_smiles": "[H]C([H])([H])C(=O)N([H])C([H])(C([H])([H])[H])C(=O)N([H])C([H])([H])[H]",
+            "scorer_options": {
+              "prmtop": "/workspace/scratch/c3c1d08a64cf/work/anchor-dock/tests/fixtures/amber/alanine-dipeptide-implicit.prmtop",
+              "inpcrd": "/workspace/scratch/c3c1d08a64cf/work/anchor-dock/tests/fixtures/amber/alanine-dipeptide-implicit.inpcrd",
+              "ligand_atom_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21
+              ],
+              "device": "cpu"
+            }
+          },
+          "coordinates_angstrom": [
+            [
+              1.9931480295239457,
+              1.0620189359885672,
+              0.5104617943726636
+            ],
+            [
+              2.010344499339655,
+              2.0983197630897985,
+              0.1729937365268164
+            ],
+            [
+              1.3832236246850975,
+              2.704358495841583,
+              0.8268552426153073
+            ],
+            [
+              1.6316569106710612,
+              2.1549758139496644,
+              -0.8475378325578806
+            ],
+            [
+              3.4322969189704544,
+              2.6624847091243917,
+              0.19886455248891277
+            ],
+            [
+              4.373861554012715,
+              1.9640351824429636,
+              0.5677341323033152
+            ],
+            [
+              3.5799483512718924,
+              3.9295027289726474,
+              -0.19494952630718912
+            ],
+            [
+              2.7751008583434933,
+              4.46378632048495,
+              -0.48967103383223853
+            ],
+            [
+              4.8751276677669555,
+              4.578868617529277,
+              -0.21584199234891063
+            ],
+            [
+              5.465855854270906,
+              4.239921879613761,
+              0.6351897306999099
+            ],
+            [
+              5.633518856579482,
+              4.250036672323898,
+              -1.49737920388274
+            ],
+            [
+              5.058688367156648,
+              4.591638904556636,
+              -2.358179850840398
+            ],
+            [
+              6.601702947250672,
+              4.750623457602547,
+              -1.4858438673097343
+            ],
+            [
+              5.782998254479143,
+              3.1724804385446443,
+              -1.5654012795197154
+            ],
+            [
+              4.730812699336026,
+              6.091905066444637,
+              -0.13598544571177304
+            ],
+            [
+              3.634570802600507,
+              6.6233561793260165,
+              -0.29801626464307707
+            ],
+            [
+              5.8432033083438615,
+              6.786064268130953,
+              0.11492164998267998
+            ],
+            [
+              6.721724036943334,
+              6.303935711409738,
+              0.2408305904649706
+            ],
+            [
+              5.837481538541151,
+              8.231577074936641,
+              0.21523818786395468
+            ],
+            [
+              4.825064452519767,
+              8.603261402355116,
+              0.05724411314630798
+            ],
+            [
+              6.182753165369114,
+              8.528954445936527,
+              1.20541714945497
+            ],
+            [
+              6.5003150882968255,
+              8.651436836251298,
+              -0.5413788088593398
+            ]
+          ]
+        },
+        "saved_json_matches": true
+      },
+      "adgpu_precomputed_map_reuse": {
+        "success": true,
+        "map_mode": "raw",
+        "formulation": "adgpu",
+        "scores": {
+          "score": {
+            "value": 1.2873799800872803,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "reported_score"
+          },
+          "search_energy": {
+            "value": -0.01931464672088623,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "optimization_objective"
+          },
+          "intermolecular": {
+            "value": 0.09418000280857086,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "component"
+          },
+          "intramolecular": {
+            "value": -0.11349464952945709,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "component"
+          }
+        },
+        "initial_scores": {
+          "score": {
+            "value": 1.2873799800872803,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "reported_score"
+          },
+          "search_energy": {
+            "value": -0.018775328993797302,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "optimization_objective"
+          },
+          "intermolecular": {
+            "value": 0.09418000280857086,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "component"
+          },
+          "intramolecular": {
+            "value": -0.11295533180236816,
+            "units": "kcal/mol-like",
+            "direction": "lower",
+            "role": "component"
+          }
+        }
+      },
+      "cli": {
+        "help_commands": {
+          "reference": true,
+          "covalent": true,
+          "interaction": true,
+          "batch": true,
+          "refine": true,
+          "scorers": true
+        },
+        "catalog_json_count": 7,
+        "removed_options_rejected": {
+          "--native-options {}": 2,
+          "--optimizer native": 2
+        }
+      },
+      "loaded_anchor_modules": {
+        "anchor_dock._compat": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/_compat.py",
+        "anchor_dock._version": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/_version.py",
+        "anchor_dock.core.conformers": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/conformers.py",
+        "anchor_dock.core.features": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/features.py",
+        "anchor_dock.core.io": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/io.py",
+        "anchor_dock.core.topology": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/topology.py",
+        "anchor_dock.core.masks": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/masks.py",
+        "anchor_dock.core.grid": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/grid.py",
+        "anchor_dock.core.kinematics": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/kinematics.py",
+        "anchor_dock.core.scoring": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/scoring.py",
+        "anchor_dock.core.optimization": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/optimization.py",
+        "anchor_dock.core.prepared": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/prepared.py",
+        "anchor_dock.core.engine": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/engine.py",
+        "anchor_dock.core.geometry": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/geometry.py",
+        "anchor_dock.core.output": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/output.py",
+        "anchor_dock.core": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/__init__.py",
+        "anchor_dock.interaction.selectors": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/selectors.py",
+        "anchor_dock.interaction.hypotheses": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/hypotheses.py",
+        "anchor_dock.interaction.restraint": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/restraint.py",
+        "anchor_dock.interaction.spec": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/spec.py",
+        "anchor_dock.interaction.pipeline": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/pipeline.py",
+        "anchor_dock.interaction": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/interaction/__init__.py",
+        "anchor_dock.batch": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/batch.py",
+        "anchor_dock.core.autogrid": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/autogrid.py",
+        "anchor_dock.core.ad4": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/ad4.py",
+        "anchor_dock.core.amber": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/amber.py",
+        "anchor_dock.core.native_vina": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/native_vina.py",
+        "anchor_dock.core.registry": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/registry.py",
+        "anchor_dock.core.torch_amber": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/core/torch_amber.py",
+        "anchor_dock.covalent": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/covalent/__init__.py",
+        "anchor_dock.covalent.anchor": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/covalent/anchor.py",
+        "anchor_dock.covalent.adduct": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/covalent/adduct.py",
+        "anchor_dock.covalent.pipeline": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/covalent/pipeline.py",
+        "anchor_dock.preparation": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/preparation.py",
+        "anchor_dock.refinement": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/refinement.py",
+        "anchor_dock": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/__init__.py",
+        "anchor_dock.reference": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/reference/__init__.py",
+        "anchor_dock.cli": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/cli.py",
+        "anchor_dock.reference.mcs": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/reference/mcs.py",
+        "anchor_dock.reference.relax": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/reference/relax.py",
+        "anchor_dock.reference.pipeline": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-physical-final/anchor_dock/reference/pipeline.py"
+      },
+      "all_loaded_modules_from_wheel": true,
+      "success": true
+    }
+  },
+  "benchmarks": {
+    "ad4_shared_grid": {
+      "scope": "Synthetic full prepared AD4 search energy plus coordinate backward; not end-to-end docking",
+      "baseline": "Exact saved pre-change grid.py: repeated coordinates and original TrilinearGrid.forward",
+      "baseline_source_sha256": "8f70d794f2583f9b3792496826cc1832b073f0335e0e995c8b28718a8554efc9",
+      "shared_source_sha256": "6cce9348248bd70f3d61f5a73b21b46c13b6277658146113227966cf1be93f70",
+      "python": "3.12.14",
+      "torch": "2.10.0+cu128",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+      "torch_threads": 1,
+      "torch_interop_threads": 1,
+      "device": "cpu",
+      "native_reference_tests": {
+        "command": "pytest -q tests/test_grid_scoring.py tests/test_ad4.py tests/test_autogrid.py",
+        "passed": 98,
+        "skipped_cuda": 2,
+        "actual_vina_ad4_golden_passed": true
+      },
+      "correctness": "Forward bitwise equal; backward sharing changes accumulation rounding, with absolute and ULP differences recorded",
+      "rows": [
+        {
+          "shape": [
+            1,
+            40,
+            3
+          ],
+          "dtype": "torch.float32",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 35,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 16,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 1.976017625,
+            "shared": 1.856929125
+          },
+          "speedup": 1.0641319576480874,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 9.5367431640625e-07,
+          "gradient_same_sign_max_ulp": 96,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 96,
+            "1.0": 5
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              1.9414016875,
+              1.8993338125,
+              1.9769615625,
+              2.0007675,
+              1.9148653125,
+              1.8879246875,
+              1.976017625,
+              2.484120625,
+              2.7637398125,
+              1.9677626875,
+              1.9826395,
+              1.9503483125,
+              2.074252125,
+              1.9676155625,
+              2.008886625
+            ],
+            "shared": [
+              1.831544625,
+              1.9245299375,
+              1.9230414375,
+              1.856929125,
+              1.7335248125,
+              1.6887435,
+              1.7734800625,
+              1.7556738125,
+              1.9818339375,
+              1.9067149375,
+              1.6840138125,
+              1.86021725,
+              1.8539290625,
+              1.8833884375,
+              1.8580364375
+            ]
+          },
+          "coordinates_sha256": "1ff2fb30aa0ae4f6b116037b286e08439ad24c03f3c7835d766de6bee0e4488b"
+        },
+        {
+          "shape": [
+            64,
+            40,
+            3
+          ],
+          "dtype": "torch.float32",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 35,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 8,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 3.43865425,
+            "shared": 2.84227175
+          },
+          "speedup": 1.2098259957022053,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 1.9073486328125e-06,
+          "gradient_same_sign_max_ulp": 1536,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 1536,
+            "1.0": 8
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              3.300235375,
+              3.47125975,
+              3.44704825,
+              3.56172875,
+              3.414678125,
+              3.4597235,
+              3.496511625,
+              3.447328625,
+              3.338861125,
+              3.28413225,
+              3.24578825,
+              3.43865425,
+              3.369079375,
+              3.32614325,
+              3.463411625
+            ],
+            "shared": [
+              2.950943375,
+              2.862370875,
+              2.969722875,
+              2.744143625,
+              2.808050125,
+              2.63850425,
+              2.960874625,
+              2.701788625,
+              2.864547875,
+              2.75953325,
+              2.884217625,
+              2.759570625,
+              2.8163765,
+              2.84227175,
+              3.0215535
+            ]
+          },
+          "coordinates_sha256": "7e756ca617f27db2d0270fc12c01324a9f955c4f1c429414081330be13cfe494"
+        },
+        {
+          "shape": [
+            256,
+            64,
+            3
+          ],
+          "dtype": "torch.float32",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 59,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 2,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 13.3233515,
+            "shared": 9.900972
+          },
+          "speedup": 1.3456609613682373,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 2.384185791015625e-06,
+          "gradient_same_sign_max_ulp": 24576,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 1920,
+            "1.0": 8
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              11.7264015,
+              11.9054965,
+              12.4911005,
+              12.465322,
+              13.2518485,
+              15.7586835,
+              17.363744,
+              15.6539855,
+              14.628994,
+              15.830069,
+              16.36395,
+              13.1048115,
+              13.3233515,
+              13.674882,
+              12.952917
+            ],
+            "shared": [
+              9.241361,
+              8.566673,
+              9.021159,
+              9.38297,
+              12.896104,
+              12.1587885,
+              12.449152,
+              12.5137845,
+              13.2175315,
+              9.900972,
+              11.231369,
+              9.514889,
+              10.9704405,
+              8.497784,
+              9.05481
+            ]
+          },
+          "coordinates_sha256": "5ae0f36b9ebf4c11633dfd245bc2aea30a1950801c371b3fd0a6619cb1c50a0b"
+        },
+        {
+          "shape": [
+            1,
+            40,
+            3
+          ],
+          "dtype": "torch.float64",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 35,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 11,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 1.8776126363636365,
+            "shared": 1.7847142727272727
+          },
+          "speedup": 1.0520522332655542,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 1.7763568394002505e-15,
+          "gradient_same_sign_max_ulp": 40,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 40,
+            "1.0": 4
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              1.9153723636363635,
+              2.3019911818181815,
+              2.176217727272727,
+              1.9409490909090907,
+              1.8576360909090908,
+              1.8776126363636365,
+              1.8855800909090907,
+              1.8415154545454546,
+              1.8638882727272728,
+              1.7196596363636365,
+              3.843941,
+              1.760147181818182,
+              1.8318526363636365,
+              1.727527,
+              1.912326818181818
+            ],
+            "shared": [
+              2.1607043636363636,
+              2.046736,
+              1.941203090909091,
+              1.781176181818182,
+              1.8066491818181818,
+              1.8168536363636365,
+              1.7847142727272727,
+              2.2118789090909092,
+              1.6728030909090907,
+              1.5755386363636366,
+              2.1430194545454544,
+              1.6291067272727273,
+              1.7113116363636365,
+              1.6951080909090908,
+              1.6450870909090909
+            ]
+          },
+          "coordinates_sha256": "4cd2f5eab0abe6ab7aa3051cb407858cb7d4cfdf9d0233e88a649573053ef0a9"
+        },
+        {
+          "shape": [
+            64,
+            40,
+            3
+          ],
+          "dtype": "torch.float64",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 35,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 8,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 3.934521375,
+            "shared": 3.47850925
+          },
+          "speedup": 1.131094124587997,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 2.6645352591003757e-15,
+          "gradient_same_sign_max_ulp": 2432,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 2432,
+            "1.0": 8
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              3.416724875,
+              3.614387,
+              3.371422875,
+              4.004401875,
+              3.663427875,
+              4.01029075,
+              4.035809125,
+              5.271529,
+              4.82734375,
+              3.934521375,
+              3.786272625,
+              3.839780875,
+              3.834554,
+              4.19781725,
+              4.14368675
+            ],
+            "shared": [
+              3.19308875,
+              3.226521625,
+              3.177992125,
+              3.016385875,
+              4.113298625,
+              3.774795375,
+              3.59087275,
+              4.20868625,
+              3.529231,
+              3.32467725,
+              3.510417625,
+              3.18256025,
+              3.308915875,
+              3.74728475,
+              3.47850925
+            ]
+          },
+          "coordinates_sha256": "b40fc3d464b897a2377fbe187e84325423bbb18a344ffbbbfc9b5d169627277d"
+        },
+        {
+          "shape": [
+            256,
+            64,
+            3
+          ],
+          "dtype": "torch.float64",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 59,
+          "map_curl": null,
+          "seed": 20261030,
+          "repeats_per_sample": 1,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 15.702596,
+            "shared": 12.860216
+          },
+          "speedup": 1.2210211710285426,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 3.552713678800501e-15,
+          "gradient_same_sign_max_ulp": 32768,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 3072,
+            "1.0": 9
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              15.369123,
+              16.220988,
+              16.232275,
+              16.563265,
+              14.806664,
+              17.154457,
+              18.245364,
+              15.322342,
+              15.702596,
+              15.676336,
+              14.895548,
+              14.095511,
+              14.217736,
+              15.808095,
+              16.561903
+            ],
+            "shared": [
+              11.966909,
+              12.81592,
+              14.910942,
+              13.095582,
+              14.318307,
+              13.132277,
+              14.059927,
+              12.860216,
+              12.128963,
+              11.43741,
+              13.124446,
+              12.061351,
+              11.816492,
+              13.60459,
+              12.222755
+            ]
+          },
+          "coordinates_sha256": "0ca18e9f46983ef0a77bcc16ca524291d70dfb689369883893fc03973f70ee12"
+        },
+        {
+          "shape": [
+            64,
+            40,
+            3
+          ],
+          "dtype": "torch.float64",
+          "map_shape": [
+            6,
+            65,
+            65,
+            65
+          ],
+          "intra_pairs": 35,
+          "map_curl": 1000.0,
+          "seed": 20261030,
+          "repeats_per_sample": 7,
+          "samples": 15,
+          "milliseconds": {
+            "baseline": 4.583838571428572,
+            "shared": 3.820848714285714
+          },
+          "speedup": 1.1996911980027178,
+          "energy_max_absolute_error": 0.0,
+          "gradient_max_absolute_error": 2.6645352591003757e-15,
+          "gradient_same_sign_max_ulp": 4864,
+          "gradient_max_ulp_at_reference_absolute_value_at_least": {
+            "0.001": 3328,
+            "1.0": 8
+          },
+          "gradient_sign_difference_count": 0,
+          "samples_ms": {
+            "baseline": [
+              4.1028142857142855,
+              5.052248285714286,
+              5.996290857142857,
+              5.732165857142857,
+              4.733484428571428,
+              4.421582428571428,
+              4.583838571428572,
+              4.612217285714285,
+              4.342971,
+              4.340636,
+              4.242849714285715,
+              5.007757,
+              4.380112571428572,
+              5.070238428571428,
+              4.460958857142857
+            ],
+            "shared": [
+              3.526556142857143,
+              3.5598077142857143,
+              4.287469857142857,
+              5.094374857142857,
+              4.206728142857143,
+              3.7789225714285712,
+              4.046928571428571,
+              4.0289275714285715,
+              3.704971,
+              3.716964714285714,
+              3.7633848571428574,
+              4.259331857142858,
+              3.820848714285714,
+              3.882371571428571,
+              3.7111761428571426
+            ]
+          },
+          "coordinates_sha256": "b40fc3d464b897a2377fbe187e84325423bbb18a344ffbbbfc9b5d169627277d"
+        }
+      ]
+    },
+    "sparse_intra": {
+      "timestamp_utc": "2026-10-30T11:22:41.092974+00:00",
+      "torch": "2.10.0+cu128",
+      "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+      "cuda_available": false,
+      "threads": 1,
+      "git_head": "79a8d4b9391726f69ad3ac5f2b126c1ec80bb19f",
+      "baseline_source_sha256": "e1f2bacfda39c1efddf1ec7d71c2508c4ebd54ace24f65bb8054a13e8e21e906",
+      "candidate_source_sha256": "a5322fd0da345ad50d02323b7c0b3b48e523f3a1345cb075348ce73efcdcb942",
+      "dtype": "float32",
+      "seed": 20261030,
+      "positive_energy_cap": 1000.0,
+      "warmup": 3,
+      "repeats": 15,
+      "procedure": "Alternate path order; preparation excluded; dense forward/reduction unchanged. Synthetic carbon-only geometry stress cases are not accuracy benchmarks. Full scorer includes identical dense inter work. No GPU/native parity or docking-quality claim.",
+      "cases": [
+        {
+          "case": "10gs_prepared",
+          "batch": 32,
+          "atoms": 38,
+          "heavy_atoms": 33,
+          "receptor_atoms": 1392,
+          "directed_mask_entries": 1098,
+          "active_unordered_contributors": 403,
+          "dense_dynamic_pair_elements": 46208,
+          "sparse_dynamic_pair_elements": 12896,
+          "float32_max_abs_intra_energy_delta": 1.6689300537109375e-06,
+          "float32_max_abs_coordinate_gradient_delta": 5.0067901611328125e-06,
+          "intra_forward": {
+            "dense": {
+              "median_ms": 1.235071,
+              "q25_ms": 1.123002,
+              "q75_ms": 1.258837,
+              "min_ms": 1.111315,
+              "samples_ms": [
+                1.259929,
+                1.249993,
+                1.3412,
+                1.123002,
+                1.241831,
+                1.258837,
+                1.288771,
+                1.242061,
+                1.131665,
+                1.235071,
+                1.170523,
+                1.133247,
+                1.111315,
+                1.122791,
+                1.115531
+              ]
+            },
+            "sparse": {
+              "median_ms": 0.691702,
+              "q25_ms": 0.633745,
+              "q75_ms": 0.786916,
+              "min_ms": 0.62404,
+              "samples_ms": [
+                0.722478,
+                0.63007,
+                0.720325,
+                0.625592,
+                0.691702,
+                1.026667,
+                0.812445,
+                0.786916,
+                0.86281,
+                0.633745,
+                0.719254,
+                0.62404,
+                0.672223,
+                0.689238,
+                0.672333
+              ]
+            },
+            "speedup_dense_over_sparse": 1.785553605454372
+          },
+          "intra_forward_backward": {
+            "dense": {
+              "median_ms": 3.105679,
+              "q25_ms": 2.972058,
+              "q75_ms": 3.479743,
+              "min_ms": 2.638115,
+              "samples_ms": [
+                3.063776,
+                3.105679,
+                2.90753,
+                3.479743,
+                2.638115,
+                3.314414,
+                3.373503,
+                2.972058,
+                3.283969,
+                3.071357,
+                3.038859,
+                3.540394,
+                3.539834,
+                3.546564,
+                2.852648
+              ]
+            },
+            "sparse": {
+              "median_ms": 1.720382,
+              "q25_ms": 1.656305,
+              "q75_ms": 1.85212,
+              "min_ms": 1.542234,
+              "samples_ms": [
+                1.683066,
+                1.600812,
+                1.656305,
+                1.61922,
+                4.062942,
+                1.720382,
+                1.77215,
+                1.542234,
+                1.703447,
+                1.85212,
+                1.99131,
+                1.681083,
+                2.117851,
+                1.766882,
+                1.734103
+              ]
+            },
+            "speedup_dense_over_sparse": 1.8052263973931368
+          },
+          "full_forward": {
+            "dense": {
+              "median_ms": 113.798154,
+              "q25_ms": 107.882967,
+              "q75_ms": 121.818422,
+              "min_ms": 103.773553,
+              "samples_ms": [
+                118.684681,
+                105.183527,
+                118.848305,
+                111.543986,
+                112.073443,
+                103.773553,
+                108.261548,
+                121.818422,
+                133.826604,
+                105.982843,
+                107.882967,
+                120.600857,
+                140.851042,
+                113.798154,
+                124.125389
+              ]
+            },
+            "sparse": {
+              "median_ms": 122.459378,
+              "q25_ms": 117.86243,
+              "q75_ms": 136.166991,
+              "min_ms": 104.230347,
+              "samples_ms": [
+                122.458948,
+                104.230347,
+                143.037027,
+                108.588169,
+                151.942586,
+                130.83887,
+                122.459378,
+                133.738761,
+                121.832303,
+                104.583064,
+                118.972342,
+                169.651484,
+                135.393925,
+                117.86243,
+                136.166991
+              ]
+            },
+            "speedup_dense_over_sparse": 0.929272676854524
+          },
+          "full_forward_backward": {
+            "dense": {
+              "median_ms": 161.306797,
+              "q25_ms": 149.26716,
+              "q75_ms": 203.715217,
+              "min_ms": 138.979683,
+              "samples_ms": [
+                263.021931,
+                149.351793,
+                149.26716,
+                145.330494,
+                143.239584,
+                375.792658,
+                161.306797,
+                193.845535,
+                138.979683,
+                154.282984,
+                156.604806,
+                207.813699,
+                179.848378,
+                203.715217,
+                188.651057
+              ]
+            },
+            "sparse": {
+              "median_ms": 179.506272,
+              "q25_ms": 156.158955,
+              "q75_ms": 195.032494,
+              "min_ms": 139.361539,
+              "samples_ms": [
+                160.819809,
+                200.884712,
+                156.158955,
+                151.034007,
+                139.361539,
+                305.991933,
+                183.431414,
+                183.632923,
+                195.032494,
+                179.506272,
+                154.147079,
+                177.915513,
+                192.572408,
+                208.787808,
+                174.362934
+              ]
+            },
+            "speedup_dense_over_sparse": 0.8986137097204046
+          }
+        },
+        {
+          "case": "synthetic_128_heavy_chain_nonlocal",
+          "batch": 32,
+          "atoms": 128,
+          "heavy_atoms": 128,
+          "receptor_atoms": 512,
+          "directed_mask_entries": 15500,
+          "active_unordered_contributors": 7750,
+          "dense_dynamic_pair_elements": 524288,
+          "sparse_dynamic_pair_elements": 248000,
+          "float32_max_abs_intra_energy_delta": 0.0001373291015625,
+          "float32_max_abs_coordinate_gradient_delta": 0.0003566741943359375,
+          "intra_forward": {
+            "dense": {
+              "median_ms": 19.997046,
+              "q25_ms": 18.672508,
+              "q75_ms": 21.714916,
+              "min_ms": 17.796596,
+              "samples_ms": [
+                18.487898,
+                20.231949,
+                19.290179,
+                19.338221,
+                22.132406,
+                20.914259,
+                19.997046,
+                23.10942,
+                19.022846,
+                18.425244,
+                18.672508,
+                20.37172,
+                17.796596,
+                23.966814,
+                21.714916
+              ]
+            },
+            "sparse": {
+              "median_ms": 14.184297,
+              "q25_ms": 13.756571,
+              "q75_ms": 15.231577,
+              "min_ms": 12.806949,
+              "samples_ms": [
+                14.004475,
+                13.756571,
+                15.349134,
+                15.122262,
+                13.342156,
+                14.059148,
+                14.548115,
+                14.109073,
+                15.231577,
+                14.184297,
+                14.659274,
+                12.806949,
+                15.962649,
+                13.040762,
+                20.097702
+              ]
+            },
+            "speedup_dense_over_sparse": 1.4098016983146926
+          },
+          "intra_forward_backward": {
+            "dense": {
+              "median_ms": 41.995239,
+              "q25_ms": 40.10171,
+              "q75_ms": 44.657344,
+              "min_ms": 34.481911,
+              "samples_ms": [
+                41.995239,
+                42.148571,
+                45.761831,
+                44.657344,
+                44.151212,
+                41.364392,
+                41.056218,
+                50.165194,
+                46.925812,
+                43.587863,
+                40.10171,
+                40.316523,
+                39.432841,
+                35.909122,
+                34.481911
+              ]
+            },
+            "sparse": {
+              "median_ms": 26.083226,
+              "q25_ms": 25.426856,
+              "q75_ms": 27.813246,
+              "min_ms": 24.542374,
+              "samples_ms": [
+                27.813246,
+                28.667645,
+                26.083226,
+                27.192742,
+                26.820847,
+                30.152847,
+                27.317285,
+                29.31153,
+                26.0728,
+                25.426856,
+                25.849342,
+                25.407156,
+                24.542374,
+                25.102878,
+                25.440246
+              ]
+            },
+            "speedup_dense_over_sparse": 1.6100477371932445
+          },
+          "full_forward": {
+            "dense": {
+              "median_ms": 159.844878,
+              "q25_ms": 154.170816,
+              "q75_ms": 166.64938,
+              "min_ms": 148.304281,
+              "samples_ms": [
+                192.637532,
+                184.09964,
+                164.664034,
+                155.051227,
+                160.913913,
+                148.304281,
+                161.33823,
+                177.167705,
+                166.64938,
+                154.87972,
+                150.530034,
+                158.156448,
+                154.170816,
+                159.844878,
+                152.149135
+              ]
+            },
+            "sparse": {
+              "median_ms": 152.726725,
+              "q25_ms": 147.834052,
+              "q75_ms": 163.838,
+              "min_ms": 145.104649,
+              "samples_ms": [
+                170.133044,
+                191.075232,
+                147.789336,
+                146.258668,
+                147.834052,
+                151.115657,
+                155.581316,
+                163.444611,
+                151.71402,
+                148.359063,
+                145.104649,
+                179.484937,
+                163.838,
+                152.884754,
+                152.726725
+              ]
+            },
+            "speedup_dense_over_sparse": 1.0466071213142298
+          },
+          "full_forward_backward": {
+            "dense": {
+              "median_ms": 229.856395,
+              "q25_ms": 207.795016,
+              "q75_ms": 243.459368,
+              "min_ms": 191.172304,
+              "samples_ms": [
+                225.444635,
+                207.201932,
+                207.795016,
+                266.099647,
+                276.32336,
+                241.828185,
+                244.264381,
+                191.172304,
+                243.459368,
+                200.109988,
+                241.643682,
+                222.172395,
+                228.074328,
+                231.473711,
+                229.856395
+              ]
+            },
+            "sparse": {
+              "median_ms": 221.287805,
+              "q25_ms": 206.049506,
+              "q75_ms": 232.284593,
+              "min_ms": 190.867756,
+              "samples_ms": [
+                206.953316,
+                212.467897,
+                200.997001,
+                215.532726,
+                223.35762,
+                221.923097,
+                206.049506,
+                249.614559,
+                221.287805,
+                190.867756,
+                243.980907,
+                197.149177,
+                232.504744,
+                223.575339,
+                232.284593
+              ]
+            },
+            "speedup_dense_over_sparse": 1.0387214740550208
+          }
+        },
+        {
+          "case": "synthetic_128_heavy_random_10_percent",
+          "batch": 32,
+          "atoms": 128,
+          "heavy_atoms": 128,
+          "receptor_atoms": 512,
+          "directed_mask_entries": 1534,
+          "active_unordered_contributors": 767,
+          "dense_dynamic_pair_elements": 524288,
+          "sparse_dynamic_pair_elements": 24544,
+          "float32_max_abs_intra_energy_delta": 4.00543212890625e-05,
+          "float32_max_abs_coordinate_gradient_delta": 3.337860107421875e-05,
+          "intra_forward": {
+            "dense": {
+              "median_ms": 19.188886,
+              "q25_ms": 17.781104,
+              "q75_ms": 24.284856,
+              "min_ms": 17.136173,
+              "samples_ms": [
+                24.479659,
+                24.409884,
+                24.284856,
+                24.252467,
+                24.436163,
+                18.723354,
+                17.136173,
+                17.651568,
+                17.771581,
+                17.912011,
+                23.302545,
+                20.028221,
+                17.781104,
+                18.990047,
+                19.188886
+              ]
+            },
+            "sparse": {
+              "median_ms": 2.040044,
+              "q25_ms": 1.553311,
+              "q75_ms": 2.219896,
+              "min_ms": 1.326058,
+              "samples_ms": [
+                2.364293,
+                2.040044,
+                2.347487,
+                2.156259,
+                2.365114,
+                2.207427,
+                1.53954,
+                1.663647,
+                1.553311,
+                1.326058,
+                2.219896,
+                1.725571,
+                2.113515,
+                1.449885,
+                1.887765
+              ]
+            },
+            "speedup_dense_over_sparse": 9.406113789702575
+          },
+          "intra_forward_backward": {
+            "dense": {
+              "median_ms": 39.056434,
+              "q25_ms": 35.586826,
+              "q75_ms": 43.73116,
+              "min_ms": 31.941384,
+              "samples_ms": [
+                43.790248,
+                35.586826,
+                32.939657,
+                44.073145,
+                33.648445,
+                43.73116,
+                42.426644,
+                38.315679,
+                39.056434,
+                40.915166,
+                40.323424,
+                36.545871,
+                31.941384,
+                43.792222,
+                37.096621
+              ]
+            },
+            "sparse": {
+              "median_ms": 3.692043,
+              "q25_ms": 3.261445,
+              "q75_ms": 4.090003,
+              "min_ms": 2.764586,
+              "samples_ms": [
+                3.692043,
+                3.079701,
+                3.21897,
+                3.897273,
+                4.469975,
+                4.27992,
+                3.99539,
+                4.090003,
+                3.373073,
+                3.376889,
+                3.333583,
+                2.764586,
+                3.897743,
+                3.261445,
+                4.327782
+              ]
+            },
+            "speedup_dense_over_sparse": 10.578542557602933
+          },
+          "full_forward": {
+            "dense": {
+              "median_ms": 150.30102,
+              "q25_ms": 147.886112,
+              "q75_ms": 159.72974,
+              "min_ms": 143.118747,
+              "samples_ms": [
+                149.692634,
+                147.886112,
+                145.605886,
+                143.118747,
+                143.18667,
+                157.26835,
+                162.959555,
+                150.30102,
+                166.136565,
+                156.793114,
+                155.057357,
+                170.834609,
+                159.72974,
+                149.481995,
+                149.014776
+              ]
+            },
+            "sparse": {
+              "median_ms": 128.692918,
+              "q25_ms": 124.587904,
+              "q75_ms": 135.477332,
+              "min_ms": 117.227021,
+              "samples_ms": [
+                123.090487,
+                128.920441,
+                125.984948,
+                125.446238,
+                117.227021,
+                124.587904,
+                135.477332,
+                130.567003,
+                146.901007,
+                136.818984,
+                125.351505,
+                128.692918,
+                131.472077,
+                138.519691,
+                123.344574
+              ]
+            },
+            "speedup_dense_over_sparse": 1.1679043597410699
+          },
+          "full_forward_backward": {
+            "dense": {
+              "median_ms": 209.723975,
+              "q25_ms": 203.042422,
+              "q75_ms": 220.179813,
+              "min_ms": 188.849726,
+              "samples_ms": [
+                211.965489,
+                222.944259,
+                214.718747,
+                220.179813,
+                188.849726,
+                203.042422,
+                209.049906,
+                201.707816,
+                221.247506,
+                224.659823,
+                207.541636,
+                209.723975,
+                207.166353,
+                211.583918,
+                201.613815
+              ]
+            },
+            "sparse": {
+              "median_ms": 191.945095,
+              "q25_ms": 182.45996,
+              "q75_ms": 200.41892,
+              "min_ms": 178.442484,
+              "samples_ms": [
+                200.41892,
+                204.922408,
+                192.557723,
+                197.005323,
+                178.470966,
+                182.45996,
+                179.162873,
+                178.442484,
+                215.688448,
+                215.302593,
+                191.945095,
+                186.744718,
+                187.077118,
+                196.390002,
+                185.230276
+              ]
+            },
+            "speedup_dense_over_sparse": 1.092624820655094
+          }
+        },
+        {
+          "case": "synthetic_256_heavy_chain_nonlocal",
+          "batch": 32,
+          "atoms": 256,
+          "heavy_atoms": 256,
+          "receptor_atoms": 512,
+          "directed_mask_entries": 63756,
+          "active_unordered_contributors": 31878,
+          "dense_dynamic_pair_elements": 2097152,
+          "sparse_dynamic_pair_elements": 1020096,
+          "float32_max_abs_intra_energy_delta": 0.0003662109375,
+          "float32_max_abs_coordinate_gradient_delta": 0.00034236907958984375,
+          "intra_forward": {
+            "dense": {
+              "median_ms": 95.803558,
+              "q25_ms": 91.321743,
+              "q75_ms": 97.257058,
+              "min_ms": 87.950381,
+              "samples_ms": [
+                97.257058,
+                92.823246,
+                96.384964,
+                93.132261,
+                97.062254,
+                91.321743,
+                88.788694,
+                87.950381,
+                94.242385,
+                96.154015,
+                95.803558,
+                91.150083,
+                102.99065,
+                105.494484,
+                105.058056
+              ]
+            },
+            "sparse": {
+              "median_ms": 60.218964,
+              "q25_ms": 58.21358,
+              "q75_ms": 66.181971,
+              "min_ms": 56.197963,
+              "samples_ms": [
+                59.528433,
+                59.228731,
+                65.420362,
+                60.218964,
+                57.946508,
+                57.939969,
+                56.197963,
+                58.21358,
+                65.55831,
+                66.181971,
+                61.788169,
+                58.457618,
+                78.918538,
+                70.713571,
+                74.323101
+              ]
+            },
+            "speedup_dense_over_sparse": 1.5909200629887952
+          },
+          "intra_forward_backward": {
+            "dense": {
+              "median_ms": 221.052767,
+              "q25_ms": 213.00393,
+              "q75_ms": 238.295191,
+              "min_ms": 183.345661,
+              "samples_ms": [
+                227.905184,
+                222.574028,
+                242.588235,
+                217.196334,
+                202.458849,
+                280.204252,
+                197.354634,
+                258.286507,
+                220.831663,
+                221.052767,
+                238.295191,
+                215.436653,
+                183.345661,
+                224.715884,
+                213.00393
+              ]
+            },
+            "sparse": {
+              "median_ms": 134.380756,
+              "q25_ms": 129.233459,
+              "q75_ms": 164.10827,
+              "min_ms": 122.242197,
+              "samples_ms": [
+                122.242197,
+                174.696497,
+                159.751391,
+                156.024904,
+                130.327608,
+                129.233459,
+                122.835784,
+                185.232538,
+                134.380756,
+                124.460456,
+                164.10827,
+                174.765714,
+                132.919387,
+                131.254497,
+                140.034375
+              ]
+            },
+            "speedup_dense_over_sparse": 1.6449733844331105
+          },
+          "full_forward": {
+            "dense": {
+              "median_ms": 357.500977,
+              "q25_ms": 338.313842,
+              "q75_ms": 370.484105,
+              "min_ms": 320.761331,
+              "samples_ms": [
+                370.484105,
+                320.761331,
+                338.313842,
+                357.500977,
+                347.905106,
+                361.658198,
+                373.463003,
+                358.862763,
+                351.348585,
+                358.48345,
+                354.885527,
+                324.112895,
+                331.393767,
+                408.234615,
+                390.657249
+              ]
+            },
+            "sparse": {
+              "median_ms": 327.033903,
+              "q25_ms": 308.990603,
+              "q75_ms": 365.783351,
+              "min_ms": 281.271356,
+              "samples_ms": [
+                307.717641,
+                281.271356,
+                307.264776,
+                321.341519,
+                327.033903,
+                331.198229,
+                375.44065,
+                331.472996,
+                319.83731,
+                336.591118,
+                314.820352,
+                308.990603,
+                378.081045,
+                365.783351,
+                369.810104
+              ]
+            },
+            "speedup_dense_over_sparse": 1.0931618212072647
+          },
+          "full_forward_backward": {
+            "dense": {
+              "median_ms": 593.840858,
+              "q25_ms": 572.540645,
+              "q75_ms": 638.774759,
+              "min_ms": 556.625684,
+              "samples_ms": [
+                610.365273,
+                572.540645,
+                556.625684,
+                638.774759,
+                597.451738,
+                752.697515,
+                582.082691,
+                604.89427,
+                591.527341,
+                593.840858,
+                560.189538,
+                567.449342,
+                576.311506,
+                639.442561,
+                643.214743
+              ]
+            },
+            "sparse": {
+              "median_ms": 583.576999,
+              "q25_ms": 516.238464,
+              "q75_ms": 616.658257,
+              "min_ms": 485.574263,
+              "samples_ms": [
+                525.328525,
+                516.238464,
+                518.261383,
+                515.537833,
+                616.658257,
+                626.056141,
+                643.974232,
+                690.209229,
+                485.574263,
+                488.178495,
+                605.243756,
+                542.322977,
+                591.571113,
+                583.576999,
+                596.011007
+              ]
+            },
+            "speedup_dense_over_sparse": 1.017587840195189
+          }
+        },
+        {
+          "case": "synthetic_256_heavy_random_10_percent",
+          "batch": 32,
+          "atoms": 256,
+          "heavy_atoms": 256,
+          "receptor_atoms": 512,
+          "directed_mask_entries": 6280,
+          "active_unordered_contributors": 3140,
+          "dense_dynamic_pair_elements": 2097152,
+          "sparse_dynamic_pair_elements": 100480,
+          "float32_max_abs_intra_energy_delta": 0.00016021728515625,
+          "float32_max_abs_coordinate_gradient_delta": 0.00020742416381835938,
+          "intra_forward": {
+            "dense": {
+              "median_ms": 127.768499,
+              "q25_ms": 124.815616,
+              "q75_ms": 133.818304,
+              "min_ms": 119.289565,
+              "samples_ms": [
+                134.077791,
+                124.574432,
+                133.818304,
+                133.136206,
+                141.670009,
+                127.768499,
+                123.426282,
+                125.545578,
+                124.815616,
+                129.414792,
+                125.013575,
+                126.219995,
+                119.289565,
+                127.892977,
+                135.252824
+              ]
+            },
+            "sparse": {
+              "median_ms": 6.284134,
+              "q25_ms": 6.091644,
+              "q75_ms": 6.952091,
+              "min_ms": 5.212239,
+              "samples_ms": [
+                7.141607,
+                6.662235,
+                11.055909,
+                7.173515,
+                6.235071,
+                5.980898,
+                6.625189,
+                6.284134,
+                6.952091,
+                5.212239,
+                6.091644,
+                5.906475,
+                6.199537,
+                6.20806,
+                6.852251
+              ]
+            },
+            "speedup_dense_over_sparse": 20.33191828818418
+          },
+          "intra_forward_backward": {
+            "dense": {
+              "median_ms": 202.40504,
+              "q25_ms": 179.857677,
+              "q75_ms": 219.886109,
+              "min_ms": 171.213263,
+              "samples_ms": [
+                205.205723,
+                211.070044,
+                202.40504,
+                219.975181,
+                219.886109,
+                241.883669,
+                242.476598,
+                217.093801,
+                178.111934,
+                174.338244,
+                171.213263,
+                182.062762,
+                182.640112,
+                179.857677,
+                186.016082
+              ]
+            },
+            "sparse": {
+              "median_ms": 12.755963,
+              "q25_ms": 10.380913,
+              "q75_ms": 14.662476,
+              "min_ms": 9.903132,
+              "samples_ms": [
+                12.755963,
+                12.978268,
+                12.397411,
+                14.662476,
+                16.12301,
+                13.682189,
+                14.954488,
+                17.272003,
+                10.364157,
+                9.903132,
+                10.380913,
+                9.952195,
+                13.643621,
+                11.027898,
+                12.567399
+              ]
+            },
+            "speedup_dense_over_sparse": 15.867484093517676
+          },
+          "full_forward": {
+            "dense": {
+              "median_ms": 375.622996,
+              "q25_ms": 343.151558,
+              "q75_ms": 383.411449,
+              "min_ms": 342.348479,
+              "samples_ms": [
+                365.730078,
+                342.678517,
+                342.639187,
+                354.886344,
+                342.348479,
+                343.151558,
+                357.123589,
+                399.606606,
+                383.036588,
+                455.938593,
+                375.622996,
+                380.021472,
+                378.119966,
+                388.037193,
+                383.411449
+              ]
+            },
+            "sparse": {
+              "median_ms": 294.132051,
+              "q25_ms": 283.125503,
+              "q75_ms": 315.384078,
+              "min_ms": 266.911696,
+              "samples_ms": [
+                281.45872,
+                283.125503,
+                279.032542,
+                283.206936,
+                266.911696,
+                291.796426,
+                315.575052,
+                326.945674,
+                315.384078,
+                288.128234,
+                294.132051,
+                301.326133,
+                319.100642,
+                310.77531,
+                300.671035
+              ]
+            },
+            "speedup_dense_over_sparse": 1.2770556446430927
+          },
+          "full_forward_backward": {
+            "dense": {
+              "median_ms": 527.048892,
+              "q25_ms": 517.485929,
+              "q75_ms": 567.732963,
+              "min_ms": 472.475284,
+              "samples_ms": [
+                595.658491,
+                527.048892,
+                567.732963,
+                636.689671,
+                546.521195,
+                606.265639,
+                526.333943,
+                527.243511,
+                518.795634,
+                517.485929,
+                522.657006,
+                472.475284,
+                479.550301,
+                507.08675,
+                538.951594
+              ]
+            },
+            "sparse": {
+              "median_ms": 386.940484,
+              "q25_ms": 372.956586,
+              "q75_ms": 427.024842,
+              "min_ms": 362.093676,
+              "samples_ms": [
+                450.243149,
+                458.696965,
+                415.562198,
+                411.730787,
+                427.024842,
+                428.030778,
+                386.940484,
+                379.405738,
+                362.093676,
+                372.956586,
+                374.011165,
+                366.481532,
+                369.05319,
+                400.492988,
+                375.302652
+              ]
+            },
+            "speedup_dense_over_sparse": 1.3620929155606265
+          }
+        }
+      ],
+      "benchmark_script": "import hashlib,json,platform,statistics,subprocess,sys,time\nfrom datetime import datetime,timezone\nfrom pathlib import Path\nimport torch\nfrom rdkit import Chem\nfrom anchor_dock.core.io import load_receptor_context\nfrom anchor_dock.core.prepared import PreparedLigand\nfrom anchor_dock.core.masks import normalize_pair_mask\nfrom anchor_dock.core.scoring import PairwiseScorer,_weighted_pair_energy,positive_energy_curl\ntorch.set_num_threads(1)\nrng=torch.Generator().manual_seed(20261030)\nroot=Path.cwd()\nfixture=json.loads((root/'tests/fixtures/native_scoring.json').read_text())\np=fixture['cases']['10gs_ligand']\nligand=PreparedLigand.from_pdbqt(Chem.MolFromMolBlock(p['molblock'],removeHs=False),p['pdbqt'],serial_to_atom_index={int(k):v for k,v in p['serial_to_atom_index'].items()})\nreceptor=load_receptor_context(root/'examples/10gs/10gs_pocket.pdb',device='cpu')\ndef features(n):\n return {'radius_vina':torch.full((n,),1.9),'radius_vinardo':torch.full((n,),2.),'hydrophobic':torch.ones(n),'donor':torch.zeros(n),'acceptor':torch.zeros(n),'active':torch.ones(n,dtype=torch.bool)}\ndef dense_intra(prepared,xyz):\n d=torch.cdist(xyz,xyz)\n e=positive_energy_curl(_weighted_pair_energy(d,prepared.intramolecular_matrices,prepared.config),prepared.positive_energy_cap)\n m=normalize_pair_mask(prepared.intramolecular_mask,xyz.shape[0],xyz.shape[1],xyz.shape[1],device=xyz.device)\n return (e*m).sum((1,2))*.5\ndef run(fn,xyz,backward):\n if backward: torch.autograd.grad(fn(xyz).sum(),xyz)\n else:\n  with torch.no_grad():fn(xyz)\ndef bench(functions,xyz,backward):\n for fn in functions.values():\n  for _ in range(3):run(fn,xyz,backward)\n times={name:[] for name in functions}\n for repeat in range(15):\n  order=list(functions) if repeat%2==0 else list(reversed(functions))\n  for name in order:\n   start=time.perf_counter_ns();run(functions[name],xyz,backward)\n   times[name].append((time.perf_counter_ns()-start)/1e6)\n out={name:{'median_ms':statistics.median(v),'q25_ms':sorted(v)[3],'q75_ms':sorted(v)[11],'min_ms':min(v),'samples_ms':v} for name,v in times.items()}\n out['speedup_dense_over_sparse']=out['dense']['median_ms']/out['sparse']['median_ms']\n return out\ncases=[('10gs_prepared',ligand.features(),ligand.coordinates().unsqueeze(0).expand(32,-1,-1).clone(),ligand.intramolecular_mask('cpu'),receptor.coords,receptor.features)]\nfor n in (128,256):\n xyz=torch.randn(32,n,3,generator=rng)*6;rec=torch.randn(512,3,generator=rng)*8\n for density in ('chain_nonlocal','random_10_percent'):\n  if density=='chain_nonlocal':\n   idx=torch.arange(n);mask=(idx[:,None]-idx[None,:]).abs()>3\n  else:\n   upper=torch.triu(torch.rand(n,n,generator=rng)<.1,diagonal=1);mask=upper|upper.T\n  cases.append((f'synthetic_{n}_heavy_{density}',features(n),xyz,mask,rec,features(512)))\nrows=[]\nfor label,feat,values,mask,rec,rf in cases:\n xyz=values.detach().clone().requires_grad_()\n ps={mode:PairwiseScorer('vina',intra_mode=mode,positive_energy_cap=1000.).prepare(feat,rec,rf,intramolecular_mask=mask) for mode in ('dense','sparse')}\n dense,sparse=ps['dense'],ps['sparse'];count=sparse.sparse_intra_pairs.shape[0]\n row={'case':label,'batch':xyz.shape[0],'atoms':xyz.shape[1],'heavy_atoms':sum(a.GetAtomicNum()!=1 for a in ligand.mol.GetAtoms()) if label=='10gs_prepared' else xyz.shape[1],'receptor_atoms':rec.shape[0],'directed_mask_entries':int(mask.sum()),'active_unordered_contributors':count,'dense_dynamic_pair_elements':xyz.shape[0]*xyz.shape[1]**2,'sparse_dynamic_pair_elements':xyz.shape[0]*count}\n with torch.no_grad():a=dense_intra(dense,xyz);b=sparse._sparse_intramolecular(xyz)\n ga=torch.autograd.grad(dense_intra(dense,xyz).sum(),xyz)[0];gb=torch.autograd.grad(sparse._sparse_intramolecular(xyz).sum(),xyz)[0]\n row['float32_max_abs_intra_energy_delta']=float((a-b).abs().max());row['float32_max_abs_coordinate_gradient_delta']=float((ga-gb).abs().max())\n for label2,fs in [('intra',{'dense':lambda x:dense_intra(dense,x),'sparse':sparse._sparse_intramolecular}),('full',{mode:p.search_energy for mode,p in ps.items()})]:\n  for backward in (False,True):row[label2+('_forward_backward' if backward else '_forward')]=bench(fs,xyz,backward)\n rows.append(row)\n print(json.dumps({k:v for k,v in row.items() if not isinstance(v,dict)}),flush=True)\n print(json.dumps({key:{'dense_ms':row[key]['dense']['median_ms'],'sparse_ms':row[key]['sparse']['median_ms'],'speedup':row[key]['speedup_dense_over_sparse']} for key in ('intra_forward','intra_forward_backward','full_forward','full_forward_backward')}),flush=True)\nbase=subprocess.run(['git','show','HEAD:src/anchor_dock/core/scoring.py'],capture_output=True,check=True).stdout\nout={'timestamp_utc':datetime.now(timezone.utc).isoformat(),'torch':torch.__version__,'python':sys.version,'platform':platform.platform(),'cuda_available':torch.cuda.is_available(),'threads':torch.get_num_threads(),'git_head':subprocess.run(['git','rev-parse','HEAD'],capture_output=True,text=True,check=True).stdout.strip(),'baseline_source_sha256':hashlib.sha256(base).hexdigest(),'candidate_source_sha256':hashlib.sha256((root/'src/anchor_dock/core/scoring.py').read_bytes()).hexdigest(),'dtype':'float32','seed':20261030,'positive_energy_cap':1000.,'warmup':3,'repeats':15,'procedure':'Alternate path order; preparation excluded; dense forward/reduction unchanged. Synthetic carbon-only geometry stress cases are not accuracy benchmarks. Full scorer includes identical dense inter work. No GPU/native parity or docking-quality claim.','cases':rows}\npath=root.parents[1]/'anchor-checks/physical-intra-benchmark.json';path.write_text(json.dumps(out,indent=2)+'\\n');print('EVIDENCE',path)\n",
+      "baseline_execution": "Current intra_mode=dense; its equations and reduction are unchanged and covered by independent legacy regression. Historical HEAD source is hashed for provenance, not dynamically executed."
+    },
+    "torch_amber": {
+      "scope": "22-atom force/energy microbenchmark; not docking accuracy or general throughput",
+      "version": "0.6.1",
+      "seed": 713,
+      "dtype": "float64",
+      "device": "cpu",
+      "torch_threads": 1,
+      "python": "3.12.14",
+      "torch": "2.10.0+cu128",
+      "openmm": "8.6.1",
+      "oracle_platform": "Reference",
+      "cuda_available": false,
+      "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+      "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+      "script_sha256": "ec71d34a5636edeff273c557c368aa2e2b445558e27df9d1e00e577459892a58",
+      "torch_scorer": {
+        "contract": "torch-fixed-charge-vacuum-nocutoff-fp64-v2",
+        "objective": "full_complex_potential",
+        "component_semantics": "undecomposed-full-complex-potential",
+        "units": "kcal/mol",
+        "direction": "lower",
+        "runtime": "pure-torch",
+        "compute_dtype": "float64",
+        "device": "cpu",
+        "openmm_import_version": "8.6.1",
+        "force_counts": {
+          "HarmonicBondForce": 1,
+          "HarmonicAngleForce": 1,
+          "PeriodicTorsionForce": 1,
+          "NonbondedForce": 1
+        },
+        "source": {
+          "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+          "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+          "implicit_solvent": null,
+          "nonbonded_method": "NoCutoff"
+        },
+        "pair_cache": {
+          "enabled": true,
+          "max_candidate_pairs": 200000,
+          "moving_candidate_pairs": 165,
+          "cached_active_pairs": 132,
+          "evaluation_pair_chunk_size": 16384,
+          "bound_policy": "candidate count before exclusions; zero disables caching"
+        },
+        "reference_energy_kcal_mol": -21.05367795907712,
+        "fixed_energy_kcal_mol": -10.484920973018783,
+        "search_reference": "input full-complex potential; fixed-fixed terms removed analytically",
+        "constraints": "not enforced; supplied potential terms retained",
+        "ligand_graph_validation": "count/elements and induced topology edges; bond orders not validated",
+        "atom_mapping": "explicit caller-supplied ordered map; never inferred",
+        "singular_geometry": "reject active zero separations/collinear angles/degenerate torsions",
+        "fingerprint": "sha256:a3dbeb909119fb41abf5cf5bf98ab9f0187dfe6aa2362f42bf17bfcb032ca191",
+        "fixed_receptor": true
+      },
+      "rows": [
+        {
+          "batch": 1,
+          "errors": {
+            "energy_kcal_mol": 2.1316282072803006e-14,
+            "gradient_kcal_mol_angstrom": 7.140954494389007e-13,
+            "cache_energy_kcal_mol": 7.105427357601002e-15,
+            "cache_gradient_kcal_mol_angstrom": 3.552713678800501e-15
+          },
+          "timings": {
+            "torch": {
+              "median_ms": 1.0962040032609366,
+              "q25_ms": 1.0325090006517712,
+              "q75_ms": 1.1517085004015826,
+              "samples_ms": [
+                1.147552000475116,
+                1.155865000328049,
+                1.0556529960012995,
+                1.0278609988745302,
+                1.031027000863105,
+                1.0962040032609366,
+                1.0260290000587702,
+                1.3036770033068024,
+                1.0308060009265319,
+                1.1085639998782426,
+                1.0339910004404373,
+                1.264268001250457,
+                1.1261100007686764,
+                1.0439050020067953,
+                1.5105499987839721
+              ]
+            },
+            "torch_uncached": {
+              "median_ms": 1.6793750037322752,
+              "q25_ms": 1.618223002878949,
+              "q75_ms": 1.7857149978226516,
+              "samples_ms": [
+                2.134821996151004,
+                1.8450749994372018,
+                1.6603359981672838,
+                1.5526129936915822,
+                1.6589840015512891,
+                1.6793750037322752,
+                2.0717570005217567,
+                1.691433004452847,
+                1.6835409987834282,
+                1.5666640028939582,
+                1.617542002350092,
+                1.9214200001442805,
+                1.6189040034078062,
+                1.5918930002953857,
+                1.7263549962081015
+              ]
+            },
+            "openmm_bridge": {
+              "median_ms": 0.34529199911048636,
+              "q25_ms": 0.31891649996396154,
+              "q75_ms": 0.38036399928387254,
+              "samples_ms": [
+                0.3653620005934499,
+                0.3773689968511462,
+                0.3114099963568151,
+                0.45505700109060854,
+                0.34529199911048636,
+                0.3015350011992268,
+                0.3384810042916797,
+                0.3207240006304346,
+                0.31292199855670333,
+                0.38335900171659887,
+                0.34533200232544914,
+                0.49826200120151043,
+                0.43373399967094883,
+                0.3171089992974885,
+                0.3324919962324202
+              ]
+            }
+          },
+          "cache_speedup": 1.5319913070345927,
+          "speedup": 0.31498881420185276
+        },
+        {
+          "batch": 32,
+          "errors": {
+            "energy_kcal_mol": 1.1013412404281553e-13,
+            "gradient_kcal_mol_angstrom": 1.0729195309977513e-12,
+            "cache_energy_kcal_mol": 2.1316282072803006e-14,
+            "cache_gradient_kcal_mol_angstrom": 7.105427357601002e-15
+          },
+          "timings": {
+            "torch": {
+              "median_ms": 2.0119460023124702,
+              "q25_ms": 1.951024001755286,
+              "q75_ms": 2.082698501908453,
+              "samples_ms": [
+                1.8854649970307946,
+                1.9788459976552986,
+                2.159448995371349,
+                2.0259279990568757,
+                1.8906839977717027,
+                1.928220000991132,
+                1.9498219990055077,
+                1.9525669995346107,
+                2.0119460023124702,
+                2.32938500266755,
+                2.079748999676667,
+                2.085648004140239,
+                2.0283709964132868,
+                1.9522260045050643,
+                2.3137220050557517
+              ]
+            },
+            "torch_uncached": {
+              "median_ms": 2.6338750030845404,
+              "q25_ms": 2.548100997955771,
+              "q75_ms": 2.738953997322824,
+              "samples_ms": [
+                2.6338750030845404,
+                2.5337440019939095,
+                2.7284479947411455,
+                2.92470400017919,
+                2.749459999904502,
+                2.597589998913463,
+                3.5517409996828064,
+                2.7918639971176162,
+                2.5375199984409846,
+                2.5353360033477657,
+                2.6097390000359155,
+                2.670269997906871,
+                2.5586819974705577,
+                2.703821002796758,
+                2.4811249968479387
+              ]
+            },
+            "openmm_bridge": {
+              "median_ms": 1.678061998973135,
+              "q25_ms": 1.60247800158686,
+              "q75_ms": 1.8371480036876164,
+              "samples_ms": [
+                1.614496999536641,
+                2.1190879997448064,
+                1.5782920017954893,
+                1.8135280042770319,
+                1.678061998973135,
+                1.5634299998055212,
+                1.7938469973159954,
+                1.6082970032584853,
+                1.860768003098201,
+                1.872246000857558,
+                1.5966589999152347,
+                1.9011300028068945,
+                1.628748002985958,
+                1.7300910039921291,
+                1.538551994599402
+              ]
+            }
+          },
+          "cache_speedup": 1.3091181373939678,
+          "speedup": 0.8340492225161217
+        },
+        {
+          "batch": 128,
+          "errors": {
+            "energy_kcal_mol": 1.2789769243681803e-13,
+            "gradient_kcal_mol_angstrom": 1.2860823517257813e-12,
+            "cache_energy_kcal_mol": 2.1316282072803006e-14,
+            "cache_gradient_kcal_mol_angstrom": 7.105427357601002e-15
+          },
+          "timings": {
+            "torch": {
+              "median_ms": 4.58084399724612,
+              "q25_ms": 4.457322502275929,
+              "q75_ms": 4.736247999971965,
+              "samples_ms": [
+                4.58084399724612,
+                4.547653996269219,
+                4.6716810029465705,
+                4.327151000325102,
+                4.936871002428234,
+                4.6647909985040314,
+                4.750339001475368,
+                4.722156998468563,
+                4.462015000171959,
+                4.354702999989968,
+                4.452630004379898,
+                4.829397999856155,
+                4.378138000902254,
+                4.832935002923477,
+                4.55265100026736
+              ]
+            },
+            "torch_uncached": {
+              "median_ms": 5.379738999181427,
+              "q25_ms": 5.290170000080252,
+              "q75_ms": 5.518669498997042,
+              "samples_ms": [
+                5.42870400386164,
+                5.29581299633719,
+                5.289815002470277,
+                5.453650999697857,
+                5.7708999956958,
+                5.159107000508811,
+                5.290524997690227,
+                6.210043997270986,
+                5.409254998085089,
+                5.022329998610076,
+                5.669587000738829,
+                5.164573994989041,
+                5.3197000015643425,
+                5.583687998296227,
+                5.379738999181427
+              ]
+            },
+            "openmm_bridge": {
+              "median_ms": 5.382081995776389,
+              "q25_ms": 5.278261502098758,
+              "q75_ms": 5.8666400000220165,
+              "samples_ms": [
+                5.699462999473326,
+                5.209192000620533,
+                5.269212000712287,
+                7.433169004798401,
+                5.31919800414471,
+                6.662544998107478,
+                5.494862998602912,
+                6.033817000570707,
+                5.16073900507763,
+                5.454352001834195,
+                5.287311003485229,
+                5.211275005422067,
+                6.220037997991312,
+                5.382081995776389,
+                5.296363997331355
+              ]
+            }
+          },
+          "cache_speedup": 1.1743990850628359,
+          "speedup": 1.1749105621173634
+        }
+      ]
+    }
+  }
+}

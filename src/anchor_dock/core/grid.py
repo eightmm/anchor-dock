@@ -119,6 +119,58 @@ class TrilinearGrid(nn.Module):
                     result = result + wx * wy * wz * flat[index]
         return result
 
+    def sample_channels(self, coordinates: torch.Tensor, atom_channels) -> torch.Tensor:
+        """Sample ``[B,N,K]`` channels using one geometry per ``[B,N,3]`` point.
+
+        This has the same closed bounds and cell/accumulation conventions as
+        :meth:`forward`. Only channel lookup is repeated; cell indices and
+        interpolation weights are shared across the K channels.
+        """
+        if not isinstance(coordinates, torch.Tensor) or coordinates.ndim != 3 or coordinates.shape[-1] != 3:
+            raise ValueError("coordinates must have shape [B,N,3]")
+        batch, atoms, _ = coordinates.shape
+        if batch < 1 or atoms < 1:
+            raise ValueError("coordinates require a nonempty batch and atom set")
+        if coordinates.dtype != self.values.dtype or coordinates.device != self.values.device:
+            raise ValueError("coordinate dtype/device must match the grid; cast/move the module explicitly")
+        if not torch.isfinite(coordinates).all():
+            raise ValueError("coordinates must be finite")
+        channels = torch.as_tensor(atom_channels, device=coordinates.device)
+        if channels.dtype not in (torch.uint8, torch.int8, torch.int16, torch.int32, torch.int64):
+            raise ValueError("atom channels must be integer indices")
+        if channels.ndim != 3 or channels.shape[:2] != (batch, atoms) or channels.shape[2] < 1:
+            raise ValueError("multi-channel atom channels must have shape [B,N,K] with K >= 1")
+        if ((channels < 0) | (channels >= self.num_channels)).any():
+            raise ValueError("atom channel index is outside the supplied map set")
+        channels = channels.to(dtype=torch.long)
+        nz, ny, nx = self.values.shape[1:]
+        last_indices = coordinates.new_tensor((nx - 1, ny - 1, nz - 1))
+        upper = self.origin + self.spacing * last_indices
+        if ((coordinates < self.origin) | (coordinates > upper)).any():
+            raise GridBoundsError("coordinates are outside the closed physical grid bounds")
+
+        position = (coordinates - self.origin) / self.spacing
+        lower = torch.floor(position).to(dtype=torch.long)
+        last_cell = torch.tensor((nx - 2, ny - 2, nz - 2), dtype=torch.long, device=coordinates.device)
+        lower = torch.minimum(torch.maximum(lower, torch.zeros_like(lower)), last_cell)
+        fraction = position - lower.to(dtype=position.dtype)
+        # Flatten only after selecting the physical cell. Integer offsets are
+        # exact and shared; floating-point corner additions retain forward's
+        # dz/dy/dx order and wx*wy*wz multiplication order.
+        offsets = channels * (nz * ny * nx)
+        offsets = offsets + ((lower[..., 2] * ny + lower[..., 1]) * nx + lower[..., 0])[..., None]
+        flat = self.values.reshape(-1)
+        result = coordinates.new_zeros(channels.shape)
+        for dz in (0, 1):
+            wz = fraction[..., 2] if dz else 1.0 - fraction[..., 2]
+            for dy in (0, 1):
+                wy = fraction[..., 1] if dy else 1.0 - fraction[..., 1]
+                for dx in (0, 1):
+                    wx = fraction[..., 0] if dx else 1.0 - fraction[..., 0]
+                    index = offsets + (dz * ny + dy) * nx + dx
+                    result = result + (wx * wy * wz)[..., None] * flat[index]
+        return result
+
 
 class AD4IntermolecularGrid(nn.Module):
     """Experimental AD4 map-only intermolecular energy component.
@@ -193,13 +245,13 @@ class AD4IntermolecularGrid(nn.Module):
                 raise GridBoundsError("coordinates are outside the upper-exclusive physical grid bounds")
         electrostatic = torch.full_like(channels, len(self.atom_types))
         desolvation = electrostatic + 1
-        all_channels = torch.cat((channels, electrostatic, desolvation), dim=1)
-        sampled = self.field(coordinates.repeat(1, 3, 1), all_channels)
+        all_channels = torch.stack((channels, electrostatic, desolvation), dim=-1)
+        sampled = self.field.sample_channels(coordinates, all_channels)
         if self.map_curl is not None:
             # Positive-energy curl is applied to each unweighted map sample,
             # before multiplication by q or |q|, as in Vina AD4.
             sampled = sampled / (1.0 + sampled.clamp_min(0.0) / self.map_curl)
-        affinity, electro, desolv = sampled.split(atoms, dim=1)
+        affinity, electro, desolv = sampled.unbind(dim=-1)
         return affinity + charges * electro + charges.abs() * desolv
 
     def forward(self, coordinates: torch.Tensor, atom_channels, charges: torch.Tensor) -> torch.Tensor:

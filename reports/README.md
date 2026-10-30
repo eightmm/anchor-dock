@@ -2,9 +2,14 @@
 
 This directory contains versioned validation evidence and historical progress notes. Each report states its input scope and numerical contract; historical timings and scores should not be mixed across contracts.
 
-## Current validation
+## Current contracts
 
-- [Scoring-function integration](scoring-functions-2026-10-30.md): 0.6 SF catalog/refinement, optional native/OpenMM execution and explicit limits.
+- [Torch scoring-function guide](../docs/SCORING_FUNCTIONS.md): current 0.6.1 catalog, AMBER Torch/OpenMM distinction, map requirements and removed adapters.
+- [Torch physical scoring](torch-physical-2026-10-30.md): pure Torch AMBER reference checks, sparse intramolecular evaluation, shared AD4 grid sampling and bounded performance evidence.
+
+## Recorded validation
+
+- [Historical 0.6 scoring-function integration](scoring-functions-2026-10-30.md): the earlier catalog/refinement and optional native/OpenMM execution. Its DKOES and native optimizer adapters were removed in 0.6.1; its test counts describe that recorded snapshot.
 
 - [Implementation and validation](completion-2026-10-30.md): prepared input, scoring and optimizer completion, checks and limits.
 - [Native Vina/Vinardo scoring](native-scoring-parity-2026-10-30.md): 48 same-preparation full-ligand comparisons.

@@ -27,7 +27,7 @@ from .core.registry import (
     scoring_function_info,
 )
 from .core.scoring import NeuralScorerAdapter, PairwiseScorer, resolve_scorer
-from .core.smina import SminaScorer
+from .core.torch_amber import TorchAmberScorer
 from .covalent.pipeline import clear_covalent_context_cache
 from .interaction import InteractionConstraint, clear_interaction_context_cache, dock_interaction
 from .preparation import load_ligand_for_refinement, prepare_ligand, prepare_receptor
@@ -57,7 +57,7 @@ __all__ = [
     "PreparedLigand",
     "ScoringFunctionInfo",
     "ScoringFunctionRegistration",
-    "SminaScorer",
+    "TorchAmberScorer",
     "clear_all_caches",
     "create_scoring_function",
     "dock_batch",

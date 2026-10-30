@@ -6,11 +6,16 @@ not require Git history at test time (installed/source archives work as well).
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 import torch
+from rdkit import Chem
 
+from anchor_dock.core.optimization import SE3PoseModel
+from anchor_dock.core.prepared import PreparedLigand
 from anchor_dock.core.scoring import (
     SCORING_CONFIGS,
     VINA_CONFIG,
@@ -222,3 +227,207 @@ def test_unknown_weight_still_fails_closed():
                 "hbond": torch.ones(1), "active": torch.ones(1, dtype=torch.bool)}
     with pytest.raises(KeyError, match="unknown"):
         _weighted_pair_energy(torch.ones(1), matrices, config)
+
+
+@pytest.mark.parametrize("config", list(SCORING_CONFIGS.values()), ids=list(SCORING_CONFIGS))
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("cap", [None, 1000.])
+@pytest.mark.parametrize("mask_kind", ["2d", "broadcast3d", "batched3d"])
+def test_sparse_intra_matches_dense_values_and_gradients_with_asymmetric_masks(config, dtype, cap, mask_kind):
+    rng = torch.Generator().manual_seed(1347)
+    batch, atoms, receptor_atoms = 3, 33, 7  # Exercise cdist's default matrix-multiply path.
+    ligand, receptor = _features(atoms, rng), _features(receptor_atoms, rng)
+    receptor_xyz = (torch.randn(receptor_atoms, 3, generator=rng) * 4).to(dtype).requires_grad_()
+    xyz = (torch.randn(batch, atoms, 3, generator=rng) * 4).to(dtype)
+    mask = torch.rand(batch, atoms, atoms, generator=rng) > .92
+    # Deliberately retain asymmetric and diagonal entries: sparse must preserve
+    # the old directed-mask half-sum, not silently assume a symmetric mask.
+    if mask_kind == "2d":
+        mask = mask[0]
+    elif mask_kind == "broadcast3d":
+        mask = mask[:1]
+    exclusion = torch.rand(batch, atoms, receptor_atoms, generator=rng) > .9
+    dense, sparse = [PairwiseScorer(config, positive_energy_cap=cap, intra_mode=mode).prepare(
+        ligand, receptor_xyz, receptor, intramolecular_mask=mask,
+        intermolecular_exclusion_mask=exclusion, num_rotatable_bonds=2.5,
+    ) for mode in ("dense", "sparse")]
+    before, after = xyz.clone().requires_grad_(), xyz.clone().requires_grad_()
+    expected, actual = dense.raw_components(before), sparse.raw_components(after)
+    tolerance = 2e-4 if dtype == torch.float32 else 2e-11
+    torch.testing.assert_close(expected.intermolecular, actual.intermolecular, rtol=0, atol=0)
+    for name in ("intramolecular", "search_energy"):
+        torch.testing.assert_close(getattr(expected, name), getattr(actual, name), rtol=2e-6, atol=tolerance)
+    factors = torch.tensor([.7, 1.2, 1.4], dtype=dtype)
+    expected_grad = torch.autograd.grad((expected.search_energy * factors).sum(), (before, receptor_xyz))
+    actual_grad = torch.autograd.grad((actual.search_energy * factors).sum(), (after, receptor_xyz))
+    for left, right in zip(expected_grad, actual_grad, strict=True):
+        torch.testing.assert_close(left, right, rtol=2e-5 if dtype == torch.float32 else 1e-11, atol=tolerance)
+        assert torch.isfinite(right).all()
+    torch.testing.assert_close(dense.report(expected, 1.).score, sparse.report(actual, 1.).score,
+                               rtol=2e-6, atol=tolerance)
+
+
+@pytest.mark.parametrize("mask_kind", ["none", "empty", "last_pair", "inactive"])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_sparse_intra_empty_inactive_and_last_index_contributors(mask_kind, dtype):
+    rng = torch.Generator().manual_seed(17)
+    features = _features(5, rng)
+    features["active"][:] = True
+    mask = torch.zeros(5, 5, dtype=torch.bool)
+    if mask_kind in {"last_pair", "inactive"}:
+        mask[0, -1] = mask[-1, 0] = True
+    if mask_kind == "inactive":
+        features["active"][-1] = False
+    if mask_kind == "none":
+        mask = None
+    coordinates = torch.randn(2, 5, 3, generator=rng).to(dtype)
+    outputs, gradients = [], []
+    for mode in ("dense", "sparse"):
+        prepared = PairwiseScorer("vina", intra_mode=mode).prepare(
+            features, torch.full((5, 3), 100., dtype=dtype), features, intramolecular_mask=mask)
+        xyz = coordinates.clone().requires_grad_()
+        outputs.append(prepared.search_energy(xyz))
+        gradients.append(torch.autograd.grad(outputs[-1].sum(), xyz)[0])
+    torch.testing.assert_close(outputs[0], outputs[1], rtol=2e-6, atol=1e-5)
+    torch.testing.assert_close(gradients[0], gradients[1], rtol=2e-6, atol=1e-5)
+    assert torch.isfinite(gradients[1]).all()
+    if mask_kind != "last_pair":
+        assert torch.equal(outputs[1], torch.zeros_like(outputs[1]))
+        assert torch.equal(gradients[1], torch.zeros_like(gradients[1]))
+
+
+@pytest.mark.parametrize("config", list(SCORING_CONFIGS.values()), ids=list(SCORING_CONFIGS))
+def test_sparse_intra_preserves_piecewise_endpoint_derivatives(config):
+    radii = torch.full((2,), 2., dtype=torch.float64)
+    features = {"radius_vina": radii, "radius_vinardo": radii,
+                "hydrophobic": torch.ones(2), "donor": torch.ones(2),
+                "acceptor": torch.ones(2), "active": torch.ones(2, dtype=torch.bool)}
+    distances = [0., 4. + config.hbond_good, 4., 4. + config.hydrophobic_good,
+                 4. + config.hydrophobic_bad, config.cutoff, config.cutoff + 1e-7]
+    xyz = torch.zeros(len(distances), 2, 3, dtype=torch.float64)
+    xyz[:, 1, 0] = torch.tensor(distances, dtype=torch.float64)
+    results, gradients = [], []
+    for mode in ("dense", "sparse"):
+        prepared = PairwiseScorer(config, positive_energy_cap=1000., intra_mode=mode).prepare(
+            features, torch.full((2, 3), 100., dtype=torch.float64), features,
+            intramolecular_mask=~torch.eye(2, dtype=torch.bool))
+        coordinates = xyz.clone().requires_grad_()
+        results.append(prepared.raw_components(coordinates).intramolecular)
+        gradients.append(torch.autograd.grad(results[-1].sum(), coordinates)[0])
+    torch.testing.assert_close(results[0], results[1], rtol=0, atol=0)
+    torch.testing.assert_close(gradients[0], gradients[1], rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("case", ["secondary_amine", "branched", "10gs_ligand"])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_sparse_intra_matches_dense_for_authoritative_prepared_ligands(case, dtype):
+    payload = json.loads((Path(__file__).parent / "fixtures/native_scoring.json").read_text())["cases"][case]
+    ligand = PreparedLigand.from_pdbqt(
+        Chem.MolFromMolBlock(payload["molblock"], removeHs=False), payload["pdbqt"],
+        serial_to_atom_index={int(key): value for key, value in payload["serial_to_atom_index"].items()},
+    )
+    features = ligand.features()
+    xyz = ligand.coordinates(dtype=dtype)
+    receptor_xyz = xyz[:3] + 7.
+    receptor_features = {key: value[:3] if isinstance(value, torch.Tensor) else value
+                         for key, value in features.items()}
+    results, gradients = [], []
+    for mode in ("dense", "sparse"):
+        prepared = PairwiseScorer("vina", positive_energy_cap=1000., intra_mode=mode).prepare(
+            features, receptor_xyz, receptor_features, intramolecular_mask=ligand.intramolecular_mask("cpu"),
+            num_rotatable_bonds=ligand.vina_num_tors)
+        coordinates = torch.stack((xyz, xyz + .123)).requires_grad_()
+        results.append(prepared.search_energy(coordinates))
+        gradients.append(torch.autograd.grad(results[-1].sum(), coordinates)[0])
+    torch.testing.assert_close(results[0], results[1], rtol=3e-6, atol=3e-5 if dtype == torch.float32 else 2e-11)
+    torch.testing.assert_close(gradients[0], gradients[1], rtol=3e-5 if dtype == torch.float32 else 1e-10,
+                               atol=5e-5 if dtype == torch.float32 else 2e-11)
+
+
+def test_sparse_intra_gradcheck_fingerprint_and_mask_snapshot():
+    rng = torch.Generator().manual_seed(32)
+    features = _features(4, rng)
+    features["active"][:] = True
+    mask = ~torch.eye(4, dtype=torch.bool)
+    sparse_factory = PairwiseScorer("vina", intra_mode="sparse")
+    prepared = sparse_factory.prepare(features, torch.full((4, 3), 100., dtype=torch.float64), features,
+                                      intramolecular_mask=mask)
+    xyz = (torch.randn(1, 4, 3, generator=rng, dtype=torch.float64) * 2).requires_grad_()
+    assert torch.autograd.gradcheck(prepared.search_energy, (xyz,), eps=1e-6, atol=1e-6)
+    before = prepared.search_energy(xyz).detach()
+    mask.fill_(False)
+    torch.testing.assert_close(prepared.search_energy(xyz), before, rtol=0, atol=0)
+    assert prepared.fingerprint == sparse_factory.fingerprint
+    assert prepared.fingerprint != PairwiseScorer("vina").fingerprint
+    assert PairwiseScorer("vina").intra_mode == "dense"
+
+
+def test_sparse_intra_rejects_incompatible_mask_batch_and_atom_count():
+    features = _features(5, torch.Generator().manual_seed(9))
+    prepared = PairwiseScorer("vina", intra_mode="sparse").prepare(
+        features, torch.ones(5, 3), features, intramolecular_mask=torch.zeros(2, 5, 5, dtype=torch.bool))
+    with pytest.raises(ValueError, match="pair mask batch"):
+        prepared.search_energy(torch.ones(3, 5, 3))
+    with pytest.raises(ValueError, match="pair mask shape"):
+        PairwiseScorer("vina", intra_mode="sparse").prepare(
+            features, torch.ones(5, 3), features, intramolecular_mask=torch.zeros(4, 4))
+    with pytest.raises(ValueError, match="intra_mode"):
+        PairwiseScorer("vina", intra_mode="automatic")
+
+
+def test_sparse_intra_preserves_se3_and_torsion_parameter_gradient_pullback():
+    payload = json.loads((Path(__file__).parent / "fixtures/native_scoring.json").read_text())["cases"]["10gs_ligand"]
+    ligand = PreparedLigand.from_pdbqt(
+        Chem.MolFromMolBlock(payload["molblock"], removeHs=False), payload["pdbqt"],
+        serial_to_atom_index={int(key): value for key, value in payload["serial_to_atom_index"].items()},
+    )
+    xyz = ligand.coordinates(dtype=torch.float64)
+    model = SE3PoseModel(ligand.mol, xyz.unsqueeze(0), 0, xyz[:1],
+                         torch.tensor([[.1, -.2, .15]], dtype=torch.float64), "cpu").double()
+    features = ligand.features()
+    gradients = []
+    for mode in ("dense", "sparse"):
+        prepared = PairwiseScorer("vina", intra_mode=mode, positive_energy_cap=1000.).prepare(
+            features, xyz + 4., features, intramolecular_mask=ligand.intramolecular_mask("cpu"))
+        gradients.append(torch.autograd.grad(prepared.search_energy(model()).sum(), tuple(model.parameters())))
+    for before, after in zip(*gradients, strict=True):
+        torch.testing.assert_close(before, after, rtol=1e-10, atol=1e-10)
+        assert torch.isfinite(after).all()
+
+
+@pytest.mark.parametrize("atoms", [128, 256])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+def test_sparse_intra_large_contributor_values_and_coordinate_gradients(atoms, dtype):
+    rng = torch.Generator().manual_seed(571)
+    features = _features(atoms, rng)
+    indices = torch.arange(atoms)
+    mask = (indices[:, None] - indices[None, :]).abs() > 3
+    xyz = (torch.randn(2, atoms, 3, generator=rng) * 5).to(dtype)
+    results, gradients = [], []
+    for mode in ("dense", "sparse"):
+        prepared = PairwiseScorer("vina", intra_mode=mode, positive_energy_cap=1000.).prepare(
+            features, torch.full((atoms, 3), 100., dtype=dtype), features, intramolecular_mask=mask)
+        coordinates = xyz.clone().requires_grad_()
+        results.append(prepared.search_energy(coordinates))
+        gradients.append(torch.autograd.grad(results[-1].sum(), coordinates)[0])
+    tolerance = 1e-3 if dtype == torch.float32 else 5e-10
+    torch.testing.assert_close(results[0], results[1], rtol=2e-6, atol=tolerance)
+    torch.testing.assert_close(gradients[0], gradients[1], rtol=2e-5 if dtype == torch.float32 else 1e-10,
+                               atol=tolerance)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA unavailable")
+def test_sparse_intra_cuda_cpu_coordinate_gradient_parity():
+    rng = torch.Generator().manual_seed(81)
+    features = _features(33, rng)
+    mask = torch.rand(33, 33, generator=rng) > .9
+    xyz = torch.randn(3, 33, 3, generator=rng) * 3
+    results, gradients = [], []
+    for device in ("cpu", "cuda"):
+        prepared = PairwiseScorer("vinardo", intra_mode="sparse").prepare(
+            features, torch.full((33, 3), 100., device=device), features, intramolecular_mask=mask)
+        coordinates = xyz.to(device).requires_grad_()
+        results.append(prepared.search_energy(coordinates))
+        gradients.append(torch.autograd.grad(results[-1].sum(), coordinates)[0])
+    torch.testing.assert_close(results[0], results[1].cpu(), rtol=2e-5, atol=2e-4)
+    torch.testing.assert_close(gradients[0], gradients[1].cpu(), rtol=2e-5, atol=2e-4)

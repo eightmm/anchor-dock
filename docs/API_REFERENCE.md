@@ -1,9 +1,12 @@
 # API reference
 
-AnchorDock 0.5 exposes four high-level operations from `anchor_dock`:
+AnchorDock 0.6.1 exposes four docking/batch operations and independent existing-pose scoring-function refinement from `anchor_dock`:
 
 ```python
-from anchor_dock import dock_batch, dock_covalent, dock_interaction, dock_reference
+from anchor_dock import (
+    dock_batch, dock_covalent, dock_interaction, dock_reference,
+    refine_pose, refine_with_scorers,
+)
 ```
 
 ## Reference (selected options)
@@ -132,6 +135,33 @@ so a one-item run retains the 0.4 objective exactly. Restraints are removed for 
 ## Batch
 
 `dock_batch` accepts homogeneous ligand sources or mixed `DockingJob` objects. Input content, metadata, effective options, scorer state/config/name/units, resolved device, NumPy/RDKit/Torch versions, and output artifact content are checked before resume. Recursive directory discovery excludes the output subtree, while source/output and reserved-manifest collisions fail before output is replaced. See [BATCH.md](BATCH.md).
+
+## Existing-pose scoring-function refinement
+
+```python
+refine_pose(
+    protein, ligand, *, scorer="vina", scorer_options=None,
+    preparation="auto", preparation_options=None,
+    optimizer=None, num_steps=100, learning_rate=None,
+    optimizer_options=None, seed=42, device="cpu", output_dir=None,
+)
+refine_with_scorers(
+    protein, ligand, scorers, *, scorer_options=None,
+    on_error="record", output_dir=None, **refinement_options,
+)
+```
+
+Inputs must contain one positioned 3D ligand in the receptor coordinate frame. Atom order and existing coordinates are preserved on a copy; preparation can add polar H, merge nonpolar H and quantize PDBQT, with atom mapping and preparation provenance recorded. Every function starts independently from the same supplied pose. `num_steps=0` scores without optimization. Scores declare units/direction and are not ranked across functions.
+
+The catalog contains `vina`, `vinardo`, `ad4`, `adgpu`, `amber`, `vina-final` and `vinardo-final`. `list_scoring_functions()` reports capabilities and requirements; `create_scoring_function(name, **options)` constructs a scorer. Removed SoftDock, DKOES and public native optimizer names fail explicitly.
+
+`ad4` and `adgpu` require `maps_prefix`, `atom_types` and authoritative prepared ligand chemistry. They optimize declared map/pair reference formulations, without executing AutoDock/AutoDock-GPU search. `vina-final`/`vinardo-final` use nondifferentiable FAST-table energies and require pattern search.
+
+The named `amber` entry is `TorchAmberScorer`, with `prmtop`, `inpcrd` and every `ligand_atom_indices` required in `scorer_options`. OpenMM imports parameters once; evaluation is pure Torch FP64. Only nonperiodic vacuum NoCutoff systems are supported. `protein=None` uses the topology's fixed receptor; a separately supplied receptor must match. All mapped ligand atoms, including H, must be present and ordered correctly.
+
+For an OpenMM Context oracle or supported GB options, pass `OpenMMScorer.from_amber(...)` as the scorer object. This is a distinct backend; its full-complex potential is not a binding affinity. `TorchAmberScorer.from_system(...)` imports a supported parameterized System directly. See [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md) for limits, examples and the custom `NeuralScorerAdapter`/registry contract.
+
+`refine_pose` returns `PoseRefinementResult` with the refined molecule/coordinates, initial and final metrics, optimized objective and metadata. `as_dict()` emits `anchor-dock-sf-refinement-v1`; a multi-function sweep emits `anchor-dock-sf-comparison-v1`. Per-function output is `refined.sdf` plus `result.json`; sweeps add `comparison.json`. These standalone schemas are separate from ranked docking SDF schema `4`.
 
 ## Results and output
 

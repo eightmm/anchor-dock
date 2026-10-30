@@ -176,4 +176,4 @@ Malformed rows and molecule records are reported as batch failures rather than s
 Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent/interaction contexts are reused through atom-typing-aware bounded caches; multi-interaction jobs score the union pocket around all selected residues. Version 0.5 advances the batch resume epoch to `5`, so earlier artifacts are recomputed rather than reused.
 
 
-Version 0.6 changes the default interaction scorer to Vina and advances resume epoch to `6`. Independent SF comparisons use `refine_with_scorers` rather than mixing raw scores in one ranked docking batch.
+Version 0.6.1 focuses on Torch physical scorers and advances resume epoch to `7`. Independent SF comparisons use `refine_with_scorers` rather than mixing raw scores in one ranked docking batch.
