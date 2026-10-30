@@ -130,7 +130,7 @@ def test_interaction_cli_defaults_and_selectors(monkeypatch, capsys) -> None:
     assert captured["opt_steps"] == 50
     assert captured["release_steps"] == 25
     assert captured["opt_batch_size"] == 32
-    assert captured["scorer"] == "softdock"
+    assert captured["scorer"] == "vina"
     assert json.loads(capsys.readouterr().out)["mode"] == "interaction"
 
 
@@ -253,3 +253,4 @@ def test_batch_cli_multi_interactions_requires_interaction_mode(capsys) -> None:
         )
     assert error.value.code == 2
     assert "requires --mode interaction" in capsys.readouterr().err
+

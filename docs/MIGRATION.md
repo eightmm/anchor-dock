@@ -1,5 +1,11 @@
 # Migration
 
+## 0.6 scoring functions
+
+SoftDock is removed and requests for its name fail explicitly. Interaction docking defaults to Vina. Batch resume epoch advances to 6 so older default-scorer artifacts are not reused. Ranked docking output schema remains 4.
+
+`refine_pose`, `refine_with_scorers`, `anchor-dock scorers` and `anchor-dock refine` provide independent SF refinement of an existing positioned 3D pose. Standalone results use their own versioned result schemas. Optional preparation/native/AMBER dependencies and plugin contracts are documented in [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md).
+
 ## Migrating from 0.4 to 0.5
 
 AnchorDock 0.5 keeps every valid 0.4 single-interaction call source-compatible. The five keyword arguments normalize internally to a one-item constraint list. New simultaneous constraints use the canonical ordered form:
@@ -90,3 +96,4 @@ For this transition release, omitting covalent `optimize` preserves the 0.2 valu
 ## Output migration
 
 Read scores with `AnchorDock_Score`, distinguish the objective with `AnchorDock_Search_Energy`, and persist scorer/receptor/source fingerprints, intramolecular reference, requested/applied torsion and optimization fields, `AnchorDock_Search_Parameters`, version, and output schema. Output schema `2` records the true RDKit conformer ID in `AnchorDock_Source_Conformer` and keeps the representative ordinal in `AnchorDock_Source_Representative_Index`. Covalent results also distinguish the reactant receptor fingerprint from the product-state scoring fingerprint and record the versioned receptor typing change.
+

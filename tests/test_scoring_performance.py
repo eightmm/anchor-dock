@@ -38,14 +38,7 @@ def _legacy_slope(bad: float, good: float, value: torch.Tensor) -> torch.Tensor:
 
 def _legacy_terms(distances, radius_sum, hydrophobic, hbond, config):
     surface = distances - radius_sum
-    if config.formula == "softdock":
-        overlap = torch.nn.functional.softplus(-surface / 0.20) * 0.20
-        return {
-            "repulsion": overlap.square(),
-            "contact": torch.exp(-((surface - 0.6) / 1.6).square()),
-            "hydrophobic": hydrophobic * torch.sigmoid((1.5 - surface) / 0.35),
-            "hbond": hbond * torch.exp(-((surface + 0.25) / 0.65).square()),
-        }
+
     return {
         "gauss1": torch.exp(-((surface / config.gauss1_width) ** 2)),
         "gauss2": (

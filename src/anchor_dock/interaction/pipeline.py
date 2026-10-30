@@ -335,12 +335,12 @@ def dock_interaction(
     max_matches: int = 16,
     max_joint_matches: int = 64,
     optimize: bool = True,
-    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"] = "adam",
     opt_steps: int = 50,
     release_steps: int = 25,
     opt_lr: float = 0.05,
     opt_batch_size: int = 32,
-    scorer: ScorerLike = "softdock",
+    scorer: ScorerLike = "vina",
     torsion_penalty: bool = True,
     restraint_weight: float = 10.0,
     top_k: int | None = 10,
@@ -435,7 +435,7 @@ def _dock_multi_interaction(
     max_matches: int,
     max_joint_matches: int,
     optimize: bool,
-    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"],
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"],
     opt_steps: int,
     release_steps: int,
     opt_lr: float,
@@ -472,8 +472,8 @@ def _dock_multi_interaction(
         raise TypeError("optimize must be a bool")
     if not isinstance(torsion_penalty, bool):
         raise TypeError("torsion_penalty must be a bool")
-    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
-        raise ValueError("optimizer must be adam, adamw, lbfgs, or cartesian")
+    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian", "pattern"}:
+        raise ValueError("optimizer must be adam, adamw, lbfgs, cartesian, or pattern")
     if optimize and opt_steps > 0 and release_steps == 0:
         raise ValueError("release_steps must be positive when guided optimization steps are requested")
     if preselect_k > num_candidates:
@@ -1103,12 +1103,12 @@ def _dock_single_interaction(
     max_matches: int = 16,
     max_joint_matches: int = 64,
     optimize: bool = True,
-    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"] = "adam",
     opt_steps: int = 50,
     release_steps: int = 25,
     opt_lr: float = 0.05,
     opt_batch_size: int = 32,
-    scorer: ScorerLike = "softdock",
+    scorer: ScorerLike = "vina",
     torsion_penalty: bool = True,
     restraint_weight: float = 10.0,
     top_k: int | None = 10,
@@ -1145,8 +1145,8 @@ def _dock_single_interaction(
         raise TypeError("optimize must be a bool")
     if not isinstance(torsion_penalty, bool):
         raise TypeError("torsion_penalty must be a bool")
-    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
-        raise ValueError("optimizer must be adam, adamw, lbfgs, or cartesian")
+    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian", "pattern"}:
+        raise ValueError("optimizer must be adam, adamw, lbfgs, cartesian, or pattern")
     if optimize and opt_steps > 0 and release_steps == 0:
         raise ValueError("release_steps must be positive when guided optimization steps are requested")
     if preselect_k > num_candidates:

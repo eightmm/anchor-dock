@@ -10,9 +10,11 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from .batch import dock_batch
+from .core.registry import list_scoring_functions
 from .covalent import dock_covalent
 from .interaction import dock_interaction
 from .reference import dock_reference
+from .refinement import refine_with_scorers
 
 
 def _parse_interactions_json(value: str) -> list[dict[str, object]]:
@@ -32,9 +34,19 @@ def _parse_interactions_json(value: str) -> list[dict[str, object]]:
     return [dict(item) for item in parsed]
 
 
+def _parse_options_json(value: str) -> dict:
+    try:
+        result = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise argparse.ArgumentTypeError("options must be one inline JSON object") from exc
+    if not isinstance(result, dict):
+        raise argparse.ArgumentTypeError("options must be a JSON object")
+    return result
+
+
 def _optimization_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--optimizer", choices=("adam", "adamw", "lbfgs", "cartesian"), default="adam",
+        "--optimizer", choices=("adam", "adamw", "lbfgs", "cartesian", "pattern"), default="adam",
         help="Pose optimizer; cartesian is an experimental dense geometry-metric reference",
     )
     parser.add_argument("--opt-steps", type=int, default=100)
@@ -44,7 +56,7 @@ def _optimization_arguments(parser: argparse.ArgumentParser) -> None:
         "--scorer",
         "--weight-preset",
         dest="scorer",
-        choices=("vina", "vinardo", "softdock", "vina_lp"),
+        choices=("vina", "vinardo", "dkoes_fast", "dkoes_scoring_old", "vina_lp"),
         default="vina",
     )
     parser.add_argument("--device", choices=("cpu", "cuda"), default=None)
@@ -126,7 +138,7 @@ def build_parser() -> argparse.ArgumentParser:
     _optimization_arguments(interaction)
     interaction.set_defaults(
         include_heteroatoms=True,
-        scorer="softdock",
+        scorer="vina",
         opt_steps=50,
         opt_batch_size=32,
         optimize=True,
@@ -156,11 +168,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--scorer",
         "--weight-preset",
         dest="scorer",
-        choices=("vina", "vinardo", "softdock", "vina_lp"),
+        choices=("vina", "vinardo", "dkoes_fast", "dkoes_scoring_old", "vina_lp"),
         default=None,
     )
     batch.add_argument("--device", choices=("cpu", "cuda"), default=None)
     batch.add_argument("--quiet", action="store_true")
+    subcommands.add_parser("scorers", help="list implemented scoring-function adapters and requirements")
+    refine = subcommands.add_parser("refine", help="independent SF refinement of an existing positioned 3D ligand")
+    refine.add_argument("-p", "--protein", help="PDB/PQR receptor; may be omitted for an explicit AMBER topology")
+    refine.add_argument("-l", "--ligand", required=True)
+    refine.add_argument("--scorers", nargs="+", default=["vina"])
+    refine.add_argument("--scorer-options", type=_parse_options_json, default={}, help="JSON mapping SF names to constructor options")
+    refine.add_argument("--preparation", choices=("auto", "inferred", "meeko"), default="auto")
+    refine.add_argument("--preparation-options", type=_parse_options_json, default={})
+    refine.add_argument("--optimizer", choices=("auto", "adam", "adamw", "lbfgs", "cartesian", "pattern", "native"), default="auto")
+    refine.add_argument("--optimizer-options", type=_parse_options_json, default={})
+    refine.add_argument("--native-options", type=_parse_options_json, default={})
+    refine.add_argument("--steps", type=int, default=100)
+    refine.add_argument("--learning-rate", type=float, default=None)
+    refine.add_argument("--seed", type=int, default=42)
+    refine.add_argument("--device", default="cpu")
+    refine.add_argument("--on-error", choices=("record", "raise"), default="record")
+    refine.add_argument("-o", "--output", default="anchor_dock_refinement")
     return parser
 
 
@@ -168,6 +197,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     raw_argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
     args = parser.parse_args(raw_argv)
+    if args.command == "scorers":
+        print(json.dumps(list_scoring_functions(), indent=2))
+        return 0
+    if args.command == "refine":
+        result = refine_with_scorers(
+            args.protein, args.ligand, args.scorers, scorer_options=args.scorer_options,
+            preparation=args.preparation, preparation_options=args.preparation_options,
+            optimizer=None if args.optimizer == "auto" else args.optimizer, num_steps=args.steps,
+            learning_rate=args.learning_rate, optimizer_options=args.optimizer_options,
+            native_options=args.native_options, seed=args.seed, device=args.device,
+            on_error=args.on_error, output_dir=args.output,
+        )
+        print(json.dumps(result, indent=2))
+        return 0 if result["success"] else 1
     legacy_flags = sorted({flag for flag in ("--weight-preset", "--no-mmff", "--free-mcs") if flag in raw_argv})
     if legacy_flags:
         warnings.warn(

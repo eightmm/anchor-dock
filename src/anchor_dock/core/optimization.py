@@ -1,4 +1,4 @@
-"""Scorer-independent differentiable pose optimization."""
+"""Scorer-independent differentiable and derivative-free pose optimization."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from .grid import GridBoundsError
 from .kinematics import LigandKinematics, rotation_vector_to_matrix
 from .scoring import PreparedScorer
 
-OptimizerName = Literal["adam", "adamw", "lbfgs", "cartesian"]
-OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1"
+OptimizerName = Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"]
+OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1"
 
 
 @dataclass(frozen=True)
@@ -152,6 +152,17 @@ def _copy_flat_pose_state_(parameters: list[nn.Parameter], values: torch.Tensor)
             size = parameter[0].numel()
             parameter.copy_(values[:, offset:offset + size].reshape_as(parameter))
             offset += size
+
+
+def _finite_parameter_row(parameters: list[nn.Parameter], values: torch.Tensor) -> bool:
+    """Check finiteness after each block's actual parameter dtype conversion."""
+    offset = 0
+    for parameter in parameters:
+        size = parameter[0].numel()
+        if not torch.isfinite(values[offset:offset + size].to(dtype=parameter.dtype)).all():
+            return False
+        offset += size
+    return True
 
 
 def _cartesian_pose_jacobian(
@@ -337,6 +348,134 @@ def _optimize_cartesian_pullback(
     )
 
 
+def _optimize_pattern(
+    model: nn.Module,
+    energy_fn: Callable[[torch.Tensor], torch.Tensor],
+    parameters: list[nn.Parameter],
+    initial_losses: torch.Tensor,
+    *,
+    num_steps: int,
+    early_stopping: bool,
+    patience: int,
+    min_delta: float,
+    initial_step: float,
+    shrink: float,
+    min_step: float,
+    max_evaluations: int,
+    max_atom_displacement: float,
+    max_backtracks: int,
+) -> tuple[torch.Tensor, OptimizationStats]:
+    """Deterministic coordinate polling, without derivatives of any kind.
+
+    A poll evaluates both signs of every parameter-chart coordinate from one
+    accepted state and accepts the best strict decrease. The chart step mixes
+    translation/angular units, so every trial also checks its *actual* maximum
+    Cartesian atom displacement. Invalid-domain/nonfinite trials backtrack;
+    unexpected scorer exceptions restore the last accepted state and propagate.
+
+    ``max_evaluations`` counts initial and trial objective calls per pose. A
+    batched objective is evaluated with unchanged neighboring poses, so the
+    high-level engine uses single-pose chunks to avoid redundant scoring.
+    Rows of both the pose model and objective must be independent, as in the
+    other optimizers. Dense polling can be costly and gives no global-search
+    or smooth/quantized-objective convergence guarantee.
+    """
+    batch_size = initial_losses.shape[0]
+    # A black-box objective may return a detached view of a live parameter.
+    # Snapshot it before trials mutate that parameter's storage.
+    initial_values = initial_losses.clone()
+    # Score-only wrappers may initially return integer/low-precision values.
+    # Keep accepted values independently in FP64 rather than truncating a
+    # later floating-point improvement into the initial tensor's dtype.
+    losses = initial_values.to(dtype=torch.float64).clone()
+    flat_state = _flat_pose_state(parameters)
+    if not torch.isfinite(flat_state).all():
+        raise ValueError("pattern initial parameters must be finite")
+    steps = [initial_step] * batch_size
+    evaluations = [1] * batch_size
+    stale = [0] * batch_size
+    converged = [max_evaluations == 1] * batch_size
+    step_counts = [0] * batch_size
+
+    with torch.no_grad():
+        for _ in range(num_steps):
+            if all(converged):
+                break
+            for row in range(batch_size):
+                if converged[row]:
+                    continue
+                baseline_coords = _as_pose_batch(model()).detach().clone()
+                baseline_value = float(losses[row])
+                best_value = baseline_value
+                best_state = flat_state
+                try:
+                    for column in range(flat_state.shape[1]):
+                        for sign in (1.0, -1.0):
+                            if evaluations[row] >= max_evaluations:
+                                break
+                            trial_step = steps[row]
+                            for _attempt in range(max_backtracks + 1):
+                                trial_state = flat_state.clone()
+                                trial_state[row, column] += sign * trial_step
+                                if not _finite_parameter_row(parameters, trial_state[row]):
+                                    trial_step *= shrink
+                                    continue
+                                _copy_flat_pose_state_(parameters, trial_state)
+                                trial_coords = _as_pose_batch(model()).detach()
+                                delta = trial_coords[row] - baseline_coords[row]
+                                displacement = torch.linalg.vector_norm(delta, dim=1).max()
+                                if (not torch.isfinite(trial_coords[row]).all()
+                                        or bool(displacement > max_atom_displacement * (1.0 + 1e-6))):
+                                    trial_step *= shrink
+                                    continue
+                                if torch.equal(trial_coords[row], baseline_coords[row]):
+                                    # Frozen/redundant chart direction: do not
+                                    # spend a scorer call on identical atoms.
+                                    break
+                                evaluations[row] += 1
+                                try:
+                                    trial_losses = _checked_losses(energy_fn(trial_coords), batch_size)
+                                except (GridBoundsError, FloatingPointError):
+                                    trial_step *= shrink
+                                    if evaluations[row] >= max_evaluations:
+                                        break
+                                    continue
+                                value = float(trial_losses[row])
+                                if value < best_value:
+                                    best_value, best_state = value, trial_state
+                                # Backtracking enforces the domain/displacement
+                                # bound, not a fabricated gradient line search.
+                                break
+                        if evaluations[row] >= max_evaluations:
+                            break
+                finally:
+                    # best_state is a candidate until the whole poll succeeds.
+                    # A programming error must not leave any trial installed.
+                    _copy_flat_pose_state_(parameters, flat_state)
+                flat_state = best_state
+                _copy_flat_pose_state_(parameters, flat_state)
+                losses[row] = best_value
+                step_counts[row] += 1
+                if best_value < baseline_value:
+                    stale[row] = 0 if best_value < baseline_value - min_delta else stale[row] + 1
+                else:
+                    steps[row] *= shrink
+                    stale[row] += 1
+                converged[row] = (
+                    steps[row] < min_step
+                    or evaluations[row] >= max_evaluations
+                    or (early_stopping and stale[row] >= patience)
+                )
+    return model(), OptimizationStats(
+        average_steps=sum(step_counts) / batch_size,
+        minimum_steps=min(step_counts),
+        maximum_steps=max(step_counts),
+        num_poses=batch_size,
+        initial_best_energy=float(initial_values.min().cpu()),
+        final_best_energy=float(losses.min().cpu()),
+    )
+
+
 def optimize_pose_module(
     model: nn.Module,
     energy_fn: Callable[[torch.Tensor], torch.Tensor],
@@ -351,6 +490,10 @@ def optimize_pose_module(
     geometry_damping: float = 1e-3,
     max_atom_displacement: float = 0.25,
     max_backtracks: int = 12,
+    pattern_step: float | None = None,
+    pattern_shrink: float = 0.5,
+    pattern_min_step: float = 1e-4,
+    pattern_max_evaluations: int = 10_000,
 ) -> tuple[torch.Tensor, OptimizationStats]:
     """Optimize a pose module and restore the best state for every pose.
 
@@ -359,6 +502,14 @@ def optimize_pose_module(
     affect only that mode. ``learning_rate=1`` is a useful initial trial scale;
     objective acceptance and the displacement limit still bound every step.
     It does not use numerical parameter-gradient clipping.
+
+    ``pattern`` polls parameter-chart coordinates and requires no gradient.
+    Its initial chart step is ``pattern_step`` or ``learning_rate`` if None;
+    failed polls shrink it until ``pattern_min_step``. Per-pose objective calls
+    include the initial evaluation and are bounded by
+    ``pattern_max_evaluations``. Actual atom-displacement/backtracking options
+    also apply. This is a bounded local black-box search, not finite-difference
+    gradient descent or an emulation of a native docking search.
     """
     # Validate options before inspecting a module or taking an otherwise valid
     # zero-step/no-parameter shortcut. Invalid configurations must not look
@@ -370,20 +521,40 @@ def optimize_pose_module(
         if (isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value)
                 or (value <= 0 if positive else value < 0)):
             raise ValueError(f"{name} must be finite and {'positive' if positive else 'nonnegative'}")
-    if not isinstance(optimizer, str) or optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+    if not isinstance(optimizer, str) or optimizer not in {"adam", "adamw", "lbfgs", "cartesian", "pattern"}:
         raise ValueError(f"unknown optimizer: {optimizer!r}")
     if gradient_clip is not None and (isinstance(gradient_clip, bool) or not isinstance(gradient_clip, Real)
                                       or not math.isfinite(gradient_clip) or gradient_clip <= 0):
         raise ValueError("gradient_clip must be finite and positive or None")
-    if optimizer == "cartesian":
-        for name, value in (("geometry_damping", geometry_damping), ("max_atom_displacement", max_atom_displacement)):
+    if optimizer in {"cartesian", "pattern"}:
+        settings = [("max_atom_displacement", max_atom_displacement)]
+        if optimizer == "cartesian":
+            settings.append(("geometry_damping", geometry_damping))
+        for name, value in settings:
             if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value) or value <= 0:
                 raise ValueError(f"{name} must be finite and positive")
         if isinstance(max_backtracks, bool) or not isinstance(max_backtracks, Integral) or max_backtracks < 0:
             raise ValueError("max_backtracks must be a non-negative integer")
+    if optimizer == "pattern":
+        pattern_step = learning_rate if pattern_step is None else pattern_step
+        for name, value in (("pattern_step", pattern_step), ("pattern_min_step", pattern_min_step)):
+            if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive")
+        if (isinstance(pattern_shrink, bool) or not isinstance(pattern_shrink, Real)
+                or not math.isfinite(pattern_shrink) or not 0 < pattern_shrink < 1):
+            raise ValueError("pattern_shrink must be finite and strictly between zero and one")
+        if pattern_min_step > pattern_step:
+            raise ValueError("pattern_min_step must not exceed the initial pattern_step/learning_rate")
+        if (isinstance(pattern_max_evaluations, bool) or not isinstance(pattern_max_evaluations, Integral)
+                or pattern_max_evaluations < 1):
+            raise ValueError("pattern_max_evaluations must be a positive integer")
     initial_coords = model()
     if initial_coords.ndim == 2:
         initial_coords = initial_coords.unsqueeze(0)
+    if optimizer == "pattern":
+        initial_coords = _as_pose_batch(initial_coords).detach()
+        if min(initial_coords.shape[:2]) < 1 or not torch.isfinite(initial_coords).all():
+            raise ValueError("pattern initial coordinates must be nonempty and finite")
     batch_size = initial_coords.shape[0]
     parameters = _batch_parameters(model, batch_size)
 
@@ -399,6 +570,18 @@ def optimize_pose_module(
             float(initial_losses.min().cpu()),
         )
         return model(), stats
+
+    if optimizer == "pattern":
+        degrees_of_freedom = sum(parameter[0].numel() for parameter in parameters)
+        if degrees_of_freedom > 256:
+            raise ValueError("pattern search is bounded to 256 parameter-chart coordinates per pose")
+        return _optimize_pattern(
+            model, energy_fn, parameters, initial_losses,
+            num_steps=num_steps, early_stopping=early_stopping, patience=patience, min_delta=min_delta,
+            initial_step=float(pattern_step), shrink=float(pattern_shrink), min_step=float(pattern_min_step),
+            max_evaluations=int(pattern_max_evaluations), max_atom_displacement=max_atom_displacement,
+            max_backtracks=int(max_backtracks),
+        )
 
     if optimizer == "cartesian":
         degrees_of_freedom = sum(parameter[0].numel() for parameter in parameters)
@@ -537,7 +720,7 @@ def optimize_torsions(
     for start in range(0, coords.shape[0], batch_size):
         stop = min(start + batch_size, coords.shape[0])
         chunk = coords[start:stop]
-        if optimizer in {"lbfgs", "cartesian"}:
+        if optimizer in {"lbfgs", "cartesian", "pattern"}:
             chunk_outputs: list[torch.Tensor] = []
             chunk_stats: list[OptimizationStats] = []
             for pose in chunk:

@@ -47,7 +47,7 @@ For Vina-family reporting, all poses in one docking run share the intramolecular
 E_reported = (E_search - E_intra_reference) / (1 + 0.05846 * N_rot)
 ```
 
-This keeps mapping/pose comparisons consistent while preserving a stable optimization objective. Outputs record `Intramolecular_Reference`, input rotor count, effective score rotor count, and whether the penalty was requested and actually applied. SoftDock and custom scorers do not use this denominator, so their effective count is zero even when the option was requested.
+This keeps mapping/pose comparisons consistent while preserving a stable optimization objective. Outputs record `Intramolecular_Reference`, input rotor count, effective score rotor count, and whether the penalty was requested and actually applied. Custom scorers do not use this denominator unless their own reporting contract declares it.
 
 ## Atom typing boundary
 
@@ -67,10 +67,6 @@ Pair weights/radii and analytic equations match the represented ordinary Vina/Vi
 Unsupported ordinary XS elements (for example boron) and extended macrocycle/dummy types fail explicitly. Top-level SMILES/PDB pipelines retain inferred preparation; the engine's explicit prepared path imports ordinary ligand/rigid receptor PDBQT together with a caller-supplied chemical graph and serial mapping. It does not infer connectivity or protonation. See [prepared inputs](PREPARED.md).
 
 `PairwiseScorer(..., positive_energy_cap=1000.0)` opts into native positive-energy curl: after the receptor sum for each ligand atom, and separately for each intra pair. The default retains uncapped analytic energies. The score-only `native_vina_score` additionally follows native FAST radial-table conventions; it rejects coordinate gradients and is not an optimizer objective. The [full-ligand native audit](../reports/native-scoring-parity-2026-10-30.md) quantifies continuous and table-reference differences.
-
-## SoftDock
-
-`softdock` is an uncalibrated Torch baseline combining smooth steric overlap, contact attraction, hydrophobic contact, and donor–acceptor attraction. Units are arbitrary. It is useful for stable local search and as a template for learned scorers.
 
 ## Interaction guidance versus reported score
 

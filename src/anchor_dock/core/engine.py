@@ -80,11 +80,18 @@ class DockingEngine:
             if (isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value)
                     or (value <= 0 if strict_positive else value < 0)):
                 raise ValueError(f"{name} must be finite and {'positive' if strict_positive else 'nonnegative'}")
-        if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+        if optimizer not in {"adam", "adamw", "lbfgs", "cartesian", "pattern"}:
             raise ValueError(f"unsupported optimizer: {optimizer!r}")
         if not isinstance(strict_atom_typing, bool):
             raise ValueError("strict_atom_typing must be bool")
+        if isinstance(scorer, str):
+            from .registry import scoring_function_info
+            capability = "pattern" if optimizer == "pattern" else "autograd"
+            if capability not in scoring_function_info(scorer).optimization:
+                raise ValueError(f"{scorer} does not support the {capability} optimization route")
         self.scoring_model = resolve_scorer(scorer)
+        if getattr(self.scoring_model, "supports_autograd", True) is False and optimizer != "pattern":
+            raise ValueError("this scoring function is nondifferentiable; choose optimizer='pattern'")
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         if self.device.type == "cuda" and not torch.cuda.is_available():
             raise RuntimeError("CUDA was requested but is not available")
@@ -231,7 +238,7 @@ class DockingEngine:
         final_outputs: list[torch.Tensor] = []
         guide_stats_values: list[OptimizationStats] = []
         release_stats_values: list[OptimizationStats] = []
-        chunk_size = 1 if self.optimizer in {"lbfgs", "cartesian"} else self.batch_size
+        chunk_size = 1 if self.optimizer in {"lbfgs", "cartesian", "pattern"} else self.batch_size
         for start in range(0, base_coords.shape[0], chunk_size):
             stop = min(start + chunk_size, base_coords.shape[0])
             model = SE3PoseModel(

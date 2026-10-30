@@ -291,7 +291,7 @@ def main() -> None:
     parser.add_argument("--complex-id")
     parser.add_argument("--source-url", action="append", default=[], help="input provenance URL; repeat as needed")
     parser.add_argument("--device", default="cpu")
-    parser.add_argument("--scorer", choices=("vina", "vinardo", "softdock"), default="vina")
+    parser.add_argument("--scorer", choices=("vina", "vinardo"), default="vina")
     parser.add_argument("--optimizers", nargs="+", default=["adam", "lbfgs"])
     parser.add_argument("--learning-rate", type=float, default=0.05)
     parser.add_argument("--lbfgs-learning-rate", type=float, default=0.5)

@@ -78,7 +78,7 @@ def test_reference_output_is_deterministic_and_physically_valid(case_id: str, tm
     )
     reference_conformer = reference.GetConformer()
     for pose in first_poses:
-        assert pose.GetProp("AnchorDock_Version") == "0.5.0"
+        assert pose.GetProp("AnchorDock_Version") == "0.6.0"
         assert pose.GetProp("AnchorDock_Score_Semantics") == "anchor-conditioned_pose_ranking"
         assert pose.HasProp("AnchorDock_Scorer_Fingerprint")
         assert not pose.HasProp("Vina_Score")
@@ -95,3 +95,4 @@ def test_reference_output_is_deterministic_and_physically_valid(case_id: str, tm
             conformer.GetPositions(),
             frozenset(),
         )
+

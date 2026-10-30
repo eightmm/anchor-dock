@@ -1,6 +1,6 @@
 [project]
 name = "anchor-dock"
-version = "0.5.0"
+version = "0.6.0"
 description = "Torch-native reference-guided, covalent, and interaction-guided local ligand docking"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -11,6 +11,11 @@ dependencies = [
     "rdkit>=2025.9.5",
     "torch>=2.10.0",
 ]
+
+[project.optional-dependencies]
+prepare = ["meeko>=0.8,<0.9", "gemmi>=0.7", "scipy>=1.13"]
+native-vina = ["vina>=1.2.7,<1.3", "meeko>=0.8,<0.9", "gemmi>=0.7", "scipy>=1.13"]
+amber = ["openmm>=8.2,<9"]
 
 [project.scripts]
 anchor-dock = "anchor_dock.cli:main"
@@ -41,3 +46,4 @@ ignore = ["E501"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+

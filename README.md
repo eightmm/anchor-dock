@@ -18,6 +18,18 @@ uv sync --frozen --group dev
 
 Python 3.12 or newer is required.
 
+## Scoring-function refinement
+
+Version 0.6 removes SoftDock and defaults interaction docking to Vina. Existing positioned SDF poses can be refined independently with Vina/Vinardo, DKOES presets, AD4 grids, AMBER/OpenMM, native Vina, and installed Smina/GNINA backends. Each route declares preparation, units, direction and optimizer requirements; raw scores are not combined across functions.
+
+```bash
+anchor-dock scorers
+anchor-dock refine -p protein.pdb -l positioned_pose.sdf \
+  --scorers vina vinardo dkoes_fast dkoes_scoring_old --steps 100 -o sf_comparison
+```
+
+See [scoring functions, optional dependencies and plugins](docs/SCORING_FUNCTIONS.md). Native Smina/GNINA require separately installed executables. AMBER requires a complete parameterized topology; AD4 requires maps. These adapters do not imply all proprietary scoring functions are available.
+
 ## Reference-guided docking
 
 ```python
@@ -30,7 +42,7 @@ result = dock_reference(
     mcs_mode="auto",          # auto | single | multi | cross
     relax=True,               # one fixed-anchor MMFF/UFF relaxation
     optimize=True,
-    scorer="vina",           # vina | vinardo | softdock
+    scorer="vina",           # vina | vinardo
     device="cuda",
 )
 ```
@@ -68,7 +80,7 @@ result = dock_interaction(
     ligand_smarts="[O:1]",
     target_distance=3.0,
     distance_tolerance=0.5,
-    scorer="softdock",
+    scorer="vina",
 )
 ```
 
@@ -98,7 +110,7 @@ result = dock_interaction(
         },
     ],
     max_joint_matches=64,
-    scorer="softdock",
+    scorer="vina",
 )
 ```
 
@@ -178,6 +190,8 @@ The Vina and Vinardo backends follow the modern AutoDock Vina implementation's p
 Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived every requested atom-pair distance filter; guide penalties are never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
 
 ## Upgrading
+
+Version 0.6 removes SoftDock, changes the interaction default to Vina, adds independent SF refinement and advances batch resume epoch to `6`. Ranked docking SDF schema remains `4`; standalone SF results use separate explicit schemas.
 
 Version 0.5 adds bounded simultaneous `AND` interaction constraints while keeping 0.4 single-interaction calls source-compatible. It advances the SDF output schema to `4` and batch resume epoch to `5`. Version 0.4 removed the public unconstrained search; all earlier transitions remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 

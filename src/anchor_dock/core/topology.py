@@ -50,7 +50,20 @@ def find_rotatable_bonds(mol: Chem.Mol) -> list[tuple[int, int]]:
         return sorted(pairs)
     if _ROTATABLE_BOND_PATTERN is None:
         return []
-    bonds = {tuple(sorted(match)) for match in mol.GetSubstructMatches(_ROTATABLE_BOND_PATTERN)}
+    # Rotor SMARTS use heavy-graph degree. Explicit H must not turn terminal
+    # methyl/OH groups into additional heavy-atom rotors. Work on a copy and
+    # map matches back without changing the caller's all-atom order or pose.
+    indexed = Chem.Mol(mol)
+    for atom in indexed.GetAtoms():
+        atom.SetIntProp("_AnchorDockRotorInputIndex", atom.GetIdx())
+    removal = Chem.RemoveHsParameters()
+    removal.removeIsotopes = True
+    removal.removeMapped = True
+    heavy = Chem.RemoveHs(indexed, removal)
+    original = [atom.GetIntProp("_AnchorDockRotorInputIndex") for atom in heavy.GetAtoms()]
+    bonds = {tuple(sorted(original[index] for index in match))
+             for match in heavy.GetSubstructMatches(_ROTATABLE_BOND_PATTERN)
+             if all(heavy.GetAtomWithIdx(index).GetAtomicNum() != 1 for index in match)}
     return sorted(bonds)
 
 
