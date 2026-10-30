@@ -48,7 +48,7 @@ comparison = refine_with_scorers(
 
 Every SF starts independently from the same source input. Prepared routes may add polar H, merge nonpolar H and round PDBQT coordinates/charges; those changes and output-to-input atom maps are recorded. Raw scores are never averaged or globally ranked across functions. Each run has its own refined.sdf/result.json; comparison.json retains successes and explicit errors.
 
-Refinement requires an existing positioned 3D ligand. SMILES/2D conformer generation is available separately through load_ligand_for_refinement/prepare_ligand, but generated conformers must be placed through a reference or interaction docking strategy first. Refining a conformer near the origin against an unrelated distant receptor is not silently accepted as a placement algorithm.
+Refinement requires an existing positioned 3D ligand. SMILES/2D conformer generation is available separately through load_ligand_for_refinement/prepare_ligand, but generated conformers must be placed through a reference or interaction docking strategy first. Refinement does not position an unrelated conformer; callers must supply receptor-aligned coordinates.
 
 ## Prepared chemistry
 

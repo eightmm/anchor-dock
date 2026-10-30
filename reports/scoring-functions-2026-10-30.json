@@ -3,7 +3,7 @@
   "success": true,
   "independent_runs": true,
   "raw_scores_comparable": false,
-  "common_input_sha256": "sha256:c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+  "common_input_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
   "results": {
     "vina": {
       "schema": "anchor-dock-sf-refinement-v1",
@@ -64,7 +64,7 @@
       "optimized_objective": "scorer-defined lower-is-better search energy",
       "metadata": {
         "version": "0.6.0",
-        "input_ligand_sha256": "sha256:c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+        "input_ligand_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
         "seed": 713,
         "runtime": {
           "python": "3.12.14",
@@ -95,7 +95,7 @@
           "requires_configuration": false
         },
         "receptor_fingerprint": "sha256:a899a1a664c85353f83301b06ee1760aa355e7280ac179b0f2ba86b047447b60",
-        "receptor_source_fingerprint": "sha256:f57760bc94d0415522cf7a929711f54e12c98b0a4dc592e0816e13bf87263ec4",
+        "receptor_source_fingerprint": "sha256:08896e399082a4dba14d7b5804087e4694a7c25a035b6066fbf5b8d68266922d",
         "scorer_fingerprint": "sha256:967b1dd5bfa7090054be82be8aea4f879381b39269a53dcca374218531c5f6c4",
         "optimization_route": "adam",
         "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1",
@@ -609,7 +609,7 @@
       "optimized_objective": "scorer-defined lower-is-better search energy",
       "metadata": {
         "version": "0.6.0",
-        "input_ligand_sha256": "sha256:c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+        "input_ligand_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
         "seed": 713,
         "runtime": {
           "python": "3.12.14",
@@ -640,7 +640,7 @@
           "requires_configuration": false
         },
         "receptor_fingerprint": "sha256:a899a1a664c85353f83301b06ee1760aa355e7280ac179b0f2ba86b047447b60",
-        "receptor_source_fingerprint": "sha256:f57760bc94d0415522cf7a929711f54e12c98b0a4dc592e0816e13bf87263ec4",
+        "receptor_source_fingerprint": "sha256:08896e399082a4dba14d7b5804087e4694a7c25a035b6066fbf5b8d68266922d",
         "scorer_fingerprint": "sha256:7995f832f9e955e066d9ecbe44e618000d9adfcbbe7a7586cb43c3ab6bb34101",
         "optimization_route": "adam",
         "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1",
@@ -1154,7 +1154,7 @@
       "optimized_objective": "scorer-defined lower-is-better search energy",
       "metadata": {
         "version": "0.6.0",
-        "input_ligand_sha256": "sha256:c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+        "input_ligand_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
         "seed": 713,
         "runtime": {
           "python": "3.12.14",
@@ -1185,7 +1185,7 @@
           "requires_configuration": false
         },
         "receptor_fingerprint": "sha256:a899a1a664c85353f83301b06ee1760aa355e7280ac179b0f2ba86b047447b60",
-        "receptor_source_fingerprint": "sha256:f57760bc94d0415522cf7a929711f54e12c98b0a4dc592e0816e13bf87263ec4",
+        "receptor_source_fingerprint": "sha256:08896e399082a4dba14d7b5804087e4694a7c25a035b6066fbf5b8d68266922d",
         "scorer_fingerprint": "sha256:10f47f51c6ad6ea3a291c749ba5130562501f5064670c4dbe581322603e36b84",
         "optimization_route": "adam",
         "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1",
@@ -1699,7 +1699,7 @@
       "optimized_objective": "scorer-defined lower-is-better search energy",
       "metadata": {
         "version": "0.6.0",
-        "input_ligand_sha256": "sha256:c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+        "input_ligand_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
         "seed": 713,
         "runtime": {
           "python": "3.12.14",
@@ -1730,7 +1730,7 @@
           "requires_configuration": false
         },
         "receptor_fingerprint": "sha256:a899a1a664c85353f83301b06ee1760aa355e7280ac179b0f2ba86b047447b60",
-        "receptor_source_fingerprint": "sha256:f57760bc94d0415522cf7a929711f54e12c98b0a4dc592e0816e13bf87263ec4",
+        "receptor_source_fingerprint": "sha256:08896e399082a4dba14d7b5804087e4694a7c25a035b6066fbf5b8d68266922d",
         "scorer_fingerprint": "sha256:807e3545c5541c5adbc4817ef6aa3f2814116d5de4a2be632590bcf2ca8ecc78",
         "optimization_route": "adam",
         "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1-pattern-v1",
@@ -2727,5 +2727,51 @@
       "requires_configuration": false
     }
   ],
-  "source_package_sha256": "e3ce1fe9cc1763c67e5b8fe1209215b00a5d579bce2f1be5a88c61830695bb6b"
+  "source_file_sha256": {
+    "src/anchor_dock/__init__.py": "efe0891702ee36bfbd57b5cdf09db7feb6cbab6776d85d910d81fcb96d244589",
+    "src/anchor_dock/_compat.py": "fd5600f422000103c41c67b0aa1c698482d6b1011ae45a3cb254fa2da2f13e4c",
+    "src/anchor_dock/_version.py": "486e901fb893d6812087a86bd5fb5c475d90a45110ee0de82e853f4afba7d460",
+    "src/anchor_dock/backends/__init__.py": "65542b2e7b6c834333cd9839a04cfcd7c9d376ccccc5c8cad139fb3134033e57",
+    "src/anchor_dock/backends/native.py": "462e9b84ae2919590ceb2d484d503344bfd30cb5a38a7eaaff3c8ee4c70fc942",
+    "src/anchor_dock/batch.py": "145f4586c6d4948ddfd243b850bb6811d302155be19478f2fd4dcc70867a42dd",
+    "src/anchor_dock/cli.py": "9456fd8cf735104fdf5c596bb89a52a45639a99baa519e076b1469dc51127a47",
+    "src/anchor_dock/core/__init__.py": "6de674557ee84d1f5a196d5463702070412e46ae718fc31241f502632c85e97f",
+    "src/anchor_dock/core/ad4.py": "c8f220704f66467a7f5145fcafda78c9d5ff4f1468862f15cb2a26010dfc1ee9",
+    "src/anchor_dock/core/amber.py": "43dd81279db75a15dad8616b480eb46e917ba881c5a621615c7721e7af7b23f3",
+    "src/anchor_dock/core/autogrid.py": "f72afeb0a80b1ce6c96df3336e1b354fa1c34bf8ad90864d7ff041ad120b2e32",
+    "src/anchor_dock/core/conformers.py": "22d30592ad25798ab470f78d973ffdfe6d3472b1f9cf7f34b1b0d627e63ca331",
+    "src/anchor_dock/core/engine.py": "c3c75cf059ebd98d877be08b214e124c04fa644ed895fcb563fcdac3a2058270",
+    "src/anchor_dock/core/features.py": "4028b9536bd3c186f73f30aabe739b1263d7605caec0a62357ce6e0d7e100695",
+    "src/anchor_dock/core/geometry.py": "8b043ab4b756682ddb0829577148b2ea401f58eae7aef36ee675573444f73486",
+    "src/anchor_dock/core/grid.py": "8f70d794f2583f9b3792496826cc1832b073f0335e0e995c8b28718a8554efc9",
+    "src/anchor_dock/core/io.py": "97ee9598ec3589f6633656c37e5958a63f4d27fea4a2a5fd398028b4ea50df14",
+    "src/anchor_dock/core/kinematics.py": "53b0b261b490f3cfc9755da409dae1277556738b45fd4ee1b9d6bca8042d4eec",
+    "src/anchor_dock/core/masks.py": "d21f6cdc937e54243ce7611f3d8d17e1b8de1659f98464bf5b38028f063104a7",
+    "src/anchor_dock/core/native_vina.py": "25543fd24cd2252ca9cc11b3c887fd19d3393095663a5d088e2c60be8a30c846",
+    "src/anchor_dock/core/optimization.py": "3213e26f65852b820a422b4aeb76177d09cd5860bdbeca7d715bff25370fd131",
+    "src/anchor_dock/core/output.py": "b6fa49464722cac8c77446eeb1531d9536030aa3d963f3be26e7eb77f518c9a8",
+    "src/anchor_dock/core/prepared.py": "d9f33f57d5194f3ed534187cbdf920345f036acb7d9d86946bc3d857771cc0e9",
+    "src/anchor_dock/core/registry.py": "9d8b1f084d1c42bfe8f5c51cad4647eab9082db38f024a0594731ab04dddac80",
+    "src/anchor_dock/core/scoring.py": "e1f2bacfda39c1efddf1ec7d71c2508c4ebd54ace24f65bb8054a13e8e21e906",
+    "src/anchor_dock/core/smina.py": "b23913d9843928c34dad1c10d3c3521a7ffb6f08a9b1cab7744dd88baf003272",
+    "src/anchor_dock/core/topology.py": "9a72dd4cec37df97ae59ef14b401be78d067c7a77619290684ddd01b7bf93260",
+    "src/anchor_dock/covalent/__init__.py": "ed9aef2275a5e92569ebecef8bd0ba07ef0e1f8bedf729ce1e32e1c1b61d5e24",
+    "src/anchor_dock/covalent/adduct.py": "41dad55c753d69752f8c8054b004a0ef78e2707c968a182d7d9b8cbc22c8f9ac",
+    "src/anchor_dock/covalent/anchor.py": "61641e0dea06f2e81040fa449cba3c100d9d69b8e9dbc124f29bbb9a4ab3abf7",
+    "src/anchor_dock/covalent/pipeline.py": "0e657c81a91be62de891228a89a258157595ded46460d8ee98daf4a6f95b8a4a",
+    "src/anchor_dock/interaction/__init__.py": "c0f2ebccbdbf06fa85884d4f622524386dcfc53f0c85674b441a03eb07cf5a97",
+    "src/anchor_dock/interaction/hypotheses.py": "724a01159d74c3196984270e0c8b0f7470664fbbbcb2a66825ce56731ace3887",
+    "src/anchor_dock/interaction/pipeline.py": "8e06493740b67dfdf2b8cd1d339a259d23c0bcc8b26967bd13ea23c880901c63",
+    "src/anchor_dock/interaction/restraint.py": "fc01b03bd6d9eb38d6bd686613ddf2d3ae5a0ed5243a13cf5898d2cae312ab39",
+    "src/anchor_dock/interaction/selectors.py": "fce840f5f0d1a6e8249b3bed0cd86bd5c479c5a5c481fd6e5eb3b074a0985fba",
+    "src/anchor_dock/interaction/spec.py": "a890b172d9fb51179ec24f1de99ce4fe54af84ad543fb8a7a0f453a5ba835d18",
+    "src/anchor_dock/preparation.py": "6e0e2c1c2471ec96e556b3aa8e67b434cfc9380610b3211f8f3e2ed1cd4981ec",
+    "src/anchor_dock/reference/__init__.py": "89833c2ee2b99eadacde19bad2661863607daac0fa57c257a9518e936d04e7af",
+    "src/anchor_dock/reference/mcs.py": "b6338eef46cf49304ebf6ba1984ced978d25f781e17393e60ef58f53a285fd70",
+    "src/anchor_dock/reference/pipeline.py": "4debecdb532816bbb517e59828c607898bc02477833de23a60969f19b03f8754",
+    "src/anchor_dock/reference/relax.py": "386b730d6b94704189ca93db89eafc9251432a637d503c5e072922800a8cd2df",
+    "src/anchor_dock/refinement.py": "13c83a59594bb1367b95163c40a6d014302264b6aeb090c387ad0d398b68dd10"
+  },
+  "source_package_hash_convention": "SHA256 of compact sorted-key JSON mapping repository-relative Python source paths to SHA256 digests",
+  "source_package_sha256": "7ad67e657bdb44baa19a8f542188607490eaf7fa12f3171cc1b43bb92cd09e1f"
 }
