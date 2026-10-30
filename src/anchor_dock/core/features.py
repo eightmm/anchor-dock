@@ -1,18 +1,20 @@
-"""XS-like atom typing for differentiable Vina-family scoring."""
+"""Versioned Vina-family XS typing from molecular graphs or prepared AD4 types.
+
+AD4-compatible typing is a force-field convention, not a universal medicinal
+chemistry H-bond definition. In particular, the AD4 preset assigns oxygen OA
+and treats several trigonal nitrogen motifs as nonacceptors. PDB residue
+fallbacks remain explicitly inferred; unresolved histidines are diagnosed.
+"""
 
 from __future__ import annotations
 
-import os
-from collections.abc import Iterable
+from collections.abc import Sequence
 
 import torch
-from rdkit import Chem, RDConfig
-from rdkit.Chem import ChemicalFeatures
+from rdkit import Chem
 
-ATOM_TYPING_VERSION = "inferred-xs-v2"
-
-_FDEF = os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
-_FEATURE_FACTORY = ChemicalFeatures.BuildFeatureFactory(_FDEF)
+ATOM_TYPING_VERSION = "inferred-xs-v3"
+AUTHORITATIVE_TYPING_VERSION = "prepared-ad4-xs-v1"
 
 _VINA_RADIUS = {
     "C_H": 1.9,
@@ -52,108 +54,113 @@ _VINARDO_RADIUS = {
     "O_DA": 1.6,
 }
 
-_METALS = {
-    3,
-    4,
-    11,
-    12,
-    13,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-    31,
-    37,
-    38,
-    39,
-    40,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    47,
-    48,
-    49,
-    55,
-    56,
-    57,
-    72,
-    73,
-    74,
-    75,
-    76,
-    77,
-    78,
-    79,
-    80,
-    81,
+# Supported generic metal inventory in official Vina atom_constants.h.
+# Generic Met_D is not a directional/coordination model.
+_METAL_ELEMENTS = {"Mg": 12, "Ca": 20, "Mn": 25, "Fe": 26, "Zn": 30,
+                   "Cu": 29, "Na": 11, "K": 19, "Hg": 80, "Co": 27,
+                   "U": 92, "Cd": 48, "Ni": 28}
+_METALS = set(_METAL_ELEMENTS.values())
+
+# Meeko's AD4 preset and official Vina AD->XS conversion are the reference
+# conventions, not RDKit BaseFeatures.fdef pharmacophore donor/acceptor labels.
+# These independently applied motif predicates exclude neutral trigonal N in
+# aromatic/conjugated amide/triazene environments from the default NA class.
+_NONACCEPTOR_N = tuple(Chem.MolFromSmarts(pattern) for pattern in (
+    "[#7X3v3][a]", "[#7X3v3][#6X3v4]", "[#7X3v3][NX2]=[*]",
+))
+_PROTEIN_DONORS = {
+    "ARG": {"NE", "NH1", "NH2"}, "ASN": {"ND2"}, "GLN": {"NE2"},
+    "LYS": {"NZ"}, "LYN": {"NZ"}, "SER": {"OG"}, "THR": {"OG1"},
+    "TRP": {"NE1"}, "TYR": {"OH"},
+}
+_PROTEIN_ACCEPTORS = {
+    "ASN": {"OD1"}, "ASP": {"OD1", "OD2"}, "ASH": {"OD1", "OD2"},
+    "GLN": {"OE1"}, "GLU": {"OE1", "OE2"}, "GLH": {"OE1", "OE2"},
+    "LYN": {"NZ"}, "SER": {"OG"}, "THR": {"OG1"}, "TYR": {"OH"},
+}
+_PROTEIN_RESIDUES = set((
+    "ALA ARG ASN ASP CYS GLN GLU GLY HIS ILE LEU LYS MET PHE PRO SER THR TRP TYR VAL "
+    "ASH GLH CYM CYX LYN HID HIE HIP HSD HSE HSP"
+).split())
+_HISTIDINE_STATES = {
+    "HID": ({"ND1"}, {"NE2"}), "HSD": ({"ND1"}, {"NE2"}),
+    "HIE": ({"NE2"}, {"ND1"}), "HSE": ({"NE2"}, {"ND1"}),
+    "HIP": ({"ND1", "NE2"}, set()), "HSP": ({"ND1", "NE2"}, set()),
 }
 
-# Fallback protein chemistry for unsanitized PDB-derived molecules. RDKit's
-# feature factory is used first; these rules fill missing obvious cases.
-_PROTEIN_DONORS: dict[str, set[str]] = {
-    "ARG": {"NE", "NH1", "NH2"},
-    "ASN": {"ND2"},
-    "GLN": {"NE2"},
-    "HIS": {"ND1", "NE2"},
-    "LYS": {"NZ"},
-    "SER": {"OG"},
-    "THR": {"OG1"},
-    "TRP": {"NE1"},
-    "TYR": {"OH"},
-}
-_PROTEIN_ACCEPTORS: dict[str, set[str]] = {
-    "ASN": {"OD1"},
-    "ASP": {"OD1", "OD2"},
-    "GLN": {"OE1"},
-    "GLU": {"OE1", "OE2"},
-    "HIS": {"ND1", "NE2"},
-    "SER": {"OG"},
-    "THR": {"OG1"},
-    "TYR": {"OH"},
-}
+
+def _explicit_hydrogen(atom: Chem.Atom) -> bool:
+    return any(neighbor.GetAtomicNum() == 1 for neighbor in atom.GetNeighbors())
 
 
 def _feature_atom_sets(mol: Chem.Mol) -> tuple[set[int], set[int]]:
-    donors: set[int] = set()
-    acceptors: set[int] = set()
-    try:
-        mol.UpdatePropertyCache(strict=False)
-        Chem.GetSymmSSSR(mol)
-        for feature in _FEATURE_FACTORY.GetFeaturesForMol(mol):
-            if feature.GetFamily() == "Donor":
-                donors.update(feature.GetAtomIds())
-            elif feature.GetFamily() == "Acceptor":
-                acceptors.update(feature.GetAtomIds())
-    except Exception:
-        # Protein PDB blocks and reaction products can be only partially
-        # sanitized. Residue/element rules below still provide deterministic
-        # typing instead of silently failing the entire scoring pass.
-        pass
+    """Infer graph roles using AD4-compatible N/O predicates, once per call."""
+    mol.UpdatePropertyCache(strict=False)
+    Chem.GetSymmSSSR(mol)
+    nonacceptor_n = {
+        hit[0] for query in _NONACCEPTOR_N for hit in mol.GetSubstructMatches(query)
+    }
+    donors, acceptors = set(), set()
+    for atom in mol.GetAtoms():
+        idx, number = atom.GetIdx(), atom.GetAtomicNum()
+        if number not in (7, 8):
+            continue
+        if atom.GetTotalNumHs(includeNeighbors=True) > 0:
+            donors.add(idx)
+        if number == 8 or (idx not in nonacceptor_n and atom.GetFormalCharge() <= 0):
+            acceptors.add(idx)
     return donors, acceptors
 
 
-def _apply_pdb_fallbacks(mol: Chem.Mol, donors: set[int], acceptors: set[int]) -> None:
+def _residue_key(info: Chem.AtomPDBResidueInfo) -> tuple[str, int, str, str]:
+    return (info.GetChainId(), info.GetResidueNumber(), info.GetInsertionCode(), info.GetResidueName().strip().upper())
+
+
+def _apply_pdb_fallbacks(mol: Chem.Mol, donors: set[int], acceptors: set[int]) -> tuple[str, ...]:
+    """Apply declared residue templates, never choose an unspecified HIS tautomer."""
+    ambiguities = []
+    histidine_hydrogens: dict[tuple[str, int, str, str], set[str]] = {}
     for atom in mol.GetAtoms():
         info = atom.GetPDBResidueInfo()
-        if info is None:
+        if info and info.GetResidueName().strip().upper() in {"HIS", *_HISTIDINE_STATES} and _explicit_hydrogen(atom):
+            histidine_hydrogens.setdefault(_residue_key(info), set()).add(info.GetName().strip().upper())
+    for atom in mol.GetAtoms():
+        info = atom.GetPDBResidueInfo()
+        if info is None or atom.GetAtomicNum() not in (7, 8):
             continue
         idx = atom.GetIdx()
-        residue = info.GetResidueName().strip().upper()
-        name = info.GetName().strip().upper()
+        residue, name = info.GetResidueName().strip().upper(), info.GetName().strip().upper()
+        # Unsanitized PDB connectivity cannot establish reliable implicit H or
+        # aromatic bond orders. Replace graph guesses with a declared template.
+        donors.discard(idx)
+        acceptors.discard(idx)
         if residue in {"HOH", "WAT", "H2O", "DOD", "SOL"} and name in {"O", "OW", "OH2"}:
             donors.add(idx)
             acceptors.add(idx)
+            continue
+        if residue not in _PROTEIN_RESIDUES:
+            ambiguities.append(f"atom {idx}: unresolved PDB residue {residue}/{name}; provide prepared AD4 types")
+            continue
+        if residue in _HISTIDINE_STATES and name in {"ND1", "NE2"}:
+            donor_names, acceptor_names = _HISTIDINE_STATES[residue]
+            observed = histidine_hydrogens.get(_residue_key(info), set()) & {"ND1", "NE2"}
+            if observed and observed != donor_names:
+                ambiguities.append(f"atom {idx}: {residue} label conflicts with explicit histidine H; provide consistent preparation")
+                continue
+            if name in donor_names:
+                donors.add(idx)
+            if name in acceptor_names:
+                acceptors.add(idx)
+            continue
+        if residue == "HIS" and name in {"ND1", "NE2"}:
+            protonated = histidine_hydrogens.get(_residue_key(info), set()) & {"ND1", "NE2"}
+            if protonated:
+                if name in protonated:
+                    donors.add(idx)
+                elif atom.GetFormalCharge() <= 0:
+                    acceptors.add(idx)
+            else:
+                ambiguities.append(f"atom {idx}: unresolved HIS {name} protonation; provide explicit H, HID/HIE/HIP, or AD4 types")
             continue
         if name == "N" and residue != "PRO":
             donors.add(idx)
@@ -163,110 +170,119 @@ def _apply_pdb_fallbacks(mol: Chem.Mol, donors: set[int], acceptors: set[int]) -
             donors.add(idx)
         if name in _PROTEIN_ACCEPTORS.get(residue, set()):
             acceptors.add(idx)
+        if _explicit_hydrogen(atom):
+            donors.add(idx)
+        if atom.GetFormalCharge() > 0:
+            acceptors.discard(idx)
+    return tuple(ambiguities)
 
 
 def _carbon_is_polar(atom: Chem.Atom) -> bool:
     return any(neighbor.GetAtomicNum() not in {1, 6} for neighbor in atom.GetNeighbors())
 
 
-def infer_xs_atom_types(mol: Chem.Mol) -> list[str]:
-    """Infer Vina XS-like atom types from an RDKit molecule.
-
-    Exact PDBQT parity requires authoritative AutoDock atom types. This function
-    provides a deterministic approximation for SMILES/SDF/PDB workflows and the
-    resulting scorer records ``inferred-xs-v2`` in every output.
-    """
-    donors, acceptors = _feature_atom_sets(mol)
-    _apply_pdb_fallbacks(mol, donors, acceptors)
-
-    result: list[str] = []
+def _infer_xs_atom_types_from_sets(mol: Chem.Mol, donors: set[int], acceptors: set[int]) -> list[str]:
+    simple = {1: "H", 16: "S_P", 15: "P_P", 9: "F_H", 17: "Cl_H", 35: "Br_H", 53: "I_H", 14: "Si", 85: "At"}
+    result = []
     for atom in mol.GetAtoms():
-        idx = atom.GetIdx()
-        atomic_number = atom.GetAtomicNum()
-        donor = idx in donors
-        acceptor = idx in acceptors
-        if atomic_number == 1:
-            atom_type = "H"
-        elif atomic_number == 6:
-            atom_type = "C_P" if _carbon_is_polar(atom) else "C_H"
-        elif atomic_number == 7:
-            atom_type = "N_DA" if donor and acceptor else "N_D" if donor else "N_A" if acceptor else "N_P"
-        elif atomic_number == 8:
-            atom_type = "O_DA" if donor and acceptor else "O_D" if donor else "O_A" if acceptor else "O_P"
-        elif atomic_number == 16:
-            atom_type = "S_P"
-        elif atomic_number == 15:
-            atom_type = "P_P"
-        elif atomic_number == 9:
-            atom_type = "F_H"
-        elif atomic_number == 17:
-            atom_type = "Cl_H"
-        elif atomic_number == 35:
-            atom_type = "Br_H"
-        elif atomic_number == 53:
-            atom_type = "I_H"
-        elif atomic_number == 14:
-            atom_type = "Si"
-        elif atomic_number == 85:
-            atom_type = "At"
-        elif atomic_number in _METALS:
-            atom_type = "Met_D"
+        idx, number = atom.GetIdx(), atom.GetAtomicNum()
+        donor, acceptor = idx in donors, idx in acceptors
+        if number == 6:
+            kind = "C_P" if _carbon_is_polar(atom) else "C_H"
+        elif number in (7, 8):
+            role = "DA" if donor and acceptor else "D" if donor else "A" if acceptor else "P"
+            kind = ("N_" if number == 7 else "O_") + role
         else:
-            atom_type = "X"
-        result.append(atom_type)
+            kind = simple.get(number, "Met_D" if number in _METALS else "X")
+        result.append(kind)
     return result
 
 
-def _to_indicator(indices: Iterable[int], size: int, device: torch.device) -> torch.Tensor:
-    values = torch.zeros(size, dtype=torch.float32, device=device)
-    valid = [idx for idx in indices if 0 <= idx < size]
-    if valid:
-        values[torch.tensor(valid, dtype=torch.long, device=device)] = 1.0
-    return values
+def _inferred_types(mol: Chem.Mol, strict: bool) -> tuple[list[str], tuple[str, ...]]:
+    graph_ambiguities: tuple[str, ...] = ()
+    try:
+        donors, acceptors = _feature_atom_sets(mol)
+    except (RuntimeError, ValueError) as error:
+        if not any(atom.GetPDBResidueInfo() is not None for atom in mol.GetAtoms()):
+            raise ValueError("graph atom typing requires valid bond/protonation information") from error
+        donors, acceptors = set(), set()
+        graph_ambiguities = ("graph-role inference unavailable; PDB residue-only inference used",)
+    ambiguities = graph_ambiguities + _apply_pdb_fallbacks(mol, donors, acceptors)
+    atom_types = _infer_xs_atom_types_from_sets(mol, donors, acceptors)
+    unknown = tuple(f"atom {i}: unsupported element {mol.GetAtomWithIdx(i).GetSymbol()}" for i, kind in enumerate(atom_types) if kind == "X")
+    ambiguities += unknown
+    if strict and ambiguities:
+        raise ValueError("ambiguous atom typing: " + "; ".join(ambiguities))
+    return atom_types, ambiguities
 
 
-def compute_atom_features(mol: Chem.Mol, device: torch.device | str) -> dict[str, torch.Tensor | tuple[str, ...] | str]:
-    """Return tensors required by Vina, Vinardo and SoftDock scorers."""
+def infer_xs_atom_types(mol: Chem.Mol, *, strict: bool = False) -> list[str]:
+    """Infer versioned XS-like types; strict mode rejects diagnosed ambiguity.
+
+    Complete graph/protonation information is required for ligand inference.
+    PDB residue templates remain an approximation. Authoritative prepared
+    atom types should use compute_atom_features_from_ad4 instead.
+    """
+    return _inferred_types(mol, strict)[0]
+
+
+def _features_from_xs(atom_types: Sequence[str], device: torch.device | str, *, version: str,
+                      source: str, ambiguities: tuple[str, ...] = ()) -> dict[str, object]:
     device = torch.device(device)
-    atom_types = infer_xs_atom_types(mol)
-    donors, acceptors = _feature_atom_sets(mol)
-    _apply_pdb_fallbacks(mol, donors, acceptors)
-
-    radius_vina = torch.tensor(
-        [_VINA_RADIUS[atom_type] for atom_type in atom_types], dtype=torch.float32, device=device
-    )
-    radius_vinardo = torch.tensor(
-        [_VINARDO_RADIUS[atom_type] for atom_type in atom_types], dtype=torch.float32, device=device
-    )
-    active = torch.tensor([atom_type != "H" for atom_type in atom_types], dtype=torch.bool, device=device)
-    hydrophobic = torch.tensor(
-        [atom_type in {"C_H", "F_H", "Cl_H", "Br_H", "I_H"} for atom_type in atom_types],
-        dtype=torch.float32,
-        device=device,
-    )
-    donor = _to_indicator(donors, mol.GetNumAtoms(), device)
-    acceptor = _to_indicator(acceptors, mol.GetNumAtoms(), device)
-
-    # Match official XS semantics: sulfur is S_P and does not participate in the
-    # non-directional hydrogen-bond term; metals are donors.
-    for idx, atom_type in enumerate(atom_types):
-        if atom_type == "S_P":
-            donor[idx] = 0.0
-            acceptor[idx] = 0.0
-        elif atom_type == "Met_D":
-            donor[idx] = 1.0
-            acceptor[idx] = 0.0
-        elif atom_type == "H":
-            donor[idx] = 0.0
-            acceptor[idx] = 0.0
-
     return {
-        "radius_vina": radius_vina,
-        "radius_vinardo": radius_vinardo,
-        "hydrophobic": hydrophobic,
-        "donor": donor,
-        "acceptor": acceptor,
-        "active": active,
+        "radius_vina": torch.tensor([_VINA_RADIUS[t] for t in atom_types], dtype=torch.float32, device=device),
+        "radius_vinardo": torch.tensor([_VINARDO_RADIUS[t] for t in atom_types], dtype=torch.float32, device=device),
+        "hydrophobic": torch.tensor([t in {"C_H", "F_H", "Cl_H", "Br_H", "I_H"} for t in atom_types], dtype=torch.float32, device=device),
+        "donor": torch.tensor([t in {"N_D", "N_DA", "O_D", "O_DA", "Met_D"} for t in atom_types], dtype=torch.float32, device=device),
+        "acceptor": torch.tensor([t in {"N_A", "N_DA", "O_A", "O_DA"} for t in atom_types], dtype=torch.float32, device=device),
+        "active": torch.tensor([t != "H" for t in atom_types], dtype=torch.bool, device=device),
         "xs_types": tuple(atom_types),
-        "typing_version": ATOM_TYPING_VERSION,
+        "typing_version": version,
+        "typing_source": source,
+        "typing_ambiguities": ambiguities,
     }
+
+
+def compute_atom_features(mol: Chem.Mol, device: torch.device | str, *, strict: bool = False) -> dict[str, object]:
+    """Infer AD4-compatible graph roles; PDB ambiguities are explicit metadata."""
+    atom_types, ambiguities = _inferred_types(mol, strict)
+    return _features_from_xs(atom_types, device, version=ATOM_TYPING_VERSION,
+                             source="graph-and-residue-inference", ambiguities=ambiguities)
+
+
+def compute_atom_features_from_ad4(mol: Chem.Mol, ad4_types: Sequence[str],
+                                  device: torch.device | str) -> dict[str, object]:
+    """Convert authoritative atom-order-aligned AD4 types to ordinary XS types.
+
+    The graph must retain polar hydrogens and their bonds before heavy-atom
+    selection. This function neither guesses protonation nor assigns charges.
+    Macrocycle dummy/water types need their own scoring terms and are rejected.
+    """
+    if isinstance(ad4_types, str):
+        raise ValueError("ad4_types must be an atom-order-aligned sequence")
+    ad4_types = tuple(ad4_types)
+    if len(ad4_types) != mol.GetNumAtoms():
+        raise ValueError("one authoritative AD4 type is required per graph atom")
+    mol.UpdatePropertyCache(strict=False)
+    expected_elements = {"C": 6, "A": 6, "N": 7, "NA": 7, "O": 8, "OA": 8,
+                         "S": 16, "SA": 16, "P": 15, "H": 1, "HD": 1,
+                         "F": 9, "Cl": 17, "Br": 35, "I": 53, "Si": 14, "At": 85,
+                         **_METAL_ELEMENTS}
+    for atom, kind in zip(mol.GetAtoms(), ad4_types, strict=True):
+        if kind not in expected_elements:
+            raise ValueError(f"unsupported authoritative AD4 type {kind!r}")
+        if atom.GetAtomicNum() != expected_elements[kind]:
+            raise ValueError(f"AD4 type {kind!r} disagrees with element/order at atom {atom.GetIdx()}")
+        if kind == "HD" and not any(n.GetAtomicNum() in (7, 8, 9, 15, 16) for n in atom.GetNeighbors()):
+            raise ValueError("authoritative HD requires a bonded polar heavy atom")
+        if atom.GetAtomicNum() in (7, 8) and atom.GetTotalNumHs(includeNeighbors=False) > 0:
+            raise ValueError("authoritative conversion requires explicit polar-H graph atoms")
+    donors, acceptors = set(), set()
+    for atom, kind in zip(mol.GetAtoms(), ad4_types, strict=True):
+        idx = atom.GetIdx()
+        if kind in {"NA", "OA"}:
+            acceptors.add(idx)
+        if atom.GetAtomicNum() in (7, 8) and any(ad4_types[n.GetIdx()] == "HD" for n in atom.GetNeighbors()):
+            donors.add(idx)
+    atom_types = _infer_xs_atom_types_from_sets(mol, donors, acceptors)
+    return _features_from_xs(atom_types, device, version=AUTHORITATIVE_TYPING_VERSION, source="authoritative-ad4-input")

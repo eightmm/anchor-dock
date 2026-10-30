@@ -1,0 +1,1247 @@
+{
+  "typing": {
+    "meeko_version": "0.8.0",
+    "source": "actual MoleculePreparation on ETKDGv3 seed713 conformers",
+    "cases": 24,
+    "all_match": true,
+    "old_cases_with_mismatch": 10,
+    "rows": [
+      {
+        "name": "acetate",
+        "smiles": "CC(=O)[O-]",
+        "expected_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_A"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_P"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_A"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "acetic_acid",
+        "smiles": "CC(=O)O",
+        "expected_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_DA"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_DA"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "O_DA"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "methylamine",
+        "smiles": "CN",
+        "expected_heavy": [
+          "C_P",
+          "N_DA"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_D"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_DA"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "dimethylamine",
+        "smiles": "CNC",
+        "expected_heavy": [
+          "C_P",
+          "N_DA",
+          "C_P"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_D",
+          "C_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_DA",
+          "C_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "trimethylamine",
+        "smiles": "CN(C)C",
+        "expected_heavy": [
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_P"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_D",
+          "C_P",
+          "C_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "ammonium",
+        "smiles": "C[NH3+]",
+        "expected_heavy": [
+          "C_P",
+          "N_D"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_D"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_D"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "quaternary_ammonium",
+        "smiles": "C[N+](C)(C)C",
+        "expected_heavy": [
+          "C_P",
+          "N_P",
+          "C_P",
+          "C_P",
+          "C_P"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_P",
+          "C_P",
+          "C_P",
+          "C_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_P",
+          "C_P",
+          "C_P",
+          "C_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "imidazole",
+        "smiles": "c1ncc[nH]1",
+        "expected_heavy": [
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_P",
+          "N_D"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_DA",
+          "C_P",
+          "C_P",
+          "N_D"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_P",
+          "N_D"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "pyridine",
+        "smiles": "c1ccncc1",
+        "expected_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_H"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_H"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_A",
+          "C_P",
+          "C_H"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "pyrrole",
+        "smiles": "c1cc[nH]c1",
+        "expected_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_D",
+          "C_P"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_D",
+          "C_P"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_H",
+          "C_P",
+          "N_D",
+          "C_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "aniline",
+        "smiles": "Nc1ccccc1",
+        "expected_heavy": [
+          "N_D",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "old_heavy": [
+          "N_D",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "new_heavy": [
+          "N_D",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "amide",
+        "smiles": "CC(=O)N",
+        "expected_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "nitrile",
+        "smiles": "CC#N",
+        "expected_heavy": [
+          "C_H",
+          "C_P",
+          "N_A"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_P",
+          "N_P"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_P",
+          "N_A"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "nitromethane",
+        "smiles": "C[N+](=O)[O-]",
+        "expected_heavy": [
+          "C_P",
+          "N_P",
+          "O_A",
+          "O_A"
+        ],
+        "old_heavy": [
+          "C_P",
+          "N_P",
+          "O_P",
+          "O_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "N_P",
+          "O_A",
+          "O_A"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "phosphate",
+        "smiles": "OP(=O)([O-])[O-]",
+        "expected_heavy": [
+          "O_DA",
+          "P_P",
+          "O_A",
+          "O_A",
+          "O_A"
+        ],
+        "old_heavy": [
+          "O_DA",
+          "P_P",
+          "O_A",
+          "O_P",
+          "O_P"
+        ],
+        "new_heavy": [
+          "O_DA",
+          "P_P",
+          "O_A",
+          "O_A",
+          "O_A"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "sulfate",
+        "smiles": "OS(=O)(=O)[O-]",
+        "expected_heavy": [
+          "O_DA",
+          "S_P",
+          "O_A",
+          "O_A",
+          "O_A"
+        ],
+        "old_heavy": [
+          "O_DA",
+          "S_P",
+          "O_A",
+          "O_A",
+          "O_P"
+        ],
+        "new_heavy": [
+          "O_DA",
+          "S_P",
+          "O_A",
+          "O_A",
+          "O_A"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "phenol",
+        "smiles": "Oc1ccccc1",
+        "expected_heavy": [
+          "O_DA",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "old_heavy": [
+          "O_DA",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "new_heavy": [
+          "O_DA",
+          "C_P",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H",
+          "C_H"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "alcohol",
+        "smiles": "CCO",
+        "expected_heavy": [
+          "C_H",
+          "C_P",
+          "O_DA"
+        ],
+        "old_heavy": [
+          "C_H",
+          "C_P",
+          "O_DA"
+        ],
+        "new_heavy": [
+          "C_H",
+          "C_P",
+          "O_DA"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "thiol",
+        "smiles": "CS",
+        "expected_heavy": [
+          "C_P",
+          "S_P"
+        ],
+        "old_heavy": [
+          "C_P",
+          "S_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "S_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "sulfide",
+        "smiles": "CSC",
+        "expected_heavy": [
+          "C_P",
+          "S_P",
+          "C_P"
+        ],
+        "old_heavy": [
+          "C_P",
+          "S_P",
+          "C_P"
+        ],
+        "new_heavy": [
+          "C_P",
+          "S_P",
+          "C_P"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "sulfonamide",
+        "smiles": "CS(=O)(=O)N",
+        "expected_heavy": [
+          "C_P",
+          "S_P",
+          "O_A",
+          "O_A",
+          "N_DA"
+        ],
+        "old_heavy": [
+          "C_P",
+          "S_P",
+          "O_A",
+          "O_A",
+          "N_D"
+        ],
+        "new_heavy": [
+          "C_P",
+          "S_P",
+          "O_A",
+          "O_A",
+          "N_DA"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "urea",
+        "smiles": "NC(=O)N",
+        "expected_heavy": [
+          "N_D",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "old_heavy": [
+          "N_D",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "new_heavy": [
+          "N_D",
+          "C_P",
+          "O_A",
+          "N_D"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "guanidinium",
+        "smiles": "NC(=[NH2+])N",
+        "expected_heavy": [
+          "N_D",
+          "C_P",
+          "N_D",
+          "N_D"
+        ],
+        "old_heavy": [
+          "N_D",
+          "C_P",
+          "N_D",
+          "N_D"
+        ],
+        "new_heavy": [
+          "N_D",
+          "C_P",
+          "N_D",
+          "N_D"
+        ],
+        "all_explicit_and_authoritative_match": true
+      },
+      {
+        "name": "fluoromethane",
+        "smiles": "CF",
+        "expected_heavy": [
+          "C_P",
+          "F_H"
+        ],
+        "old_heavy": [
+          "C_P",
+          "F_H"
+        ],
+        "new_heavy": [
+          "C_P",
+          "F_H"
+        ],
+        "all_explicit_and_authoritative_match": true
+      }
+    ]
+  },
+  "vina_pair": {
+    "native": "vina1.2.7",
+    "scope": "one-pair grid-node energy; manually aligned authoritative XS; no torsion/intra",
+    "cases": 48,
+    "max_abs_error": 0.0021622507576071204,
+    "rows": [
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 2.625,
+        "native_inter": 1.1235330235375458,
+        "analytic": 1.1247860449595608,
+        "abs_error": 0.0012530214220149993,
+        "analytic_with_native_curl": 1.123522322729754,
+        "curl_aligned_abs_error": 1.0700807791863554e-05
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 3.375,
+        "native_inter": 0.09914587001288998,
+        "analytic": 0.09915075113904064,
+        "abs_error": 4.881126150657611e-06,
+        "analytic_with_native_curl": 0.09914092124223085,
+        "curl_aligned_abs_error": 4.9487706591244685e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 4.125,
+        "native_inter": -0.05924946381385517,
+        "analytic": -0.05924948782360322,
+        "abs_error": 2.4009748043896106e-08,
+        "analytic_with_native_curl": -0.05924948782360322,
+        "curl_aligned_abs_error": 2.4009748043896106e-08
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 5.25,
+        "native_inter": -0.004540231076798283,
+        "analytic": -0.004589275750438145,
+        "abs_error": 4.9044673639862466e-05,
+        "analytic_with_native_curl": -0.004589275750438145,
+        "curl_aligned_abs_error": 4.9044673639862466e-05
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 7.875,
+        "native_inter": -0.0038622687303209143,
+        "analytic": -0.0038622690018027504,
+        "abs_error": 2.7148183614350563e-10,
+        "analytic_with_native_curl": -0.0038622690018027504,
+        "curl_aligned_abs_error": 2.7148183614350563e-10
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 2.625,
+        "native_inter": 0.05409545460351123,
+        "analytic": 0.054088741391749684,
+        "abs_error": 6.713211761544269e-06,
+        "analytic_with_native_curl": 0.05408581595803737,
+        "curl_aligned_abs_error": 9.638645473861174e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 3.375,
+        "native_inter": -0.1256384859950558,
+        "analytic": -0.12564314048904757,
+        "abs_error": 4.654493991756992e-06,
+        "analytic_with_native_curl": -0.12564314048904757,
+        "curl_aligned_abs_error": 4.654493991756992e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 4.125,
+        "native_inter": -0.008716614638702137,
+        "analytic": -0.008716369638820986,
+        "abs_error": 2.449998811517723e-07,
+        "analytic_with_native_curl": -0.008716369638820986,
+        "curl_aligned_abs_error": 2.449998811517723e-07
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 5.25,
+        "native_inter": -0.0034921338366717155,
+        "analytic": -0.0034888943605015693,
+        "abs_error": 3.2394761701462146e-06,
+        "analytic_with_native_curl": -0.0034888943605015693,
+        "curl_aligned_abs_error": 3.2394761701462146e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 7.875,
+        "native_inter": -0.0032139633518235775,
+        "analytic": -0.0032139632569958745,
+        "abs_error": 9.48277029816369e-11,
+        "analytic_with_native_curl": -0.0032139632569958745,
+        "curl_aligned_abs_error": 9.48277029816369e-11
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 2.625,
+        "native_inter": 0.6411260747371001,
+        "analytic": 0.6415277413917497,
+        "abs_error": 0.0004016666546495795,
+        "analytic_with_native_curl": 0.6411164474052766,
+        "curl_aligned_abs_error": 9.627331823525154e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 3.375,
+        "native_inter": -0.020737998383210027,
+        "analytic": -0.020743319060476148,
+        "abs_error": 5.3206772661212876e-06,
+        "analytic_with_native_curl": -0.020743319060476148,
+        "curl_aligned_abs_error": 5.3206772661212876e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 4.125,
+        "native_inter": -0.008716614638702137,
+        "analytic": -0.008716369638820986,
+        "abs_error": 2.449998811517723e-07,
+        "analytic_with_native_curl": -0.008716369638820986,
+        "curl_aligned_abs_error": 2.449998811517723e-07
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 5.25,
+        "native_inter": -0.0034921338366717155,
+        "analytic": -0.0034888943605015693,
+        "abs_error": 3.2394761701462146e-06,
+        "analytic_with_native_curl": -0.0034888943605015693,
+        "curl_aligned_abs_error": 3.2394761701462146e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 7.875,
+        "native_inter": -0.0032139633518235775,
+        "analytic": -0.0032139632569958745,
+        "abs_error": 9.48277029816369e-11,
+        "analytic_with_native_curl": -0.0032139632569958745,
+        "curl_aligned_abs_error": 9.48277029816369e-11
+      },
+      {
+        "scorer": "vina",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 2.625,
+        "native_inter": 0.7972386330205157,
+        "analytic": 0.7978646990406532,
+        "abs_error": 0.0006260660201374835,
+        "analytic_with_native_curl": 0.7972286184689118,
+        "curl_aligned_abs_error": 1.001455160387632e-05
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 3.375,
+        "native_inter": 0.013102661253249723,
+        "analytic": 0.013097620023345507,
+        "abs_error": 5.041229904216224e-06,
+        "analytic_with_native_curl": 0.013097448477942066,
+        "curl_aligned_abs_error": 5.212775307657583e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 4.125,
+        "native_inter": -0.01292876548431879,
+        "analytic": -0.012928538200578437,
+        "abs_error": 2.2728374035260734e-07,
+        "analytic_with_native_curl": -0.012928538200578437,
+        "curl_aligned_abs_error": 2.2728374035260734e-07
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 5.25,
+        "native_inter": -0.0032731029019051855,
+        "analytic": -0.00326983317864861,
+        "abs_error": 3.2697232565754783e-06,
+        "analytic_with_native_curl": -0.00326983317864861,
+        "curl_aligned_abs_error": 3.2697232565754783e-06
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 7.875,
+        "native_inter": -0.0034340998154025323,
+        "analytic": -0.0034340998367653397,
+        "abs_error": 2.1362807356428704e-11,
+        "analytic_with_native_curl": -0.0034340998367653397,
+        "curl_aligned_abs_error": 2.1362807356428704e-11
+      },
+      {
+        "scorer": "vina",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 2.625,
+        "native_inter": 1.472992103046378,
+        "analytic": 1.475154353803985,
+        "abs_error": 0.0021622507576071204,
+        "analytic_with_native_curl": 1.4729814787625157,
+        "curl_aligned_abs_error": 1.0624283862226136e-05
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 3.375,
+        "native_inter": 0.25299885400421823,
+        "analytic": 0.25305780536135825,
+        "abs_error": 5.895135714001354e-05,
+        "analytic_with_native_curl": 0.2529937833097838,
+        "curl_aligned_abs_error": 5.070694434450296e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 4.125,
+        "native_inter": -0.07716444919157353,
+        "analytic": -0.07716466975610464,
+        "abs_error": 2.205645311115223e-07,
+        "analytic_with_native_curl": -0.07716466975610464,
+        "curl_aligned_abs_error": 2.205645311115223e-07
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 5.25,
+        "native_inter": -0.021373243115244654,
+        "analytic": -0.02141672654453006,
+        "abs_error": 4.3483429285406244e-05,
+        "analytic_with_native_curl": -0.02141672654453006,
+        "curl_aligned_abs_error": 4.3483429285406244e-05
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 7.875,
+        "native_inter": -2.9098037547846693e-12,
+        "analytic": -2.9095960706637607e-12,
+        "abs_error": 2.076841209085661e-16,
+        "analytic_with_native_curl": -2.9095960706637607e-12,
+        "curl_aligned_abs_error": 2.076841209085661e-16
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "C",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 2.625,
+        "native_inter": -0.25757282529070097,
+        "analytic": -0.257581682689535,
+        "abs_error": 8.857398834050123e-06,
+        "analytic_with_native_curl": -0.257581682689535,
+        "curl_aligned_abs_error": 8.857398834050123e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 3.375,
+        "native_inter": -0.044605866579802395,
+        "analytic": -0.04460622517810432,
+        "abs_error": 3.5859830192774833e-07,
+        "analytic_with_native_curl": -0.04460622517810432,
+        "curl_aligned_abs_error": 3.5859830192774833e-07
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 4.125,
+        "native_inter": -0.015536519731917067,
+        "analytic": -0.015536404185504463,
+        "abs_error": 1.1554641260458354e-07,
+        "analytic_with_native_curl": -0.015536404185504463,
+        "curl_aligned_abs_error": 1.1554641260458354e-07
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 5.25,
+        "native_inter": -0.00011721152927972352,
+        "analytic": -0.0001182748932255468,
+        "abs_error": 1.0633639458232803e-06,
+        "analytic_with_native_curl": -0.0001182748932255468,
+        "curl_aligned_abs_error": 1.0633639458232803e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 7.875,
+        "native_inter": -2.818675441294293e-16,
+        "analytic": -2.8183937661232813e-16,
+        "abs_error": 2.81675171011802e-20,
+        "analytic_with_native_curl": -2.8183937661232813e-16,
+        "curl_aligned_abs_error": 2.81675171011802e-20
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "N",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 2.625,
+        "native_inter": 0.34230995847734275,
+        "analytic": 0.34241831731046496,
+        "abs_error": 0.00010835883312221295,
+        "analytic_with_native_curl": 0.34230110714134415,
+        "curl_aligned_abs_error": 8.851335998594223e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 3.375,
+        "native_inter": -0.044605866579802395,
+        "analytic": -0.04460622517810432,
+        "abs_error": 3.5859830192774833e-07,
+        "analytic_with_native_curl": -0.04460622517810432,
+        "curl_aligned_abs_error": 3.5859830192774833e-07
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 4.125,
+        "native_inter": -0.015536519731917067,
+        "analytic": -0.015536404185504463,
+        "abs_error": 1.1554641260458354e-07,
+        "analytic_with_native_curl": -0.015536404185504463,
+        "curl_aligned_abs_error": 1.1554641260458354e-07
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 5.25,
+        "native_inter": -0.00011721152927972352,
+        "analytic": -0.0001182748932255468,
+        "abs_error": 1.0633639458232803e-06,
+        "analytic_with_native_curl": -0.0001182748932255468,
+        "curl_aligned_abs_error": 1.0633639458232803e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 7.875,
+        "native_inter": -2.818675441294293e-16,
+        "analytic": -2.8183937661232813e-16,
+        "abs_error": 2.81675171011802e-20,
+        "analytic_with_native_curl": -2.8183937661232813e-16,
+        "curl_aligned_abs_error": 2.81675171011802e-20
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "OA",
+        "ligand": "NA",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 2.625,
+        "native_inter": 0.749757911333067,
+        "analytic": 0.7503109773775608,
+        "abs_error": 0.0005530660444937885,
+        "analytic_with_native_curl": 0.7497484328980857,
+        "curl_aligned_abs_error": 9.478434981335937e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 3.375,
+        "native_inter": -0.001072684946508945,
+        "analytic": -0.0010775736632613123,
+        "abs_error": 4.888716752367295e-06,
+        "analytic_with_native_curl": -0.0010775736632613123,
+        "curl_aligned_abs_error": 4.888716752367295e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 4.125,
+        "native_inter": -0.02925347480474498,
+        "analytic": -0.029253476674182804,
+        "abs_error": 1.869437823293074e-09,
+        "analytic_with_native_curl": -0.029253476674182804,
+        "curl_aligned_abs_error": 1.869437823293074e-09
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 5.25,
+        "native_inter": -0.0006345164791434271,
+        "analytic": -0.0006393880319038322,
+        "abs_error": 4.87155276040509e-06,
+        "analytic_with_native_curl": -0.0006393880319038322,
+        "curl_aligned_abs_error": 4.87155276040509e-06
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 7.875,
+        "native_inter": -1.785184141221735e-14,
+        "analytic": -1.7850286226566784e-14,
+        "abs_error": 1.5551856505673258e-18,
+        "analytic_with_native_curl": -1.7850286226566784e-14,
+        "curl_aligned_abs_error": 1.5551856505673258e-18
+      },
+      {
+        "scorer": "vinardo",
+        "receptor": "C",
+        "ligand": "OA",
+        "distance": 8.25,
+        "native_inter": 0.0,
+        "analytic": 0.0,
+        "abs_error": 0.0,
+        "analytic_with_native_curl": 0.0,
+        "curl_aligned_abs_error": 0.0
+      }
+    ],
+    "max_curl_aligned_abs_error": 4.9044673639862466e-05,
+    "native_wrapper": "Vina score positive map energy uses curl(E,1000); residual includes radial/table implementation."
+  },
+  "ad4_synthetic_maps": {
+    "scope": "synthetic AutoGrid-format maps, Vina1.2.7 ad4 intermolecular contribution; no native ADGPU or real AutoGrid generation",
+    "cases": 9,
+    "max_abs_error": 0.003227775260013388,
+    "rows": [
+      {
+        "q": -0.3,
+        "xyz": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "native_inter": 0.5501236412726777,
+        "torch_inter": 0.55,
+        "abs_error": 0.00012364127267761038,
+        "native_expected_component_curl": 0.5501236412726778,
+        "curl_aligned_abs_error": 1.1102230246251565e-16
+      },
+      {
+        "q": -0.3,
+        "xyz": [
+          0.1,
+          0.2,
+          -0.3
+        ],
+        "native_inter": 0.6628176206591117,
+        "torch_inter": 0.6629999999999998,
+        "abs_error": 0.00018237934088816132,
+        "native_expected_component_curl": 0.6628176206591119,
+        "curl_aligned_abs_error": 2.220446049250313e-16
+      },
+      {
+        "q": -0.3,
+        "xyz": [
+          -0.35,
+          0.45,
+          0.25
+        ],
+        "native_inter": 0.555799500820081,
+        "torch_inter": 0.5554999999999997,
+        "abs_error": 0.00029950082008134427,
+        "native_expected_component_curl": 0.5557995008200817,
+        "curl_aligned_abs_error": 6.661338147750939e-16
+      },
+      {
+        "q": 0.0,
+        "xyz": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "native_inter": 0.999000999000999,
+        "torch_inter": 1.0,
+        "abs_error": 0.0009990009990009652,
+        "native_expected_component_curl": 0.9990009990009991,
+        "curl_aligned_abs_error": 1.1102230246251565e-16
+      },
+      {
+        "q": 0.0,
+        "xyz": [
+          0.1,
+          0.2,
+          -0.3
+        ],
+        "native_inter": 1.1087692661146127,
+        "torch_inter": 1.1099999999999999,
+        "abs_error": 0.0012307338853871919,
+        "native_expected_component_curl": 1.108769266114613,
+        "curl_aligned_abs_error": 2.220446049250313e-16
+      },
+      {
+        "q": 0.0,
+        "xyz": [
+          -0.35,
+          0.45,
+          0.25
+        ],
+        "native_inter": 1.0389195236953566,
+        "torch_inter": 1.0399999999999998,
+        "abs_error": 0.001080476304643252,
+        "native_expected_component_curl": 1.038919523695357,
+        "curl_aligned_abs_error": 4.440892098500626e-16
+      },
+      {
+        "q": 0.4,
+        "xyz": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "native_inter": 1.9973042425887861,
+        "torch_inter": 2.0,
+        "abs_error": 0.0026957574112138616,
+        "native_expected_component_curl": 1.9973042425887861,
+        "curl_aligned_abs_error": 0.0
+      },
+      {
+        "q": 0.4,
+        "xyz": [
+          0.1,
+          0.2,
+          -0.3
+        ],
+        "native_inter": 2.047223603633542,
+        "torch_inter": 2.0500000000000003,
+        "abs_error": 0.0027763963664582114,
+        "native_expected_component_curl": 2.0472236036335425,
+        "curl_aligned_abs_error": 4.440892098500626e-16
+      },
+      {
+        "q": 0.4,
+        "xyz": [
+          -0.35,
+          0.45,
+          0.25
+        ],
+        "native_inter": 2.1787722247399866,
+        "torch_inter": 2.182,
+        "abs_error": 0.003227775260013388,
+        "native_expected_component_curl": 2.178772224739987,
+        "curl_aligned_abs_error": 4.440892098500626e-16
+      }
+    ],
+    "max_curl_aligned_abs_error": 6.661338147750939e-16,
+    "native_wrapper_note": "Vina1.2.7 score applies curl(e,1000) separately to each map sample; raw ADGPU-style A+qE+abs(q)D does not include this Vina wrapper. grid.cpp/curl.h/ad4cache.cpp pinbb64e5e."
+  },
+  "limits": [
+    "CPU only",
+    "synthetic map validation",
+    "not full native ADGPU affinity/search parity"
+  ],
+  "validation": {
+    "pytest_passed": 555,
+    "cuda_tests_skipped": 13,
+    "ruff": "passed",
+    "frozen_lock": "passed",
+    "wheel_build": "passed",
+    "installed_wheel_api_cli": "passed",
+    "independent_code_review": "no blocking correctness finding"
+  }
+}

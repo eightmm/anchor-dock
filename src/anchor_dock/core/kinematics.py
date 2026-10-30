@@ -53,6 +53,40 @@ def get_rotation_matrix(axis: torch.Tensor, theta: torch.Tensor) -> torch.Tensor
     return get_batched_rotation_matrix(axis.reshape(1, 3), theta.reshape(1))[0]
 
 
+def rotation_vector_to_matrix(rotation_vectors: torch.Tensor) -> torch.Tensor:
+    """Return the SO(3) exponential of ``[B,3]`` rotation vectors in radians.
+
+    An axis and an angle are a valid representation of a finite rotation, but
+    normalizing a zero rotation vector and replacing its axis loses the
+    infinitesimal rotation Jacobian. Work directly with the skew matrix of the
+    vector instead. Series coefficients retain first and higher derivatives at
+    the identity; the unused regular branch is kept finite there as well.
+    """
+    if rotation_vectors.ndim != 2 or rotation_vectors.shape[-1] != 3:
+        raise ValueError("rotation_vectors must have shape [B,3]")
+    if not rotation_vectors.is_floating_point():
+        raise TypeError("rotation_vectors must be floating point")
+    squared_angle = rotation_vectors.square().sum(dim=1)
+    small = squared_angle < 1e-4
+    regular_squared = torch.where(small, torch.ones_like(squared_angle), squared_angle)
+    regular_angle = torch.sqrt(regular_squared)
+    sin_coefficient = torch.where(
+        small,
+        1.0 - squared_angle * (1.0 / 6.0 - squared_angle * (1.0 / 120.0 - squared_angle / 5040.0)),
+        torch.sin(regular_angle) / regular_angle,
+    )
+    cos_coefficient = torch.where(
+        small,
+        0.5 - squared_angle * (1.0 / 24.0 - squared_angle * (1.0 / 720.0 - squared_angle / 40320.0)),
+        (1.0 - torch.cos(regular_angle)) / regular_squared,
+    )
+    x, y, z = rotation_vectors.unbind(dim=1)
+    zero = torch.zeros_like(x)
+    skew = torch.stack((zero, -z, y, z, zero, -x, -y, x, zero), dim=1).reshape(-1, 3, 3)
+    identity = torch.eye(3, dtype=rotation_vectors.dtype, device=rotation_vectors.device).unsqueeze(0)
+    return identity + sin_coefficient[:, None, None] * skew + cos_coefficient[:, None, None] * (skew @ skew)
+
+
 def _depth_order(
     num_frames: int,
     directed_edges: list[tuple[int, int, int, int, list[int]]],
@@ -200,3 +234,4 @@ class LigandKinematics(nn.Module):
             next_coords[:, rotated_atoms, :] = rotated
             coords = next_coords
         return coords if self.is_batched else coords[0]
+

@@ -1,0 +1,333 @@
+{
+  "scope": "kernel/preparation/synthetic-loop benchmark; not end-to-end docking",
+  "baseline_commit": "372bd8684aba07efd6def427718f698990ea0e47",
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "torch": "2.10.0+cu128",
+    "rdkit": "2025.9.5",
+    "device": "cpu",
+    "cuda_available": false,
+    "device_name": "x86_64",
+    "threads": 1
+  },
+  "parameters": {
+    "baseline_ref": "372bd86",
+    "device": "cpu",
+    "dtype": "float32",
+    "threads": 1,
+    "batch_size": 16,
+    "ligand_atoms": 32,
+    "receptor_atoms": 512,
+    "scorers": [
+      "vina",
+      "vinardo",
+      "softdock"
+    ],
+    "skip_preparation": false,
+    "skip_optimization": false,
+    "optimizer_steps": 75,
+    "warmup": 1,
+    "repeats": 5,
+    "seed": 20261030,
+    "atol": 1e-05,
+    "rtol": 1e-05
+  },
+  "scoring": [
+    {
+      "scorer": "vina",
+      "max_absolute_error": {
+        "intermolecular": 0.0,
+        "intramolecular": 0.0,
+        "search_energy": 0.0,
+        "coordinate_gradient": 0.0
+      },
+      "forward": {
+        "median_ms": {
+          "baseline": 10.480438999820763,
+          "current": 10.279364999860263
+        },
+        "speedup": 1.0195609359102662,
+        "samples_ms": {
+          "baseline": [
+            10.860503000003519,
+            10.480438999820763,
+            10.421599999972386,
+            11.193616000127804,
+            9.831910000229982
+          ],
+          "current": [
+            10.279364999860263,
+            10.308409999652213,
+            10.188077999828238,
+            10.262549999879411,
+            12.32970999990357
+          ]
+        }
+      },
+      "forward_and_gradient": {
+        "median_ms": {
+          "baseline": 23.761460000059742,
+          "current": 20.09686299970781
+        },
+        "speedup": 1.1823467175153262,
+        "samples_ms": {
+          "baseline": [
+            27.909455000099115,
+            23.006210999938048,
+            18.79626100026144,
+            24.825399999826914,
+            23.761460000059742
+          ],
+          "current": [
+            20.55877100019643,
+            20.09686299970781,
+            18.49968299984539,
+            21.257821000290278,
+            19.441453999661462
+          ]
+        }
+      },
+      "autograd_memory": {
+        "baseline": {
+          "saved_tensor_logical_bytes": 8890368,
+          "saved_tensor_count": 34,
+          "cuda_peak_allocated_increment_bytes": null
+        },
+        "current": {
+          "saved_tensor_logical_bytes": 8890368,
+          "saved_tensor_count": 34,
+          "cuda_peak_allocated_increment_bytes": null
+        }
+      }
+    },
+    {
+      "scorer": "vinardo",
+      "max_absolute_error": {
+        "intermolecular": 0.0,
+        "intramolecular": 0.0,
+        "search_energy": 0.0,
+        "coordinate_gradient": 0.0
+      },
+      "forward": {
+        "median_ms": {
+          "baseline": 8.094276000065292,
+          "current": 8.318094000060228
+        },
+        "speedup": 0.9730926339623819,
+        "samples_ms": {
+          "baseline": [
+            8.317835000070772,
+            8.06401999989248,
+            8.149750000029599,
+            7.9076750002968765,
+            8.094276000065292
+          ],
+          "current": [
+            8.807684000203153,
+            8.318094000060228,
+            7.963147999817011,
+            8.075738000115962,
+            9.028546000081406
+          ]
+        }
+      },
+      "forward_and_gradient": {
+        "median_ms": {
+          "baseline": 13.799637999909464,
+          "current": 14.009828999860474
+        },
+        "speedup": 0.9849968904007962,
+        "samples_ms": {
+          "baseline": [
+            13.799637999909464,
+            23.626223000064783,
+            15.0375759999406,
+            13.1136019999758,
+            13.740097000209062
+          ],
+          "current": [
+            13.320863999979338,
+            18.923064999853523,
+            13.234124000064185,
+            14.009828999860474,
+            15.579704000174388
+          ]
+        }
+      },
+      "autograd_memory": {
+        "baseline": {
+          "saved_tensor_logical_bytes": 6662144,
+          "saved_tensor_count": 30,
+          "cuda_peak_allocated_increment_bytes": null
+        },
+        "current": {
+          "saved_tensor_logical_bytes": 6662144,
+          "saved_tensor_count": 30,
+          "cuda_peak_allocated_increment_bytes": null
+        }
+      }
+    },
+    {
+      "scorer": "softdock",
+      "max_absolute_error": {
+        "intermolecular": 0.0,
+        "intramolecular": 0.0,
+        "search_energy": 0.0,
+        "coordinate_gradient": 0.0
+      },
+      "forward": {
+        "median_ms": {
+          "baseline": 8.339836999766703,
+          "current": 7.45022399996742
+        },
+        "speedup": 1.119407550672728,
+        "samples_ms": {
+          "baseline": [
+            7.183581999925082,
+            17.225913999936893,
+            14.461796999967191,
+            7.61749699995562,
+            8.339836999766703
+          ],
+          "current": [
+            6.852282000181731,
+            7.416382999963389,
+            7.781783999689651,
+            7.45022399996742,
+            10.524840000016411
+          ]
+        }
+      },
+      "forward_and_gradient": {
+        "median_ms": {
+          "baseline": 13.25778000000355,
+          "current": 14.30233600012798
+        },
+        "speedup": 0.9269660564459482,
+        "samples_ms": {
+          "baseline": [
+            14.1528199997083,
+            13.25778000000355,
+            13.380925000092248,
+            13.027601999965555,
+            12.935021999965102
+          ],
+          "current": [
+            15.647546000309376,
+            12.800409000192303,
+            13.754349000009825,
+            14.30233600012798,
+            14.909462000105123
+          ]
+        }
+      },
+      "autograd_memory": {
+        "baseline": {
+          "saved_tensor_logical_bytes": 9725952,
+          "saved_tensor_count": 28,
+          "cuda_peak_allocated_increment_bytes": null
+        },
+        "current": {
+          "saved_tensor_logical_bytes": 9725952,
+          "saved_tensor_count": 28,
+          "cuda_peak_allocated_increment_bytes": null
+        }
+      }
+    }
+  ],
+  "preparation": [
+    {
+      "fixture": "ligand",
+      "atoms": 18,
+      "exact_feature_parity": true,
+      "median_ms": {
+        "baseline": 3.89263499982917,
+        "current": 2.0622430001822067
+      },
+      "speedup": 1.887573384652168,
+      "samples_ms": {
+        "baseline": [
+          3.7625489999300044,
+          3.89263499982917,
+          4.942420000134007,
+          3.6269739998715522,
+          4.907296000055794
+        ],
+        "current": [
+          1.9046649999836518,
+          2.0622430001822067,
+          3.300911999758682,
+          2.0324879997133394,
+          2.213770999787812
+        ]
+      }
+    },
+    {
+      "fixture": "unsanitized_pdb_pocket",
+      "atoms": 1392,
+      "exact_feature_parity": true,
+      "median_ms": {
+        "baseline": 5796.126146999995,
+        "current": 2844.011500000306
+      },
+      "speedup": 2.038010798127705,
+      "samples_ms": {
+        "baseline": [
+          5796.126146999995,
+          5740.271355999994,
+          5663.962787000401,
+          5985.138221999932,
+          5848.512019000282
+        ],
+        "current": [
+          3023.6664830003974,
+          2743.8771039996936,
+          2844.011500000306,
+          2785.3357419999156,
+          2949.7967070001323
+        ]
+      }
+    }
+  ],
+  "optimization": {
+    "fixture": "synthetic_quadratic_adam_loop",
+    "steps": 75,
+    "early_stopping": false,
+    "max_coordinate_error": 0.0,
+    "median_ms": {
+      "baseline": 44.01035299997602,
+      "current": 40.831394999713666
+    },
+    "speedup": 1.0778557284237937,
+    "samples_ms": {
+      "baseline": [
+        42.704211000000214,
+        49.19276500004344,
+        42.0083799999702,
+        44.01035299997602,
+        44.17098400017494
+      ],
+      "current": [
+        40.831394999713666,
+        43.199286999879405,
+        40.15461300014067,
+        42.987096999695495,
+        39.82560799977364
+      ]
+    }
+  },
+  "upstream_baseline_commit": "125a4f82ec94cc0ffeb71d44d92912f58ff9ba79",
+  "baseline_provenance": "The local snapshot commit records the source fetched at the upstream baseline; reproduce in a full clone with --baseline-ref set to upstream_baseline_commit.",
+  "validation": {
+    "pytest_passed": 445,
+    "cuda_tests_skipped": 13,
+    "ruff": "passed",
+    "uv_lock_check": "passed",
+    "wheel_build": "passed",
+    "installed_wheel_import_cli": "passed",
+    "separate_process_pipeline_cases": 6,
+    "exact_exported_coordinates_scores_ranks": true,
+    "gpu_performance_measured": false
+  }
+}

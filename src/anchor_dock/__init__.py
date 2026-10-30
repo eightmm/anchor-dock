@@ -10,8 +10,12 @@ from ._compat import (
 )
 from ._version import __version__
 from .batch import DockingJob, LigandRecord, dock_batch
+from .core.ad4 import AD4Scorer, AD4Weights
+from .core.autogrid import load_autogrid_maps, read_autogrid_map
 from .core.engine import DockingEngine
 from .core.io import clear_receptor_cache
+from .core.native_vina import native_vina_components, native_vina_score
+from .core.prepared import PreparedLigand, receptor_context_from_prepared_pdbqt
 from .core.scoring import NeuralScorerAdapter, PairwiseScorer, resolve_scorer
 from .covalent.pipeline import clear_covalent_context_cache
 from .interaction import InteractionConstraint, clear_interaction_context_cache, dock_interaction
@@ -27,12 +31,15 @@ def clear_all_caches() -> None:
 
 
 __all__ = [
+    "AD4Scorer",
+    "AD4Weights",
     "DockingEngine",
     "DockingJob",
     "InteractionConstraint",
     "LigandRecord",
     "NeuralScorerAdapter",
     "PairwiseScorer",
+    "PreparedLigand",
     "clear_all_caches",
     "dock_batch",
     "dock_covalent",
@@ -40,9 +47,15 @@ __all__ = [
     "dock_interaction",
     "dock_reference",
     "dock_reference_batch",
+    "load_autogrid_maps",
+    "native_vina_components",
+    "native_vina_score",
+    "read_autogrid_map",
+    "receptor_context_from_prepared_pdbqt",
     "resolve_scorer",
     "run_batch_docking",
     "run_covalent_pipeline",
     "run_reference_pipeline",
     "__version__",
 ]
+

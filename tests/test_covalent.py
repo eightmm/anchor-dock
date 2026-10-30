@@ -364,7 +364,7 @@ def test_covalent_pipeline_preserves_bond_length_and_removes_legacy_tags(
     assert poses[0].GetProp("AnchorDock_Covalent_Receptor_Typing_State") == "product"
     assert poses[0].GetProp("AnchorDock_Covalent_Receptor_Typing_Version") == COVALENT_RECEPTOR_TYPING_VERSION
     assert poses[0].GetProp("AnchorDock_Receptor_Atom_Typing_Version").endswith(COVALENT_RECEPTOR_TYPING_VERSION)
-    assert poses[0].GetProp("AnchorDock_Receptor_Reactant_Atom_Typing_Version") == "inferred-xs-v2"
+    assert poses[0].GetProp("AnchorDock_Receptor_Reactant_Atom_Typing_Version") == "inferred-xs-v3"
     assert poses[0].HasProp("AnchorDock_Covalent_Receptor_Typing_Changes")
     assert poses[0].HasProp("AnchorDock_Intramolecular_Reference")
     assert poses[0].HasProp("AnchorDock_Canonical_Ligand_Atoms")
@@ -396,7 +396,7 @@ def test_covalent_pipeline_preserves_bond_length_and_removes_legacy_tags(
     assert result["covalent_receptor_typing_state"] == "product"
     assert result["covalent_receptor_typing_version"] == COVALENT_RECEPTOR_TYPING_VERSION
     assert result["receptor_atom_typing_version"].endswith(COVALENT_RECEPTOR_TYPING_VERSION)
-    assert result["receptor_reactant_atom_typing_version"] == "inferred-xs-v2"
+    assert result["receptor_reactant_atom_typing_version"] == "inferred-xs-v3"
     assert result["covalent_receptor_typing_changes"][0]["atom_name"] == "SG"
 
 
@@ -495,3 +495,4 @@ def test_dock_covalent_early_rotation_validation(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="rotation_top_k must be positive when rotation scanning is enabled"):
         dock_covalent_canonical(non_existent, "C=CC(=O)N", "CYS1:A", rotation_scan_step=30, rotation_top_k=0)
+

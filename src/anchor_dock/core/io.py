@@ -18,6 +18,11 @@ from rdkit import Chem
 
 from .features import ATOM_TYPING_VERSION, compute_atom_features
 
+# Input hydrogen evidence affects inferred HIS roles independently of graph
+# typing rules. Specify the ingestion policy rather than relying on RDKit's
+# removeHs behavior when sanitization is disabled.
+RECEPTOR_PREPARATION_CONTRACT = "pdb-explicit-h-preserved-v1"
+
 
 @dataclass(frozen=True)
 class ReceptorContext:
@@ -34,7 +39,7 @@ class ReceptorContext:
 
 
 _RECEPTOR_CACHE_MAX_SIZE = max(0, int(os.environ.get("ANCHOR_DOCK_RECEPTOR_CACHE_SIZE", "8")))
-_RECEPTOR_CACHE: OrderedDict[tuple[str, str, str, str], ReceptorContext] = OrderedDict()
+_RECEPTOR_CACHE: OrderedDict[tuple[str, ...], ReceptorContext] = OrderedDict()
 
 
 def file_content_fingerprint(path: str | os.PathLike[str]) -> str:
@@ -162,6 +167,7 @@ def receptor_context_from_mol(
         raise ValueError("receptor molecule has no conformer")
     coords = torch.tensor(mol.GetConformer().GetPositions(), dtype=torch.float32, device=device)
     features = compute_atom_features(mol, device)
+    features["receptor_preparation_contract"] = RECEPTOR_PREPARATION_CONTRACT
     return ReceptorContext(
         Chem.Mol(mol),
         coords,
@@ -177,16 +183,20 @@ def load_receptor_context(
     protein_pdb: str | os.PathLike[str],
     device: torch.device | str | None = None,
 ) -> ReceptorContext:
-    """Load and cache a PDB receptor using atom-typing-aware cache keys."""
+    """Load a PDB receptor while retaining supplied polar-H typing evidence.
+
+    Hydrogen coordinates are preserved and Vina-family features mark them
+    inactive. No hydrogens or missing protonation states are generated.
+    """
     target_device = choose_device(device)
     path = os.path.abspath(os.fspath(protein_pdb))
     source_fingerprint = file_content_fingerprint(path)
-    key = (path, source_fingerprint, str(target_device), ATOM_TYPING_VERSION)
+    key = (path, source_fingerprint, str(target_device), ATOM_TYPING_VERSION, RECEPTOR_PREPARATION_CONTRACT)
     cached = _RECEPTOR_CACHE.get(key)
     if cached is not None:
         _RECEPTOR_CACHE.move_to_end(key)
         return cached
-    mol = Chem.MolFromPDBFile(path, sanitize=False, removeHs=True)
+    mol = Chem.MolFromPDBFile(path, sanitize=False, removeHs=False)
     if mol is None:
         raise ValueError(f"failed to load receptor from {protein_pdb}")
     context = receptor_context_from_mol(
@@ -344,3 +354,4 @@ def extract_pocket_around_residues(
             pocket.GetAtomWithIdx(new_idx).SetMonomerInfo(copied_info)
     pocket.AddConformer(pocket_conf, assignId=True)
     return pocket
+

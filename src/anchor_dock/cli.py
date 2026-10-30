@@ -33,7 +33,10 @@ def _parse_interactions_json(value: str) -> list[dict[str, object]]:
 
 
 def _optimization_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--optimizer", choices=("adam", "adamw", "lbfgs"), default="adam")
+    parser.add_argument(
+        "--optimizer", choices=("adam", "adamw", "lbfgs", "cartesian"), default="adam",
+        help="Pose optimizer; cartesian is an experimental dense geometry-metric reference",
+    )
     parser.add_argument("--opt-steps", type=int, default=100)
     parser.add_argument("--opt-lr", type=float, default=0.05)
     parser.add_argument("--opt-batch-size", type=int, default=128)
@@ -339,3 +342,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
