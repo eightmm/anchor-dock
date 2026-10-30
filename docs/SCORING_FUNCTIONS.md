@@ -1,98 +1,117 @@
-# Scoring functions and existing-pose refinement (0.6)
+# Torch scoring functions and existing-pose refinement (0.6.1)
 
-SoftDock has been removed. Unrecognized/removed names fail explicitly; there is no silent substitution. Interaction docking now defaults to Vina. Existing reference/covalent/interaction strategies remain available, and the new refinement API preserves an already positioned 3D pose.
+AnchorDock focuses on scoring functions that expose a Torch objective for pose optimization: Vina/Vinardo empirical scores, AD4/AutoDock-GPU map references and an all-atom AMBER vacuum potential. SoftDock, DKOES presets and public Smina/GNINA/native Vina optimizer adapters have been removed. Unknown or removed names fail explicitly. Interaction docking defaults to Vina.
 
-## Implemented routes
+## Current catalog
 
-| Names | Optimization | Preparation / boundaries |
+| Name | Objective and units | Preparation / limits |
 |---|---|---|
-| vina, vinardo | Torch Adam/AdamW/LBFGS/Cartesian or pattern | Inferred XS or supplied prepared inputs |
-| dkoes_fast, dkoes_scoring_old | Same Torch optimizers | Independent continuous implementations of pinned empirical equations |
-| dkoes_scoring | Same Torch optimizers | Prepared AD4 types/charges for both molecules; includes desolvation |
-| ad4 | Torch optimizers | Explicit AutoGrid maps + prepared input; ordinary rigid receptor reference |
-| vina-final, vinardo-final | Pattern search | Nondifferentiable native FAST-table final energies; prepared input |
-| amber | OpenMM force-to-Torch gradient or pattern | Combined prmtop/inpcrd and explicit all-atom ligand indices |
-| vina-native:vina / vinardo / ad4 | Native Vina Python local optimization | Optional vina + Meeko; AD4 also needs maps |
-| smina:SF, gnina:SF | Native CLI minimization | Installed executable + prepared input |
-| gnina:cnn | Native CNN refinement | Installed GNINA/model; distinct empirical and CNN reporting |
+| `vina`, `vinardo` | Continuous empirical score, `kcal/mol-like` | Inferred XS or authoritative prepared inputs |
+| `ad4` | AD4 map/pair reference, `kcal/mol-like` | Existing AutoGrid maps and prepared ligand chemistry |
+| `adgpu` | Explicit AutoDock-GPU map/pair reference formulation, `kcal/mol-like` | Existing AutoGrid maps and prepared ligand chemistry |
+| `amber` | Pure Torch full-complex AMBER potential, `kcal/mol` | Complete prmtop/inpcrd, explicit all-atom ligand indices; nonperiodic vacuum NoCutoff |
+| `vina-final`, `vinardo-final` | Nondifferentiable native FAST-table reference, `kcal/mol-like` | Authoritative prepared input; pattern optimization only |
 
-Native empirical SF names are vina, vinardo, dkoes_fast, dkoes_scoring, dkoes_scoring_old and ad4_scoring. These are backend-qualified entries, not 25 independent physical models. GNINA/Smina Vinardo parameters can differ from the modern Vina lineage. ad4_scoring is not an alias for the AutoDock4 map backend.
+These are seven named entries with different preparation and reporting contracts. `adgpu` is a scoring reference, not a native AutoDock-GPU search implementation. `vina-final` and `vinardo-final` evaluate native-table conventions without invoking a native optimizer. Physical potential energies and empirical docking scores have different meanings; no cross-function raw ranking is provided.
 
-The catalog reports dependencies, preparation and required constructor options. An implemented adapter can still require an absent executable, external maps, topology or model. Proprietary Glide/GOLD/PLANTS scores are not reimplemented or claimed equivalent; a separately supplied licensed adapter can use the plugin interface.
+Continuous Torch objectives support Adam, AdamW, LBFGS, Cartesian pullback and derivative-free pattern optimization. The catalog declares each function's capabilities and required constructor options. Optional dependencies, external maps and topology files remain explicit requirements.
 
-## Usage
+## Existing-pose refinement
 
 ```bash
-uv sync --frozen --all-extras --group dev
+uv sync --frozen --group dev
 anchor-dock scorers
 anchor-dock refine -p protein.pdb -l positioned_pose.sdf \
-  --scorers vina vinardo dkoes_fast dkoes_scoring_old \
-  --steps 100 -o sf_comparison
+  --scorers vina vinardo --steps 100 -o sf_comparison
 ```
-
-The core install works for the continuous Vina/Vinardo/DKOES fast/old routes. Extras are prepare (Meeko), native-vina and amber (OpenMM). Smina/GNINA binaries are installed separately; failures are recorded rather than replaced by a different scorer.
 
 ```python
 from anchor_dock import refine_pose, refine_with_scorers
 
 one = refine_pose(
     "protein.pdb", "positioned_pose.sdf",
-    scorer="dkoes_fast", optimizer="lbfgs", num_steps=100,
+    scorer="vina", optimizer="lbfgs", num_steps=100,
 )
 comparison = refine_with_scorers(
-    "protein.pdb", "positioned_pose.sdf",
-    ["vina", "vinardo", "dkoes_fast", "dkoes_scoring_old"],
+    "protein.pdb", "positioned_pose.sdf", ["vina", "vinardo"],
     num_steps=100, on_error="record",
 )
 ```
 
-Every SF starts independently from the same source input. Prepared routes may add polar H, merge nonpolar H and round PDBQT coordinates/charges; those changes and output-to-input atom maps are recorded. Raw scores are never averaged or globally ranked across functions. Each run has its own refined.sdf/result.json; comparison.json retains successes and explicit errors.
+Every function starts independently from the same source pose. Prepared routes may add polar H, merge nonpolar H and round PDBQT coordinates/charges; preparation policies and output-to-input atom maps are recorded. Each run writes `refined.sdf` and `result.json`; `comparison.json` retains successes and explicit errors. Reported metrics declare units and direction, while search objectives are always lower-is-better. Raw scores are never averaged across functions.
 
-Refinement requires an existing positioned 3D ligand. SMILES/2D conformer generation is available separately through load_ligand_for_refinement/prepare_ligand, but generated conformers must be placed through a reference or interaction docking strategy first. Refinement does not position an unrelated conformer; callers must supply receptor-aligned coordinates.
+Refinement requires an existing positioned 3D ligand. Missing/2D coordinate generation is available separately through `load_ligand_for_refinement` and `prepare_ligand`. Callers must place those conformers in the receptor coordinate frame before refinement; local optimization does not perform that placement.
 
-## Prepared chemistry
+## Prepared chemistry and map scoring
 
-preparation=auto uses the scorer's profile; preparation=meeko explicitly requests prepared input. PDB/PQR receptor preparation runs on the full supplied structure before any pocket selection. It retains declared chemical states and explicit H; it does not estimate pKa/tautomers. Unknown residues, ambiguous HIS, altlocs and incomplete termini require explicit template/selection options rather than state guesses.
+Install `anchor-dock[prepare]` for automatic Meeko preparation. `preparation="auto"` follows the scorer's profile, while `preparation="meeko"` explicitly requests prepared input. Whole-receptor PDB/PQR preparation precedes pocket selection. It follows declared residue states/templates, supplied H and explicit alternate-location policies; it does not estimate pKa or choose tautomers. Unknown residues, ambiguous HIS and incomplete termini fail until their state or selection is declared.
 
 ```python
 result = refine_pose(
-    "protein.pqr", "positioned_pose.sdf",
-    scorer="dkoes_scoring",
-    preparation_options={"receptor": {"set_template": {"A:1": "NGLY", "A:2": "CGLY"}}},
+    "protein.pqr", "positioned_pose.sdf", scorer="vina",
+    preparation="meeko",
+    preparation_options={
+        "receptor": {"set_template": {"A:1": "NGLY", "A:2": "CGLY"}},
+    },
 )
 ```
 
-PQR preserves supplied charges, including merged nonpolar-H charge, instead of silently recalculating them. PB radii are not reused as XS or LJ radii. PDBQT quantization is recorded. The example template IDs are illustrative and must describe the actual receptor. Cut pockets with undeclared chain ends can fail preparation; use a correctly prepared complete receptor. ReceptorPreparation.autogrid_gpf generates a GPF but does not execute AutoGrid.
+The template IDs above are illustrative and must describe the actual receptor. PQR preparation preserves supplied charges, including merged nonpolar-H charge. PB radii are not substituted for XS or Lennard-Jones radii. Vina/Vinardo do not add a Coulomb term merely because charges are present. Cut pockets with undeclared ends can fail preparation; use a correctly prepared complete receptor.
 
-For ad4 pass scorer_options containing maps_prefix and atom_types. Maps already encode receptor electrostatics: changing receptor charges requires regenerated maps, not just a context update. Native Vina AD4 similarly requires maps_prefix.
+For `ad4` or `adgpu`, pass `scorer_options={"maps_prefix": "maps/receptor", "atom_types": ["C", "OA", "HD"]}` with the actual required map types. The maps already encode receptor electrostatics and other intermolecular terms: changing receptor charges requires regenerated maps. Prepared ligand charges, atom types, mobility pairs and TORSDOF determine the ligand-side terms. `ReceptorPreparation.autogrid_gpf()` generates a GPF; AutoGrid execution remains external. Maps are authoritative, and selecting a function does not generate them.
 
-## AMBER physical energy
+AD4 and AutoDock-GPU conventions differ in their declared pair formulation. The map reference does not establish native search parity, native update-direction parity or global docking performance. See [prepared inputs and scoring conventions](PREPARED.md).
+
+## AMBER in pure Torch
+
+```bash
+uv sync --frozen --extra amber --group dev
+```
 
 ```python
 result = refine_pose(
     None, "all_atom_ligand_pose.sdf", scorer="amber",
     scorer_options={
         "prmtop": "complex.prmtop", "inpcrd": "complex.inpcrd",
-        "ligand_atom_indices": [100, 101, 102],  # replace with every real ligand atom
-        "implicit_solvent": "GBn2",
+        "ligand_atom_indices": [100, 101, 102],  # replace with every ligand atom
     },
-    optimizer="lbfgs",
+    optimizer="lbfgs", num_steps=100,
 )
 ```
 
-The topology contains the fixed receptor. If a separate protein is supplied, its coordinates/order must match. All ligand atoms, including H, must match explicit particle indices. This is a full-complex potential, not binding affinity or an MM/GBSA binding-energy subtraction. Native OpenMM forces provide the exact first derivative; virtual sites and second derivatives are unsupported.
+The named `amber` entry constructs `TorchAmberScorer`. OpenMM reads the explicit AMBER topology/coordinates once and supplies the parameterized System for import. Runtime bond, angle, periodic torsion, Lennard-Jones, Coulomb and exception energies and their gradients are evaluated in Torch; scoring does not call an OpenMM Context. The original `NeuralScorerAdapter` remains a separate custom-model extension.
 
-Search subtracts a fixed reference energy in FP64 before casting to Torch, preserving small improvements in the presence of a large receptor constant. Reported score and named complex_potential remain full energy. Protocol inter/intra placeholders are omitted from public result metrics.
+`TorchAmberScorer.from_system()` also imports an explicitly parameterized OpenMM System and reference positions. Preparation accepts `device`, `dtype=torch.float64` and `pair_chunk_size`; compute uses FP64 and accepts FP32 or FP64 coordinate inputs. `.to(device, dtype=torch.float64)` moves imported state before preparation. This backend supports nonperiodic vacuum NoCutoff systems. GB/implicit solvent, periodic boundaries, PME, virtual sites, parameter offsets and unsupported force terms fail explicitly.
 
-## Native and derivative-free optimization
+A PDBQT or PQR charge array alone cannot replace bonded parameters, atom mapping, exclusions and pair exceptions from the complete topology. Ligand parameters and protein parameters must belong to the same declared force-field setup. The combined topology contains the fixed receptor. If a separate protein is supplied, its coordinates/order must match. The ligand graph and explicit particle-index list must include every mapped atom, including H. Use the topology's ordering and chemical state; do not assume an unrelated SDF has the same atom order.
 
-Native routes use their engine's local optimizer, not AnchorDock's interaction-guide/covalent contracts. GNINA CNN refinement optimizes native pose loss plus internal/bounds terms; CNNscore, CNNaffinity and empirical affinity remain separate reported quantities with their own units/directions. The empirical affinity is not relabeled as CNN loss.
+Reported `score` and named `complex_potential` represent a full-complex potential, not binding affinity or an MM/GBSA binding-energy subtraction. Search uses a fixed-reference energy difference so a large receptor constant does not conceal small pose improvements. Public physical-energy metrics do not relabel placeholder inter/intra decompositions as measured components.
 
-CLI padding follows the native local box; hydrogen-only branches are retained, initial/final force caps match, AD4 maps enter fingerprints, and GNINA GPU selection respects CUDA_VISIBLE_DEVICES. Zero steps is real score-only. Native Vina seed 0 is mapped to effective seed 1 and recorded because the underlying zero means random.
+## OpenMM reference and advanced backend
 
-Pattern search is a bounded deterministic reference for detached/discontinuous scores. It polls parameter-coordinate directions, checks actual atom displacement and accepts only objective decreases. It has evaluation/DOF/minimum-step limits and is expensive; it does not imply native search parity or global search. optimizer_options expose pattern budgets and Cartesian/backtracking settings. Native cpu/timeout/padding use native_options.
+`OpenMMScorer` remains available as an explicit Python object for numerical comparison and its supported advanced options. It is distinct from the catalog's Torch `amber` entry: OpenMM Context energies and forces are connected to Torch by a first-derivative bridge. Its supported implicit-solvent models include GBn2; those settings are not transferred to `TorchAmberScorer`.
 
-## Plugins and reporting
+```python
+from anchor_dock import OpenMMScorer, refine_pose
+
+with OpenMMScorer.from_amber(
+    "complex.prmtop", "complex.inpcrd", ligand_atom_indices,
+    implicit_solvent="GBn2",
+) as reference:
+    result = refine_pose(None, all_atom_ligand_pose, scorer=reference)
+```
+
+The same full-topology, all-atom mapping and full-potential interpretation apply. The OpenMM bridge supports exact first derivatives of its configured potential; virtual sites and second derivatives are unsupported. The optional `native-vina` dependency group is retained for direct Vina scoring oracle checks, not public native optimization services.
+
+## Optimization and custom extensions
+
+SE(3)+torsion optimization preserves the declared rigid-frame geometry. Explicit H must not alter inferred heavy-graph rotor detection; authoritative prepared torsion branches are retained separately. The optional Cartesian optimizer uses a damped coordinate Jacobian pullback and objective-checked steps. Trials with invalid physical geometry are backtracked; an invalid initial pose still raises an error. It is a bounded reference method, not an energy Hessian solver or a global-search claim.
+
+Pattern search polls parameter-coordinate directions, checks actual atom displacement and accepts objective decreases. It has evaluation, DOF and minimum-step limits and can be expensive. `optimizer_options` exposes the declared pattern budgets and Cartesian/backtracking settings. Zero steps evaluates the supplied pose without optimization.
+
+Vina/Vinardo support `PairwiseScorer("vina", intra_mode="sparse")`, or `scorer_options={"intra_mode": "sparse"}` with `refine_pose`. This opt-in mode calculates only contributing intramolecular pairs. The default dense calculation contract is retained: full-scoring cost can be dominated by intermolecular work, and FP32 direct distances can differ numerically from dense `cdist` evaluation. Intramolecular-only CPU gains do not establish an end-to-end speedup.
+
+AD4's `TrilinearGrid.sample_channels` shares cell lookup and eight-corner weights across its three map channels. Validation covers bitwise-equal forward values, small-ULP backward differences and the native AD4 golden reference. Bounded CPU measurements and their workloads are recorded in the [Torch physical-scoring report](../reports/torch-physical-2026-10-30.md); GPU performance remains unverified.
 
 ```python
 from anchor_dock import (
@@ -108,12 +127,12 @@ register_scoring_function(
 )
 ```
 
-A factory supplies prepare() and the PreparedScorer contract, or refine() for a native route. Search energy is always lower-is-better; reporting may declare higher-is-better separately. A deterministic fingerprint is required. Native engines, checkpoints and parameters remain independent dependencies. Installed packages can expose the anchor_dock.scorers entry-point group returning ScoringFunctionRegistration; load_scoring_plugins() loads them explicitly.
+A factory supplies `prepare()` and the `PreparedScorer` contract, including a deterministic fingerprint. Search energy is lower-is-better; a reported metric can declare a different direction. Installed packages may expose the `anchor_dock.scorers` entry-point group returning `ScoringFunctionRegistration`; `load_scoring_plugins()` loads them explicitly. Custom model parameters, preparation and units remain the adapter author's responsibility.
 
-The new files use anchor-dock-sf-refinement-v1 / anchor-dock-sf-comparison-v1 result schemas, separate from ranked docking SDF schema 4. Version 0.6 and batch epoch 6 invalidate old default-SoftDock resumes.
+Standalone results use `anchor-dock-sf-refinement-v1` and `anchor-dock-sf-comparison-v1`, separate from ranked docking SDF schema `4`. Version 0.6.1 / batch epoch `7` invalidates prior resume artifacts. Dated 0.6 reports describe a historical catalog that included now-removed adapters.
 
 ## Validation scope
 
-Tests execute Vina Python, OpenMM and Meeko when their extras are installed. Smina/GNINA CLI contract tests use explicit stubs because those binaries are unavailable here. DKOES equations are independently checked against scalar references and derivatives, not claimed native-executable parity. GPU throughput, actual CNN execution and broad docking accuracy remain unmeasured. Exact native PDBQT bond perception can differ from a supplied chemical graph.
+Validation covers source equations, finite-difference/autograd derivatives, optimizer descent, atom identity and independent starting poses. Optional tests compare supported Torch AMBER energies/gradients with an independent OpenMM reference and exercise actual preparation when dependencies are installed. Native Vina remains a scoring oracle for the relevant reference checks. Test counts and numerical tolerances belong to their recorded snapshots.
 
-DKOES/native source reference: [GNINA pinned implementation](https://github.com/gnina/gnina/tree/01cae6aa6e014e0bf11e511f1fe7a61b17975855). No native licensed source is vendored.
+GPU throughput, broad protein-ligand docking accuracy, binding free-energy prediction and native AutoDock-GPU search parity require separate evidence. No such performance or accuracy claim follows from sharing a scoring formula.

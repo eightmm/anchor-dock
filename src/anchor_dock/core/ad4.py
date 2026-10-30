@@ -46,7 +46,7 @@ _AD4_TYPES = {
     "Si": (2.30, .200, 0., 0., -.00143, 50.9650),
     "At": (2.40, .550, 0., 0., -.00110, 57.9058),
 }
-AD4_CONTRACT = "analytic-ad4-grid-v1"
+AD4_CONTRACT = "analytic-ad4-grid-v2"
 
 
 @dataclass(frozen=True)

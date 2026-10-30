@@ -51,23 +51,22 @@ def isolated_registry(monkeypatch):
     monkeypatch.setattr(registry, "_REGISTRY", registry._REGISTRY.copy())
 
 
-def test_catalog_has_real_routes_and_no_softdock():
+def test_catalog_has_torch_physical_routes_and_no_native_wrappers():
     entries = {v["name"]: v for v in list_scoring_functions()}
-    assert {"vina", "vinardo", "dkoes_fast", "dkoes_scoring", "ad4", "amber", "gnina:cnn", "smina:vinardo", "vina-final"} <= entries.keys()
-    assert "softdock" not in entries
+    assert set(entries) == {"vina", "vinardo", "ad4", "adgpu", "amber", "vina-final", "vinardo-final"}
+    assert all(v["backend"] == "torch" for v in entries.values())
     assert entries["vina-final"]["optimization"] == ("pattern",)
-    assert entries["gnina:cnn"]["optimization"] == ("native",)
     assert "maps_prefix" in entries["ad4"]["required_options"]
     assert entries["amber"]["units"] == "kcal/mol"
 
 
-@pytest.mark.parametrize("name", ["softdock", "SOFTDOCK", "unknown"])
+@pytest.mark.parametrize("name", ["softdock", "SOFTDOCK", "unknown", "dkoes_fast", "dkoes_scoring", "dkoes_scoring_old", "smina:vinardo", "gnina:cnn", "vina-native:ad4"])
 def test_removed_or_unknown_sf_fails_closed(name):
     with pytest.raises(ValueError):
         create_scoring_function(name)
 
 
-@pytest.mark.parametrize("name", ["vina", "vinardo", "dkoes_fast", "dkoes_scoring_old"])
+@pytest.mark.parametrize("name", ["vina", "vinardo"])
 def test_existing_pose_noop_preserves_coordinates_order_and_records_options(inputs, name):
     protein, ligand, source = inputs
     input_bytes = ligand.read_bytes()
@@ -86,7 +85,7 @@ def test_multiple_sfs_start_independently_and_are_not_raw_ranked(inputs, tmp_pat
     protein, ligand, _ = inputs
     options = dict(num_steps=3, optimizer="adam")
     first = refine_pose(protein, ligand, scorer="vina", **options)
-    combined = refine_with_scorers(protein, ligand, ["vinardo", "vina", "dkoes_fast"], **options)
+    combined = refine_with_scorers(protein, ligand, ["vinardo", "vina"], **options)
     assert combined["success"] and combined["raw_scores_comparable"] is False
     assert combined["results"]["vina"]["scores"] == first.scores
     assert combined["results"]["vina"]["initial_scores"] == first.initial_scores
@@ -182,7 +181,7 @@ def test_cli_catalog_and_refine_command(inputs, tmp_path, capsys):
     assert main(["scorers"]) == 0
     catalog = json.loads(capsys.readouterr().out)
     assert not any(v["name"] == "softdock" for v in catalog)
-    assert main(["refine", "-p", str(protein), "-l", str(ligand), "--scorers", "vina", "dkoes_fast", "--steps", "0", "-o", str(tmp_path / "cli")]) == 0
+    assert main(["refine", "-p", str(protein), "-l", str(ligand), "--scorers", "vina", "vinardo", "--steps", "0", "-o", str(tmp_path / "cli")]) == 0
     assert json.loads(capsys.readouterr().out)["success"]
 
 
@@ -212,17 +211,6 @@ def test_native_final_public_pattern_refinement_and_atom_mapping(name):
     assert result.scores["search_energy"]["value"] <= result.initial_scores["search_energy"]["value"]
     assert result.metadata["output_atom_to_input_atom"] == list(ligand.prepared.original_atom_indices)
     assert result.metadata["pdbqt_serials"] == list(ligand.prepared.pdbqt_serials)
-
-
-def test_native_public_zero_steps_preserves_source_hash_and_is_real_noop():
-    pytest.importorskip("vina")
-    receptor, ligand = _oracle_prepared_inputs()
-    result = refine_pose(receptor, ligand, scorer="vina-native:vina", num_steps=0)
-    assert result.metadata["input_ligand_sha256"] == ligand.fingerprint
-    assert result.metadata["native"]["input_ligand_sha256"] != ligand.fingerprint
-    assert result.metadata["requested_num_steps"] == 0
-    torch.testing.assert_close(result.coordinates, ligand.prepared.coordinates(dtype=torch.float64))
-    assert result.scores == result.initial_scores
 
 
 def test_amber_public_path_reports_full_potential_without_fake_decomposition(inputs):
@@ -282,3 +270,85 @@ def test_installed_plugin_entry_point_load_is_explicit_and_uses_declared_units(m
     register_scoring_function(wrong, HigherReporter)
     with pytest.raises(ValueError, match="units disagree"):
         create_scoring_function("wrong-units")
+
+
+@pytest.mark.parametrize("name", ["ad4", "adgpu"])
+def test_map_factory_uses_refinement_device_without_duplicate_configuration(inputs, monkeypatch, name):
+    protein, ligand, _ = inputs
+    received = {}
+    def factory(**options):
+        received.update(options)
+        return PairwiseScorer("vina")
+    original = registry._REGISTRY[name]
+    monkeypatch.setitem(registry._REGISTRY, name, registry.ScoringFunctionRegistration(
+        replace(original.info, preparation="inferred"), factory,
+    ))
+    refine_pose(protein, ligand, scorer=name, scorer_options={"maps_prefix": "maps/receptor", "atom_types": ["C"]}, num_steps=0)
+    assert received["device"] == "cpu"
+
+
+@pytest.mark.parametrize("options", [{"map_mode": "vina"}, {"formulation": "standard"}])
+def test_adgpu_name_cannot_silently_select_a_different_energy_convention(options):
+    with pytest.raises(ValueError, match="raw maps.*adgpu formulation"):
+        create_scoring_function("adgpu", maps_prefix="absent", atom_types=["C"], **options)
+
+
+def test_removed_native_flags_fail_at_cli_parse_time():
+    from anchor_dock.cli import build_parser
+    parser = build_parser()
+    for flag in (["--optimizer", "native"], ["--native-options", "{}"]):
+        with pytest.raises(SystemExit):
+            parser.parse_args(["refine", "-l", "pose.sdf", *flag])
+
+
+@pytest.mark.parametrize("optimizer", ["adam", "lbfgs", "cartesian"])
+def test_torch_amber_public_refinement_and_json_use_no_openmm_context(inputs, monkeypatch, tmp_path, optimizer):
+    openmm = pytest.importorskip("openmm")
+    from anchor_dock.core.torch_amber import TorchAmberScorer
+    _, _, mol = inputs
+    system, force = openmm.System(), openmm.NonbondedForce()
+    for charge in (.1, -.1, -.2, .2):
+        system.addParticle(12.)
+        force.addParticle(charge, .3, .1)
+    system.addForce(force)
+    positions = torch.cat((torch.tensor(mol.GetConformer().GetPositions()), torch.tensor([[0., 0., 0.]]))).numpy()
+    scorer = TorchAmberScorer.from_system(system, positions, [0, 1, 2], atomic_numbers=[6, 6, 8, 6])
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Torch scoring must not execute an OpenMM Context")
+    monkeypatch.setattr(openmm, "Context", forbidden)
+    result = refine_pose(None, mol, scorer=scorer, optimizer=optimizer, num_steps=3, output_dir=tmp_path / "torch-amber")
+    assert result.metadata["amber"]["runtime"] == "pure-torch"
+    assert result.scores["score"]["direction"] == "lower"
+    assert "complex_potential" in result.scores
+    assert "intermolecular" not in result.scores and "intramolecular" not in result.scores
+    assert result.scores["search_energy"]["value"] <= result.initial_scores["search_energy"]["value"]
+    saved = json.loads((tmp_path / "torch-amber/result.json").read_text())
+    assert saved["scores"] == result.scores
+
+
+def test_uninstalled_dotted_plugin_dependency_does_not_break_catalog():
+    info = ScoringFunctionInfo("missing-plugin", "test", "torch", ("autograd",), "inferred", "arbitrary",
+                               optional_modules=("anchor_missing_parent_xyz.submodule",))
+    register_scoring_function(info, HigherReporter)
+    entry = next(v for v in list_scoring_functions() if v["name"] == info.name)
+    assert entry["dependencies_available"] is False
+    assert entry["missing_dependencies"] == ["Python module anchor_missing_parent_xyz.submodule"]
+
+
+@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda:0", marks=pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA unavailable"))])
+def test_public_adgpu_reuses_supplied_maps_and_prepared_atom_identity(tmp_path, device):
+    receptor, ligand = _oracle_prepared_inputs()
+    prefix = tmp_path / "receptor"
+    atom_types = sorted(set(ligand.prepared.ad4_types))
+    header = "GRID_PARAMETER_FILE receptor.gpf\nGRID_DATA_FILE receptor.maps.fld\nMACROMOLECULE receptor.pdbqt\nSPACING 10\nNELEMENTS 4 4 4\nCENTER 0 0 0\n"
+    for kind in (*atom_types, "e", "d"):
+        Path(f"{prefix}.{kind}.map").write_text(header + "\n".join(["0.01"] * 125) + "\n")
+    options = {"maps_prefix": str(prefix), "atom_types": atom_types}
+    result = refine_pose(receptor, ligand, scorer="adgpu", scorer_options=options,
+                         optimizer="cartesian", num_steps=2, device=device)
+    assert result.scorer == "adgpu"
+    assert result.metadata["effective_tensor_device"] == device
+    assert result.metadata["output_atom_to_input_atom"] == list(ligand.prepared.original_atom_indices)
+    assert result.scores["search_energy"]["value"] <= result.initial_scores["search_energy"]["value"]
+    saved = result.as_dict()
+    assert saved["scores"]["score"]["units"] == "kcal/mol-like"

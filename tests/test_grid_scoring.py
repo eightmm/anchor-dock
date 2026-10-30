@@ -179,3 +179,86 @@ def test_ad4_grid_rejects_bad_atom_map_charge_and_map_geometry():
         AD4IntermolecularGrid(maps, maps[0, :, :, :2], maps[0], atom_types=["C", "OA"], origin=[0, 0, 0], spacing=.375)
     with pytest.raises(ValueError, match="unique"):
         AD4IntermolecularGrid(maps, maps[0], maps[0], atom_types=["C", "C"], origin=[0, 0, 0], spacing=.375)
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("count", [1, 3])
+def test_shared_geometry_matches_independent_channels_at_interior_and_outer_nodes(dtype, count):
+    generator = torch.Generator().manual_seed(1729)
+    field = TrilinearGrid(torch.randn(4, 4, 5, 6, generator=generator, dtype=dtype),
+                          origin=ORIGIN, spacing=SPACING)
+    xyz = _coordinates(dtype)
+    xyz[0, 0] = field.origin
+    xyz[1, -1] = field.origin + field.spacing * xyz.new_tensor([5, 4, 3])
+    xyz.requires_grad_()
+    channels = torch.randint(4, (2, 3, count), generator=generator)
+    actual = field.sample_channels(xyz, channels)
+    expected = torch.stack([field(xyz, channels[..., k]) for k in range(count)], dim=-1)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    weights = torch.randn(actual.shape, generator=generator, dtype=dtype)
+    actual_gradient, = torch.autograd.grad((actual * weights).sum(), xyz, retain_graph=True)
+    expected_gradient, = torch.autograd.grad((expected * weights).sum(), xyz)
+    tolerance = 2e-5 if dtype == torch.float32 else 2e-13
+    torch.testing.assert_close(actual_gradient, expected_gradient, rtol=tolerance, atol=tolerance)
+
+
+def test_shared_geometry_fp64_gradcheck_uses_anisotropic_physical_spacing():
+    field = TrilinearGrid(_maps(lambda x, y, z: x * y * z, lambda x, y, z: x * y,
+                                lambda x, y, z: y * z), origin=ORIGIN, spacing=SPACING)
+    channels = torch.tensor([[[0, 1, 2], [2, 0, 1], [1, 2, 0]],
+                             [[2, 1, 0], [1, 0, 2], [0, 2, 1]]])
+    xyz = _coordinates().requires_grad_()
+    assert torch.autograd.gradcheck(lambda values: field.sample_channels(values, channels),
+                                    (xyz,), eps=1e-6, atol=1e-7)
+
+
+@pytest.mark.parametrize("bad", ["shape", "empty", "float", "bool", "range", "coordinate_dtype", "nan", "bounds"])
+def test_shared_geometry_rejects_invalid_channels_and_coordinates(bad):
+    field = TrilinearGrid(_maps(lambda x, y, z: x + y + z), origin=ORIGIN, spacing=SPACING)
+    xyz, channels = _coordinates(), torch.zeros((2, 3, 1), dtype=torch.long)
+    if bad == "shape":
+        channels = channels[..., 0]
+    elif bad == "empty":
+        channels = channels[..., :0]
+    elif bad == "float":
+        channels = channels.double()
+    elif bad == "bool":
+        channels = channels.bool()
+    elif bad == "range":
+        channels[0, 0, 0] = 1
+    elif bad == "coordinate_dtype":
+        xyz = xyz.float()
+    elif bad == "nan":
+        xyz[0, 0, 0] = float("nan")
+    else:
+        xyz[0, 0, 0] = field.origin[0] - 1e-7
+    with pytest.raises(ValueError):
+        field.sample_channels(xyz, channels)
+
+
+@pytest.mark.parametrize("map_curl", [None, 1000.])
+def test_ad4_shared_channels_preserve_repeat_baseline_coordinate_and_charge_gradients(map_curl):
+    generator = torch.Generator().manual_seed(1741)
+    maps = torch.randn(4, 4, 5, 6, generator=generator, dtype=torch.float64) * 3.
+    component = AD4IntermolecularGrid(maps[:2], maps[2], maps[3], atom_types=["C", "OA"],
+                                     origin=ORIGIN, spacing=SPACING, map_curl=map_curl, upper_exclusive=True)
+    xyz = _coordinates().requires_grad_()
+    charges = torch.tensor([[.3, -.4, .5], [-.1, .2, -.7]], dtype=xyz.dtype, requires_grad=True)
+    channels = torch.tensor([[0, 1, 0], [1, 0, 1]])
+    actual = component.per_atom(xyz, channels, charges)
+    old_channels = torch.cat((channels, torch.full_like(channels, 2), torch.full_like(channels, 3)), dim=1)
+    old_samples = component.field(xyz.repeat(1, 3, 1), old_channels)
+    if map_curl is not None:
+        old_samples = old_samples / (1. + old_samples.clamp_min(0.) / map_curl)
+    affinity, electrostatic, desolvation = old_samples.split(3, dim=1)
+    expected = affinity + charges * electrostatic + charges.abs() * desolvation
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+    actual_gradients = torch.autograd.grad(actual.sum(), (xyz, charges), retain_graph=True)
+    expected_gradients = torch.autograd.grad(expected.sum(), (xyz, charges))
+    for actual_gradient, expected_gradient in zip(actual_gradients, expected_gradients, strict=True):
+        torch.testing.assert_close(actual_gradient, expected_gradient, rtol=2e-13, atol=2e-13)
+    upper = component.field.origin + component.field.spacing * xyz.new_tensor([5, 4, 3])
+    outside = xyz.detach().clone()
+    outside[0, 0] = upper
+    with pytest.raises(ValueError, match="upper-exclusive"):
+        component(outside, channels, charges.detach())

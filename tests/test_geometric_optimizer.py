@@ -153,10 +153,13 @@ def test_cartesian_backtracks_grid_boundary_per_pose():
         torch.testing.assert_close(batched[row], single[0], atol=1e-14, rtol=1e-14)
 
 
-def test_cartesian_rejects_nonfinite_trial_energy():
+@pytest.mark.parametrize("raised", [False, True])
+def test_cartesian_rejects_nonfinite_trial_energy(raised):
     model = CartesianPose([[[.9, .5, .5]]])
 
     def energy(x):
+        if raised and bool((x[:, 0, 0] > 1.).any()):
+            raise FloatingPointError("physical potential outside its differentiable domain")
         return torch.where(x[:, 0, 0] <= 1., -x[:, 0, 0], float("nan"))
 
     output, _ = cartesian_run(model, energy, num_steps=1)

@@ -1,10 +1,22 @@
 # Migration
 
-## 0.6 scoring functions
+## 0.6.1 Torch scoring focus
+
+The current catalog focuses on Vina/Vinardo, explicit AD4/AutoDock-GPU map references and pure Torch AMBER. The named `amber` entry now constructs `TorchAmberScorer`: it imports an explicitly parameterized AMBER topology through OpenMM once, then evaluates energy and gradients in Torch. It supports nonperiodic vacuum NoCutoff systems and rejects GB, PBC and PME. There is no separate `amber-torch` alias.
+
+Code that previously selected `scorer="amber"` for an OpenMM Context must now pass an explicit `OpenMMScorer` object to retain that behavior. `OpenMMScorer.from_amber(..., implicit_solvent="GBn2")` retains its supported advanced options; they are not supported by the named Torch `amber` entry.
+
+Public Smina/GNINA/native Vina local-optimizer adapters and all three DKOES presets have been removed. Requests for those names fail explicitly. Remove them from scorer sweeps; there is no scientifically equivalent automatic replacement. The prepared native Vina/Vinardo FAST-table final-scoring reference remains separate from native optimizer execution. `NeuralScorerAdapter` and explicit scorer registration remain available for custom extensions.
+
+`adgpu` selects the declared AutoDock-GPU map/pair reference formulation; it does not run or reproduce native AutoDock-GPU search. Both map routes require prepared ligand chemistry and existing receptor maps. Changing receptor charges requires regenerating those maps.
+
+Batch resume epoch advances to `7`; prior successful artifacts are not reused. Ranked docking output schema remains `4`, and independent SF refinement keeps its own result schemas. Dated 0.6 reports document historical adapters and validation rather than the current catalog.
+
+## 0.6 scoring functions (historical transition)
 
 SoftDock is removed and requests for its name fail explicitly. Interaction docking defaults to Vina. Batch resume epoch advances to 6 so older default-scorer artifacts are not reused. Ranked docking output schema remains 4.
 
-`refine_pose`, `refine_with_scorers`, `anchor-dock scorers` and `anchor-dock refine` provide independent SF refinement of an existing positioned 3D pose. Standalone results use their own versioned result schemas. Optional preparation/native/AMBER dependencies and plugin contracts are documented in [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md).
+`refine_pose`, `refine_with_scorers`, `anchor-dock scorers` and `anchor-dock refine` provide independent SF refinement of an existing positioned 3D pose. Standalone results use their own versioned result schemas. Current preparation, AMBER dependencies and plugin contracts are documented in [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md).
 
 ## Migrating from 0.4 to 0.5
 

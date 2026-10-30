@@ -10,7 +10,7 @@ Project-specific decisions and verification contract.
 ## Project
 
 - Type: general
-- Goal: Provide bounded, reproducible single- and multi-interaction-guided local docking in place of the former unconstrained `free` search.
+- Goal: Provide bounded, reproducible single- and multi-interaction-guided local docking and independent existing-pose refinement with explicit Torch scoring functions.
 - Scope:
   - Public names are `dock_interaction`, CLI/batch mode `interaction`, and `DockingJob.interaction`.
   - Require an explicit receptor residue, receptor atom, atom-mapped ligand SMARTS, target distance, and tolerance.
@@ -23,12 +23,14 @@ Project-specific decisions and verification contract.
   - Average the per-interaction weighted flat-bottom penalties during guidance, preserving the existing one-interaction objective exactly. Filter final poses by every requested distance window and rank/report only the scorer's unmodified score.
   - Score the union pocket around every selected receptor residue and key its bounded cache by the complete ordered receptor selector set.
   - Remove the former free API, CLI, batch factory/enum, module, examples, and current documentation; retain historical changelog text.
-  - Publish SF selection/refinement as 0.6.0 with ranked SDF output schema 4 and batch resume epoch 6. SoftDock is removed explicitly; interaction defaults to Vina.
+  - Publish the Torch scoring focus as 0.6.1 with ranked SDF output schema 4 and batch resume epoch 7. SoftDock is removed explicitly; interaction defaults to Vina.
   - Engine-level prepared graph/PDBQT inputs preserve explicit serial mapping, types/charges, polar H and branch mobility, with distinct Vina num_tors/AD4 TORSDOF. High-level inferred chemistry policies remain.
   - Continuous optimization and nondifferentiable native Vina-family final scoring are separate APIs.
   - Ordinary rigid-receptor AutoGrid/AD4 reference scoring declares formulation, map conventions and unbound model. Maps are authoritative; unsupported exclusions/extended types fail.
   - Opt-in `cartesian` geometry-metric optimization is bounded and objective-checked. Adam remains the default.
-  - Offer independent existing-pose SF refinement through an explicit catalog: Torch empirical equations, native adapters, optional OpenMM potentials and derivative-free pattern search. Record preparation, score direction/units, optimizer route and independent atom mappings.
+  - Offer independent existing-pose SF refinement through an explicit catalog: Torch Vina/Vinardo, AD4/AutoDock-GPU map reference formulations, pure Torch AMBER vacuum energy and derivative-free pattern search. Keep the optional OpenMM reference/advanced backend as an explicit Python object outside the named catalog. Record preparation, score direction/units, optimizer route and independent atom mappings.
+  - Remove public Smina/GNINA/native Vina optimizer adapters and DKOES presets. Preserve custom `NeuralScorerAdapter` extensions and native final-scoring reference checks; do not describe either as a native search implementation.
+  - The named `amber` entry uses `TorchAmberScorer`, with no duplicate `amber-torch` alias. Import explicit AMBER parameters once through OpenMM; evaluate supported bond/angle/torsion, Lennard-Jones and Coulomb terms and exceptions in Torch FP64. Reject unsupported implicit solvent, periodic systems and PME; the separate OpenMM bridge retains supported GB models.
 - Non-goals:
   - No global docking completeness claim.
   - No automatic residue or receptor-atom choice.
@@ -61,14 +63,15 @@ Project-specific decisions and verification contract.
   - Exported poses satisfy the requested distance window after the restraint-free release phase; an all-invalid run errors explicitly.
   - Batch signatures include the canonical ordered interaction list, its per-item weights, and every joint-search bound, and cannot resume artifacts from the prior epoch.
   - Signatures include atom-typing, receptor-ingestion and optimizer contracts; supplied PDB H is preserved explicitly.
-  - Package metadata, runtime version, lockfile, wheel, CLI, docs, and CI agree on 0.6.0, single/multi interaction and SF refinement APIs.
+  - Package metadata, runtime version, lockfile, wheel, CLI, docs, and CI agree on 0.6.1, single/multi interaction and Torch SF refinement APIs.
+  - AMBER Torch energies and Cartesian derivatives agree with an independent OpenMM reference within declared tolerances; unsupported force terms, solvent and periodic settings fail explicitly.
 - Required checks:
   - Focused interaction, CLI, batch, output, and compatibility tests.
   - Full `uv run --frozen pytest -q`.
   - `uv run --frozen ruff check src tests examples`.
   - `uv lock --check` and `uv build --wheel`.
   - Installed-wheel import/CLI smoke test and GitHub Actions after push.
-  - Frozen all-extras optional preparation/native/OpenMM tests. Smina/GNINA stubs are explicitly distinguished from actual executable validation.
+  - Frozen all-extras preparation, pure Torch AMBER, OpenMM reference, AD4 and public SF workflow tests. Historical native optimizer evidence is not presented as current functionality.
 
 ## Notes
 

@@ -20,15 +20,15 @@ Python 3.12 or newer is required.
 
 ## Scoring-function refinement
 
-Version 0.6 removes SoftDock and defaults interaction docking to Vina. Existing positioned SDF poses can be refined independently with Vina/Vinardo, DKOES presets, AD4 grids, AMBER/OpenMM, native Vina, and installed Smina/GNINA backends. Each route declares preparation, units, direction and optimizer requirements; raw scores are not combined across functions.
+Version 0.6.1 focuses on differentiable scoring in Torch: Vina/Vinardo, AD4/AutoDock-GPU map references, and an all-atom AMBER vacuum potential. Existing positioned SDF poses can be refined independently under each function. The named `amber` backend uses `TorchAmberScorer`: it imports an explicit topology once through OpenMM, then evaluates energies and gradients in Torch. `OpenMMScorer` remains a separate advanced Python backend and numerical reference.
 
 ```bash
 anchor-dock scorers
 anchor-dock refine -p protein.pdb -l positioned_pose.sdf \
-  --scorers vina vinardo dkoes_fast dkoes_scoring_old --steps 100 -o sf_comparison
+  --scorers vina vinardo --steps 100 -o sf_comparison
 ```
 
-See [scoring functions, optional dependencies and plugins](docs/SCORING_FUNCTIONS.md). Native Smina/GNINA require separately installed executables. AMBER requires a complete parameterized topology; AD4 requires maps. These adapters do not imply all proprietary scoring functions are available.
+See [scoring functions, preparation and plugins](docs/SCORING_FUNCTIONS.md). AMBER requires a complete parameterized topology and explicit all-atom mapping; AD4/AutoDock-GPU scoring requires prepared inputs and maps. The Torch AMBER implementation currently supports nonperiodic vacuum NoCutoff systems; implicit solvent and periodic electrostatics require a different implementation. Smina/GNINA, native Vina optimizer adapters and DKOES presets have been removed. Custom models can still use `NeuralScorerAdapter`.
 
 ## Reference-guided docking
 
@@ -187,11 +187,15 @@ result = dock_interaction(
 
 The Vina and Vinardo backends follow the modern AutoDock Vina implementation's pair functions, defaults, radii, 8 Å cutoff, and torsion transform. SMILES/SDF/PDB inputs do not carry authoritative PDBQT XS types, so AnchorDock infers XS-like types and labels the score as `kcal/mol-like`, not an exact Vina affinity. See [docs/SCORING.md](docs/SCORING.md).
 
+Vina/Vinardo offer opt-in sparse intramolecular evaluation through `scorer_options={"intra_mode": "sparse"}` during refinement; dense evaluation remains the default. AD4 shares grid-cell and corner-weight calculations across its three map channels. Workload limits, numerical checks and measured CPU timings are recorded in the [Torch physical-scoring report](reports/torch-physical-2026-10-30.md); GPU speed has not been validated.
+
 Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived every requested atom-pair distance filter; guide penalties are never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
 
 ## Upgrading
 
-Version 0.6 removes SoftDock, changes the interaction default to Vina, adds independent SF refinement and advances batch resume epoch to `6`. Ranked docking SDF schema remains `4`; standalone SF results use separate explicit schemas.
+Version 0.6.1 adds pure Torch AMBER vacuum scoring, exposes the AutoDock-GPU map formulation explicitly, and removes the public native optimizer adapters and DKOES presets. Batch resume epoch is `7`. Ranked docking SDF schema remains `4`; standalone SF results use separate explicit schemas.
+
+Version 0.6 removed SoftDock, changed the interaction default to Vina and added independent SF refinement. Earlier transitions are documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 
 Version 0.5 adds bounded simultaneous `AND` interaction constraints while keeping 0.4 single-interaction calls source-compatible. It advances the SDF output schema to `4` and batch resume epoch to `5`. Version 0.4 removed the public unconstrained search; all earlier transitions remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 

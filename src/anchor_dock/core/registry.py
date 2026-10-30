@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import importlib.util
 import re
-import shutil
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from importlib.metadata import entry_points
@@ -24,17 +23,19 @@ class ScoringFunctionInfo:
     direction: str = "lower"
     required_options: tuple[str, ...] = ()
     optional_modules: tuple[str, ...] = ()
-    executable: str | None = None
     description: str = ""
 
     def as_dict(self, *, check_available: bool = True) -> dict:
         value = asdict(self)
         missing = []
         if check_available:
-            missing.extend(f"Python module {name}" for name in self.optional_modules
-                           if importlib.util.find_spec(name) is None)
-            if self.executable and shutil.which(self.executable) is None:
-                missing.append(f"executable {self.executable}")
+            for name in self.optional_modules:
+                try:
+                    found = importlib.util.find_spec(name) is not None
+                except (ModuleNotFoundError, ImportError, ValueError):
+                    found = False
+                if not found:
+                    missing.append(f"Python module {name}")
         value.update(dependencies_available=not missing, missing_dependencies=missing,
                      requires_configuration=bool(self.required_options))
         return value
@@ -49,6 +50,11 @@ class ScoringFunctionRegistration:
 _REGISTRY: dict[str, ScoringFunctionRegistration] = {}
 
 
+def _removed_name(name: str) -> bool:
+    return name in {"softdock", "dkoes_fast", "dkoes_scoring", "dkoes_scoring_old"} or name.startswith(
+        ("smina:", "gnina:", "vina-native:"))
+
+
 def register_scoring_function(info: ScoringFunctionInfo, factory: Callable[..., object], *, replace: bool = False) -> None:
     """Register a factory. Search energies must always be lower-is-better.
 
@@ -57,14 +63,14 @@ def register_scoring_function(info: ScoringFunctionInfo, factory: Callable[..., 
     Registration never silently substitutes another scoring function.
     """
     if (not isinstance(info, ScoringFunctionInfo) or not re.fullmatch(r"[a-z][a-z0-9_.:-]*", info.name)
-            or info.name == "softdock" or not callable(factory)):
+            or _removed_name(info.name) or not callable(factory)):
         raise ValueError("a valid named scoring-function description and callable factory are required")
     if info.direction not in {"lower", "higher"} or not info.units:
         raise ValueError("score direction must be lower/higher and units must be explicit")
-    if info.backend not in {"torch", "native", "openmm"} or info.preparation not in {"inferred", "prepared-ad4", "amber-topology"}:
+    if info.backend not in {"torch", "openmm"} or info.preparation not in {"inferred", "prepared-ad4", "amber-topology"}:
         raise ValueError("unsupported backend or preparation profile")
-    if not info.optimization or set(info.optimization) - {"autograd", "native", "pattern"}:
-        raise ValueError("optimization routes must be autograd, native and/or pattern")
+    if not info.optimization or set(info.optimization) - {"autograd", "pattern"}:
+        raise ValueError("optimization routes must be autograd and/or pattern")
     if info.name in _REGISTRY and not replace:
         raise ValueError(f"scoring function {info.name!r} is already registered")
     _REGISTRY[info.name] = ScoringFunctionRegistration(info, factory)
@@ -73,8 +79,8 @@ def register_scoring_function(info: ScoringFunctionInfo, factory: Callable[..., 
 def scoring_function_info(name: str) -> ScoringFunctionInfo:
     if not isinstance(name, str):
         raise TypeError("scoring-function name must be a string")
-    if name.lower() == "softdock":
-        raise ValueError("softdock was removed; choose a documented scoring function")
+    if _removed_name(name.lower()):
+        raise ValueError(f"{name.lower()} was removed; choose a documented Torch scoring function")
     try:
         return _REGISTRY[name.lower()].info
     except KeyError as exc:
@@ -92,10 +98,10 @@ def create_scoring_function(name: str, **options):
     if missing:
         raise ValueError(f"{name} requires explicit scorer options: {', '.join(missing)}")
     result = _REGISTRY[info.name].factory(**options)
-    method = "refine" if info.backend == "native" else "prepare"
+    method = "prepare"
     if not callable(getattr(result, method, None)):
         raise TypeError(f"{name} factory must return a scorer with {method}(); wrap neural modules with NeuralScorerAdapter")
-    if info.backend != "native" and getattr(result, "units", None) != info.units:
+    if getattr(result, "units", None) != info.units:
         raise ValueError(f"{name} factory units disagree with its registered units")
     return result
 
@@ -123,24 +129,21 @@ def _pairwise(name, **options):
     return PairwiseScorer(name, **options)
 
 
-def _smina(name, **options):
-    from .smina import SminaScorer
-    return SminaScorer(name, **options)
-
-
 def _ad4(*, maps_prefix, atom_types, **options):
     from .ad4 import AD4Scorer
     return AD4Scorer.from_autogrid(maps_prefix, atom_types, **options)
 
 
+def _adgpu(*, maps_prefix, atom_types, **options):
+    if options.get("map_mode", "raw") != "raw" or options.get("formulation", "adgpu") != "adgpu":
+        raise ValueError("adgpu uses raw maps and the explicit adgpu formulation")
+    options.update(map_mode="raw", formulation="adgpu")
+    return _ad4(maps_prefix=maps_prefix, atom_types=atom_types, **options)
+
+
 def _amber(*, prmtop, inpcrd, ligand_atom_indices, **options):
-    from .amber import OpenMMScorer
-    return OpenMMScorer.from_amber(prmtop, inpcrd, ligand_atom_indices, **options)
-
-
-def _native(engine, function, **options):
-    from ..backends.native import NativeRefinementBackend
-    return NativeRefinementBackend(engine, function, **options)
+    from .torch_amber import TorchAmberScorer
+    return TorchAmberScorer.from_amber(prmtop, inpcrd, ligand_atom_indices, **options)
 
 
 class NativeFinalScorer:
@@ -198,32 +201,15 @@ def _install_builtins():
                                   "prepared-ad4", "kcal/mol-like", optional_modules=("meeko",),
                                   description="Nondifferentiable native FAST-table energy; pattern optimization only"),
                                   partial(NativeFinalScorer, name))
-    for name in ("dkoes_fast", "dkoes_scoring_old", "dkoes_scoring"):
-        prepared = name == "dkoes_scoring"
-        register_scoring_function(ScoringFunctionInfo(name, "smina-dkoes", "torch", ("autograd", "pattern"),
-                                  "prepared-ad4" if prepared else "inferred", "kcal/mol-like",
-                                  optional_modules=("meeko",) if prepared else (),
-                                  description="Continuous source-equation reference, not native search parity"), partial(_smina, name))
-    register_scoring_function(ScoringFunctionInfo("ad4", "ad4", "torch", ("autograd", "pattern"),
-                              "prepared-ad4", "kcal/mol-like", required_options=("maps_prefix", "atom_types"),
-                              optional_modules=("meeko",), description="Preweighted AutoGrid maps required"), _ad4)
-    register_scoring_function(ScoringFunctionInfo("amber", "amber", "openmm", ("autograd", "pattern"),
+    for name, factory in (("ad4", _ad4), ("adgpu", _adgpu)):
+        register_scoring_function(ScoringFunctionInfo(name, "ad4", "torch", ("autograd", "pattern"),
+                                  "prepared-ad4", "kcal/mol-like", required_options=("maps_prefix", "atom_types"),
+                                  optional_modules=("meeko",),
+                                  description="Preweighted AutoGrid maps; Torch refinement, not a native engine"), factory)
+    register_scoring_function(ScoringFunctionInfo("amber", "amber", "torch", ("autograd", "pattern"),
                               "amber-topology", "kcal/mol", required_options=("prmtop", "inpcrd", "ligand_atom_indices"),
-                              optional_modules=("openmm",), description="Full-complex potential, not binding affinity"), _amber)
-    for engine in ("smina", "gnina"):
-        for name in ("vina", "vinardo", "dkoes_fast", "dkoes_scoring", "dkoes_scoring_old", "ad4_scoring"):
-            register_scoring_function(ScoringFunctionInfo(engine + ":" + name, name, "native", ("native",),
-                                      "prepared-ad4", "kcal/mol-like", optional_modules=("meeko",), executable=engine,
-                                      description="Engine-version-specific empirical SF; no cross-engine identity claim"),
-                                      partial(_native, engine, name))
-    register_scoring_function(ScoringFunctionInfo("gnina:cnn", "gnina-cnn", "native", ("native",),
-                              "prepared-ad4", "kcal/mol-like", optional_modules=("meeko",), executable="gnina",
-                              description="Native CNN refinement; empirical affinity and CNN diagnostics remain distinct"),
-                              lambda **kw: _native("gnina", "vina", cnn_scoring="refinement", **kw))
-    for name in ("vina", "vinardo", "ad4"):
-        register_scoring_function(ScoringFunctionInfo("vina-native:" + name, name, "native", ("native",),
-                                  "prepared-ad4", "kcal/mol-like", optional_modules=("meeko", "vina"),
-                                  required_options=("maps_prefix",) if name == "ad4" else ()), partial(_native, "vina", name))
+                              optional_modules=("openmm",),
+                              description="Torch fixed-charge vacuum potential; OpenMM only imports parameters"), _amber)
 
 
 _install_builtins()
