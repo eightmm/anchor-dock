@@ -1,0 +1,167 @@
+{
+  "markdown_files": 28,
+  "parsed_python_blocks": 27,
+  "python_blocks": [
+    {
+      "path": "README.md",
+      "line": 44
+    },
+    {
+      "path": "README.md",
+      "line": 63
+    },
+    {
+      "path": "README.md",
+      "line": 82
+    },
+    {
+      "path": "README.md",
+      "line": 102
+    },
+    {
+      "path": "README.md",
+      "line": 135
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 5
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 18
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 51
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 79
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 112
+    },
+    {
+      "path": "docs/API_REFERENCE.md",
+      "line": 154
+    },
+    {
+      "path": "docs/BATCH.md",
+      "line": 5
+    },
+    {
+      "path": "docs/BATCH.md",
+      "line": 26
+    },
+    {
+      "path": "docs/BATCH.md",
+      "line": 54
+    },
+    {
+      "path": "docs/BATCH.md",
+      "line": 103
+    },
+    {
+      "path": "docs/BATCH.md",
+      "line": 164
+    },
+    {
+      "path": "docs/MIGRATION.md",
+      "line": 33
+    },
+    {
+      "path": "docs/PREPARED.md",
+      "line": 9
+    },
+    {
+      "path": "docs/PREPARED.md",
+      "line": 31
+    },
+    {
+      "path": "docs/PREPARED.md",
+      "line": 55
+    },
+    {
+      "path": "docs/SCORING.md",
+      "line": 99
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 28
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 49
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 65
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 85
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 110
+    },
+    {
+      "path": "docs/SCORING_FUNCTIONS.md",
+      "line": 134
+    }
+  ],
+  "preserved_remote_assets": [
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/test_run.gif",
+      "tracked_file": "examples/10gs/visualizations/test_run.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/test_ref_run.gif",
+      "tracked_file": "examples/10gs/visualizations/test_ref_run.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/mcs_q1_fixed.gif",
+      "tracked_file": "examples/10gs/visualizations/mcs_q1_fixed.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/mcs_q1_free.gif",
+      "tracked_file": "examples/10gs/visualizations/mcs_q1_free.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/query_low_acemetacin_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/query_low_acemetacin_100steps.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/query_mid_diclofenac_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/query_mid_diclofenac_100steps.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/query_high_flurbiprofen_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/query_high_flurbiprofen_100steps.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/ref_lower_cyclohexyl_ala_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/ref_lower_cyclohexyl_ala_100steps.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/ref_mid_pyridyl_cyclohexyl_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/ref_mid_pyridyl_cyclohexyl_100steps.gif"
+    },
+    {
+      "path": "reports/progress.md",
+      "target": "../examples/10gs/visualizations/coverage/ref_high_cyclohexylmethyl_100steps.gif",
+      "tracked_file": "examples/10gs/visualizations/coverage/ref_high_cyclohexylmethyl_100steps.gif"
+    }
+  ],
+  "errors": []
+}

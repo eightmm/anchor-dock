@@ -1,0 +1,343 @@
+{
+  "schema": "anchor-dock-cpu-installed-wheel-validation-v1",
+  "success": true,
+  "version": "0.6.2",
+  "package_path": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/__init__.py",
+  "python_executable": "/workspace/scratch/c3c1d08a64cf/work/anchor-dock/.venv/bin/python",
+  "cwd": "/workspace/scratch/c3c1d08a64cf/anchor-checks",
+  "verified_python_sources": 41,
+  "source_file_sha256": {
+    "anchor_dock/__init__.py": "93d47f6b49f8234a18a567f9f48433ec9db941b78cdcd5d347898706cda29206",
+    "anchor_dock/_compat.py": "fd5600f422000103c41c67b0aa1c698482d6b1011ae45a3cb254fa2da2f13e4c",
+    "anchor_dock/_version.py": "2ecdefe1f7e2f0eddb9398e21ff5a4ca7bbd8bd465527c66ab6c526646881c3b",
+    "anchor_dock/batch.py": "a174351cd9aaa961b5b4f66697abf2ff1c9080ea021266476e91c11e8c7a8e36",
+    "anchor_dock/cli.py": "a7cabd76c58de32012e730cfc2a5b01add3e92d42e182376dec25a49e98f5030",
+    "anchor_dock/core/__init__.py": "6de674557ee84d1f5a196d5463702070412e46ae718fc31241f502632c85e97f",
+    "anchor_dock/core/ad4.py": "7899c5d51c8552d827e37ca926ab5deb9b49f5fe232a56609c7fda3a400af774",
+    "anchor_dock/core/amber.py": "43dd81279db75a15dad8616b480eb46e917ba881c5a621615c7721e7af7b23f3",
+    "anchor_dock/core/autogrid.py": "f72afeb0a80b1ce6c96df3336e1b354fa1c34bf8ad90864d7ff041ad120b2e32",
+    "anchor_dock/core/conformers.py": "22d30592ad25798ab470f78d973ffdfe6d3472b1f9cf7f34b1b0d627e63ca331",
+    "anchor_dock/core/engine.py": "c3c75cf059ebd98d877be08b214e124c04fa644ed895fcb563fcdac3a2058270",
+    "anchor_dock/core/features.py": "4028b9536bd3c186f73f30aabe739b1263d7605caec0a62357ce6e0d7e100695",
+    "anchor_dock/core/geometry.py": "8b043ab4b756682ddb0829577148b2ea401f58eae7aef36ee675573444f73486",
+    "anchor_dock/core/grid.py": "6cce9348248bd70f3d61f5a73b21b46c13b6277658146113227966cf1be93f70",
+    "anchor_dock/core/io.py": "97ee9598ec3589f6633656c37e5958a63f4d27fea4a2a5fd398028b4ea50df14",
+    "anchor_dock/core/kinematics.py": "53b0b261b490f3cfc9755da409dae1277556738b45fd4ee1b9d6bca8042d4eec",
+    "anchor_dock/core/masks.py": "d21f6cdc937e54243ce7611f3d8d17e1b8de1659f98464bf5b38028f063104a7",
+    "anchor_dock/core/native_vina.py": "25543fd24cd2252ca9cc11b3c887fd19d3393095663a5d088e2c60be8a30c846",
+    "anchor_dock/core/optimization.py": "e227b5e63a54aa2d2ba08d5569e8724eb38190f77c04656922876c7147d8cab6",
+    "anchor_dock/core/output.py": "b6fa49464722cac8c77446eeb1531d9536030aa3d963f3be26e7eb77f518c9a8",
+    "anchor_dock/core/prepared.py": "d9f33f57d5194f3ed534187cbdf920345f036acb7d9d86946bc3d857771cc0e9",
+    "anchor_dock/core/registry.py": "eee41e1360bb13249226b4685b8e5f07ef3f778aac934f242f17f0b52d3b141a",
+    "anchor_dock/core/scoring.py": "03ce423a5a4dfb91252e8c2eb1cf33d0486156ee1a61073a04b6905e52d51424",
+    "anchor_dock/core/topology.py": "9a72dd4cec37df97ae59ef14b401be78d067c7a77619290684ddd01b7bf93260",
+    "anchor_dock/core/torch_amber.py": "e9a917be6e456602d261c0715f80fd37acb0cfd735bc06b8fe5460e16362b52c",
+    "anchor_dock/covalent/__init__.py": "ed9aef2275a5e92569ebecef8bd0ba07ef0e1f8bedf729ce1e32e1c1b61d5e24",
+    "anchor_dock/covalent/adduct.py": "41dad55c753d69752f8c8054b004a0ef78e2707c968a182d7d9b8cbc22c8f9ac",
+    "anchor_dock/covalent/anchor.py": "61641e0dea06f2e81040fa449cba3c100d9d69b8e9dbc124f29bbb9a4ab3abf7",
+    "anchor_dock/covalent/pipeline.py": "0e657c81a91be62de891228a89a258157595ded46460d8ee98daf4a6f95b8a4a",
+    "anchor_dock/interaction/__init__.py": "c0f2ebccbdbf06fa85884d4f622524386dcfc53f0c85674b441a03eb07cf5a97",
+    "anchor_dock/interaction/hypotheses.py": "724a01159d74c3196984270e0c8b0f7470664fbbbcb2a66825ce56731ace3887",
+    "anchor_dock/interaction/pipeline.py": "8e06493740b67dfdf2b8cd1d339a259d23c0bcc8b26967bd13ea23c880901c63",
+    "anchor_dock/interaction/restraint.py": "fc01b03bd6d9eb38d6bd686613ddf2d3ae5a0ed5243a13cf5898d2cae312ab39",
+    "anchor_dock/interaction/selectors.py": "fce840f5f0d1a6e8249b3bed0cd86bd5c479c5a5c481fd6e5eb3b074a0985fba",
+    "anchor_dock/interaction/spec.py": "a890b172d9fb51179ec24f1de99ce4fe54af84ad543fb8a7a0f453a5ba835d18",
+    "anchor_dock/preparation.py": "6e0e2c1c2471ec96e556b3aa8e67b434cfc9380610b3211f8f3e2ed1cd4981ec",
+    "anchor_dock/reference/__init__.py": "89833c2ee2b99eadacde19bad2661863607daac0fa57c257a9518e936d04e7af",
+    "anchor_dock/reference/mcs.py": "b6338eef46cf49304ebf6ba1984ced978d25f781e17393e60ef58f53a285fd70",
+    "anchor_dock/reference/pipeline.py": "4debecdb532816bbb517e59828c607898bc02477833de23a60969f19b03f8754",
+    "anchor_dock/reference/relax.py": "386b730d6b94704189ca93db89eafc9251432a637d503c5e072922800a8cd2df",
+    "anchor_dock/refinement.py": "65b7fdde7310365d060212fe2f6f4ba9054b0a293f03448ff6d3b2a7931a77d8"
+  },
+  "loaded_modules": {
+    "anchor_dock._compat": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/_compat.py",
+    "anchor_dock._version": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/_version.py",
+    "anchor_dock.core.conformers": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/conformers.py",
+    "anchor_dock.core.features": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/features.py",
+    "anchor_dock.core.io": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/io.py",
+    "anchor_dock.core.topology": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/topology.py",
+    "anchor_dock.core.masks": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/masks.py",
+    "anchor_dock.core.grid": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/grid.py",
+    "anchor_dock.core.kinematics": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/kinematics.py",
+    "anchor_dock.core.scoring": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/scoring.py",
+    "anchor_dock.core.optimization": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/optimization.py",
+    "anchor_dock.core.prepared": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/prepared.py",
+    "anchor_dock.core.engine": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/engine.py",
+    "anchor_dock.core.geometry": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/geometry.py",
+    "anchor_dock.core.output": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/output.py",
+    "anchor_dock.core": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/__init__.py",
+    "anchor_dock.interaction.selectors": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/selectors.py",
+    "anchor_dock.interaction.hypotheses": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/hypotheses.py",
+    "anchor_dock.interaction.restraint": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/restraint.py",
+    "anchor_dock.interaction.spec": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/spec.py",
+    "anchor_dock.interaction.pipeline": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/pipeline.py",
+    "anchor_dock.interaction": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/interaction/__init__.py",
+    "anchor_dock.batch": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/batch.py",
+    "anchor_dock.core.autogrid": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/autogrid.py",
+    "anchor_dock.core.ad4": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/ad4.py",
+    "anchor_dock.core.amber": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/amber.py",
+    "anchor_dock.core.native_vina": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/native_vina.py",
+    "anchor_dock.core.registry": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/registry.py",
+    "anchor_dock.core.torch_amber": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/core/torch_amber.py",
+    "anchor_dock.covalent": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/covalent/__init__.py",
+    "anchor_dock.covalent.anchor": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/covalent/anchor.py",
+    "anchor_dock.covalent.adduct": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/covalent/adduct.py",
+    "anchor_dock.covalent.pipeline": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/covalent/pipeline.py",
+    "anchor_dock.preparation": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/preparation.py",
+    "anchor_dock.refinement": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/refinement.py",
+    "anchor_dock": "/workspace/scratch/c3c1d08a64cf/anchor-checks/wheel-cpu-0.6.2/anchor_dock/__init__.py"
+  },
+  "catalog": [
+    {
+      "name": "ad4",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "adgpu",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "amber",
+      "family": "amber",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "amber-topology",
+      "units": "kcal/mol",
+      "direction": "lower",
+      "required_options": [
+        "prmtop",
+        "inpcrd",
+        "ligand_atom_indices"
+      ],
+      "optional_modules": [
+        "openmm"
+      ],
+      "description": "Torch fixed-charge vacuum potential; OpenMM only imports parameters",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "vina",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vina-final",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo-final",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    }
+  ],
+  "deleted_modules_absent": true,
+  "cli": [
+    {
+      "command": "reference",
+      "exit": 0
+    },
+    {
+      "command": "covalent",
+      "exit": 0
+    },
+    {
+      "command": "interaction",
+      "exit": 0
+    },
+    {
+      "command": "batch",
+      "exit": 0
+    },
+    {
+      "command": "refine",
+      "exit": 0
+    },
+    {
+      "command": "scorers",
+      "exit": 0
+    }
+  ],
+  "removed_cli_flags_rejected": true,
+  "independent_refinement": {
+    "success": true,
+    "source_inputs_unchanged": true,
+    "scores": {
+      "vina": {
+        "initial": -15.984533309936523,
+        "final": -15.984533309936523
+      },
+      "vinardo": {
+        "initial": -14.827404022216797,
+        "final": -14.827404022216797
+      }
+    }
+  },
+  "prepared_snapshot_mutation": [
+    {
+      "scorer": "vina",
+      "intra_mode": "dense",
+      "energy_kcal_mol_like": 24.83760643005371,
+      "prepared_snapshot_unchanged": true,
+      "factory_fingerprint_changes_with_factory_weights": true
+    },
+    {
+      "scorer": "vina",
+      "intra_mode": "sparse",
+      "energy_kcal_mol_like": 24.83760643005371,
+      "prepared_snapshot_unchanged": true,
+      "factory_fingerprint_changes_with_factory_weights": true
+    },
+    {
+      "scorer": "vinardo",
+      "intra_mode": "dense",
+      "energy_kcal_mol_like": 27.537315368652344,
+      "prepared_snapshot_unchanged": true,
+      "factory_fingerprint_changes_with_factory_weights": true
+    },
+    {
+      "scorer": "vinardo",
+      "intra_mode": "sparse",
+      "energy_kcal_mol_like": 27.537315368652344,
+      "prepared_snapshot_unchanged": true,
+      "factory_fingerprint_changes_with_factory_weights": true
+    }
+  ],
+  "coulomb_only_extreme_unused_sigma": [
+    {
+      "pair_cache_max_pairs": 0,
+      "exception": false,
+      "energy_kcal_mol": -163.99457879948804,
+      "gradient_max_error": 1.7763568394002505e-15,
+      "finite": true,
+      "openmm_context_forbidden": true
+    },
+    {
+      "pair_cache_max_pairs": 0,
+      "exception": true,
+      "energy_kcal_mol": 40.99864469987201,
+      "gradient_max_error": 4.440892098500626e-16,
+      "finite": true,
+      "openmm_context_forbidden": true
+    },
+    {
+      "pair_cache_max_pairs": 200000,
+      "exception": false,
+      "energy_kcal_mol": -163.99457879948804,
+      "gradient_max_error": 1.7763568394002505e-15,
+      "finite": true,
+      "openmm_context_forbidden": true
+    },
+    {
+      "pair_cache_max_pairs": 200000,
+      "exception": true,
+      "energy_kcal_mol": 40.99864469987201,
+      "gradient_max_error": 4.440892098500626e-16,
+      "finite": true,
+      "openmm_context_forbidden": true
+    }
+  ],
+  "openmm_context_forbidden_during_torch_runtime": true
+}

@@ -1,0 +1,280 @@
+{
+  "scope": "kernel/preparation/synthetic-loop benchmark; not end-to-end docking",
+  "baseline_commit": "4e11680f857781fda146396342907c1a0a0be20b",
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "torch": "2.10.0+cu128",
+    "rdkit": "2025.9.5",
+    "device": "cpu",
+    "cuda_available": false,
+    "device_name": "x86_64",
+    "threads": 1
+  },
+  "parameters": {
+    "baseline_ref": "4e11680",
+    "device": "cpu",
+    "dtype": "float32",
+    "threads": 1,
+    "batch_size": 8,
+    "ligand_atoms": 32,
+    "receptor_atoms": 256,
+    "scorers": [
+      "vina",
+      "vinardo"
+    ],
+    "skip_preparation": false,
+    "skip_optimization": false,
+    "optimizer_steps": 10,
+    "warmup": 2,
+    "repeats": 7,
+    "seed": 20261030,
+    "atol": 1e-05,
+    "rtol": 1e-05
+  },
+  "scoring": [
+    {
+      "scorer": "vina",
+      "max_absolute_error": {
+        "intermolecular": 0.0,
+        "intramolecular": 0.0,
+        "search_energy": 0.0,
+        "coordinate_gradient": 0.0
+      },
+      "forward": {
+        "median_ms": {
+          "baseline": 2.655748001416214,
+          "current": 2.504449999833014
+        },
+        "speedup": 1.0604116678685092,
+        "samples_ms": {
+          "baseline": [
+            3.65280299592996,
+            2.7442210048320703,
+            2.5891479963320307,
+            2.67015999997966,
+            2.655748001416214,
+            2.3172060027718544,
+            2.5186909988406114
+          ],
+          "current": [
+            2.878675004467368,
+            2.5455220020376146,
+            2.4842689963406883,
+            2.6376210007583722,
+            2.504449999833014,
+            2.266629999212455,
+            2.43565600248985
+          ]
+        }
+      },
+      "forward_and_gradient": {
+        "median_ms": {
+          "baseline": 5.222120998951141,
+          "current": 5.50823200319428
+        },
+        "speedup": 0.9480575611054108,
+        "samples_ms": {
+          "baseline": [
+            4.840695997700095,
+            5.099615998915397,
+            5.222120998951141,
+            5.7697480006027035,
+            5.461531996843405,
+            5.017511997721158,
+            5.610287000308745
+          ],
+          "current": [
+            5.12196099589346,
+            5.134097998961806,
+            7.372627005679533,
+            5.822525999974459,
+            5.50823200319428,
+            4.825521995371673,
+            5.5374970033881254
+          ]
+        }
+      },
+      "autograd_memory": {
+        "baseline": {
+          "saved_tensor_logical_bytes": 2393088,
+          "saved_tensor_count": 34,
+          "cuda_peak_allocated_increment_bytes": null
+        },
+        "current": {
+          "saved_tensor_logical_bytes": 2393088,
+          "saved_tensor_count": 34,
+          "cuda_peak_allocated_increment_bytes": null
+        }
+      }
+    },
+    {
+      "scorer": "vinardo",
+      "max_absolute_error": {
+        "intermolecular": 0.0,
+        "intramolecular": 0.0,
+        "search_energy": 0.0,
+        "coordinate_gradient": 0.0
+      },
+      "forward": {
+        "median_ms": {
+          "baseline": 2.347121997445356,
+          "current": 2.3238879948621616
+        },
+        "speedup": 1.0099979012046028,
+        "samples_ms": {
+          "baseline": [
+            2.3480629970435984,
+            2.302364999195561,
+            2.420062002784107,
+            2.347121997445356,
+            2.2181370004545897,
+            2.3515180000686087,
+            2.338648999284487
+          ],
+          "current": [
+            2.241722999315243,
+            3.0592870025429875,
+            2.6476359998923726,
+            2.5559380010236055,
+            2.2606319980695844,
+            2.2216229990590364,
+            2.3238879948621616
+          ]
+        }
+      },
+      "forward_and_gradient": {
+        "median_ms": {
+          "baseline": 4.430526998476125,
+          "current": 4.586420996929519
+        },
+        "speedup": 0.9660096623145236,
+        "samples_ms": {
+          "baseline": [
+            5.222892003075685,
+            4.316445003496483,
+            4.430526998476125,
+            4.340860999946017,
+            4.857641004491597,
+            4.4903360030730255,
+            3.827776999969501
+          ],
+          "current": [
+            4.586420996929519,
+            5.409363002399914,
+            4.655074997572228,
+            4.911012001684867,
+            4.367241999716498,
+            3.9551099980599247,
+            4.111615002329927
+          ]
+        }
+      },
+      "autograd_memory": {
+        "baseline": {
+          "saved_tensor_logical_bytes": 1803264,
+          "saved_tensor_count": 30,
+          "cuda_peak_allocated_increment_bytes": null
+        },
+        "current": {
+          "saved_tensor_logical_bytes": 1803264,
+          "saved_tensor_count": 30,
+          "cuda_peak_allocated_increment_bytes": null
+        }
+      }
+    }
+  ],
+  "preparation": [
+    {
+      "fixture": "ligand",
+      "atoms": 18,
+      "exact_feature_parity": true,
+      "median_ms": {
+        "baseline": 0.20633199892472476,
+        "current": 0.1613730055396445
+      },
+      "speedup": 1.2786029375528682,
+      "samples_ms": {
+        "baseline": [
+          0.20817400218220428,
+          0.2084540028590709,
+          0.16894500004127622,
+          0.24313699395861477,
+          0.1719290012260899,
+          0.20633199892472476,
+          0.16060200141509995
+        ],
+        "current": [
+          0.16785300249466673,
+          0.16342699382221326,
+          0.17930099420482293,
+          0.1613730055396445,
+          0.15953099500620738,
+          0.16076299652922899,
+          0.15736699424451217
+        ]
+      }
+    },
+    {
+      "fixture": "unsanitized_pdb_pocket",
+      "atoms": 1392,
+      "exact_feature_parity": true,
+      "median_ms": {
+        "baseline": 14.782209000259172,
+        "current": 14.936892002879176
+      },
+      "speedup": 0.9896442310361361,
+      "samples_ms": {
+        "baseline": [
+          15.027900000859518,
+          18.81274200422922,
+          21.856335006305017,
+          13.990002997161355,
+          14.782209000259172,
+          14.085247996263206,
+          14.362394998897798
+        ],
+        "current": [
+          14.936892002879176,
+          13.985215999127831,
+          15.00652700633509,
+          14.085677998082247,
+          14.666855000541545,
+          15.809399999852758,
+          15.375032999145333
+        ]
+      }
+    }
+  ],
+  "optimization": {
+    "fixture": "synthetic_quadratic_adam_loop",
+    "steps": 10,
+    "early_stopping": false,
+    "max_coordinate_error": 0.0,
+    "median_ms": {
+      "baseline": 6.486949998361524,
+      "current": 6.3405589971807785
+    },
+    "speedup": 1.023088027608581,
+    "samples_ms": {
+      "baseline": [
+        6.396133001544513,
+        6.68036199931521,
+        8.983427993371151,
+        6.486949998361524,
+        6.559829998877831,
+        6.355511999572627,
+        6.093125004554167
+      ],
+      "current": [
+        7.5564239959931,
+        6.3405589971807785,
+        6.58572900283616,
+        7.420349000312854,
+        6.208739003341179,
+        5.762016000517178,
+        6.082671003241558
+      ]
+    }
+  }
+}

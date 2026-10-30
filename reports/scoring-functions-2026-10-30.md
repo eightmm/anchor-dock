@@ -1,5 +1,7 @@
 # Scoring-function integration — 2026-10-30
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 AnchorDock 0.6 removes the uncalibrated SoftDock baseline and makes Vina the interaction default. It adds a capability-aware SF catalog and independent existing-pose refinement, instead of treating all scores as interchangeable energies.
 
 ## Available implementations

@@ -1,0 +1,223 @@
+{
+  "scope": "22-atom force/energy microbenchmark; not docking accuracy or general throughput",
+  "version": "0.6.2",
+  "seed": 713,
+  "dtype": "float64",
+  "device": "cpu",
+  "torch_threads": 1,
+  "python": "3.12.14",
+  "torch": "2.10.0+cu128",
+  "openmm": "8.6.1",
+  "oracle_platform": "Reference",
+  "cuda_available": false,
+  "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+  "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+  "script_sha256": "ec71d34a5636edeff273c557c368aa2e2b445558e27df9d1e00e577459892a58",
+  "torch_scorer": {
+    "contract": "torch-fixed-charge-vacuum-nocutoff-fp64-v3",
+    "objective": "full_complex_potential",
+    "component_semantics": "undecomposed-full-complex-potential",
+    "units": "kcal/mol",
+    "direction": "lower",
+    "runtime": "pure-torch",
+    "compute_dtype": "float64",
+    "device": "cpu",
+    "openmm_import_version": "8.6.1",
+    "force_counts": {
+      "HarmonicBondForce": 1,
+      "HarmonicAngleForce": 1,
+      "PeriodicTorsionForce": 1,
+      "NonbondedForce": 1
+    },
+    "source": {
+      "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+      "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+      "implicit_solvent": null,
+      "nonbonded_method": "NoCutoff"
+    },
+    "pair_cache": {
+      "enabled": true,
+      "max_candidate_pairs": 200000,
+      "moving_candidate_pairs": 165,
+      "cached_active_pairs": 132,
+      "evaluation_pair_chunk_size": 16384,
+      "bound_policy": "candidate count before exclusions; zero disables caching"
+    },
+    "reference_energy_kcal_mol": -21.05367795907712,
+    "fixed_energy_kcal_mol": -10.484920973018783,
+    "search_reference": "input full-complex potential; fixed-fixed terms removed analytically",
+    "constraints": "not enforced; supplied potential terms retained",
+    "ligand_graph_validation": "count/elements and induced topology edges; bond orders not validated",
+    "atom_mapping": "explicit caller-supplied ordered map; never inferred",
+    "singular_geometry": "reject active zero separations/collinear angles/degenerate torsions",
+    "fingerprint": "sha256:dd3d68117b5346e9a14ea8fbdee4b65a456784fd1a18faf66d37a3866046983d",
+    "fixed_receptor": true
+  },
+  "rows": [
+    {
+      "batch": 1,
+      "errors": {
+        "energy_kcal_mol": 2.1316282072803006e-14,
+        "gradient_kcal_mol_angstrom": 7.140954494389007e-13,
+        "cache_energy_kcal_mol": 7.105427357601002e-15,
+        "cache_gradient_kcal_mol_angstrom": 3.552713678800501e-15
+      },
+      "timings": {
+        "torch": {
+          "median_ms": 1.4001630042912439,
+          "q25_ms": 1.3201170004322194,
+          "q75_ms": 1.5096230017661583,
+          "samples_ms": [
+            1.4889570011291653,
+            1.5302890024031512,
+            1.3990910010761581,
+            1.2176580057712272,
+            1.4001630042912439,
+            1.5359980025095865,
+            1.2411429997882806
+          ]
+        },
+        "torch_uncached": {
+          "median_ms": 2.080739999655634,
+          "q25_ms": 1.9926019995182287,
+          "q75_ms": 2.305214002262801,
+          "samples_ms": [
+            2.07583299925318,
+            1.9093709997832775,
+            1.7640719961491413,
+            2.080739999655634,
+            2.3121300037018955,
+            2.2982980008237064,
+            2.7737760028685443
+          ]
+        },
+        "openmm_bridge": {
+          "median_ms": 0.38934799522394314,
+          "q25_ms": 0.34558100378490053,
+          "q75_ms": 0.43433999962871894,
+          "samples_ms": [
+            0.37676800275221467,
+            0.3143940048175864,
+            0.38934799522394314,
+            0.45853199844714254,
+            0.45475599472410977,
+            0.3083750052610412,
+            0.4139240045333281
+          ]
+        }
+      },
+      "cache_speedup": 1.486069831354311,
+      "speedup": 0.2780733343408322
+    },
+    {
+      "batch": 32,
+      "errors": {
+        "energy_kcal_mol": 1.1013412404281553e-13,
+        "gradient_kcal_mol_angstrom": 1.0729195309977513e-12,
+        "cache_energy_kcal_mol": 2.1316282072803006e-14,
+        "cache_gradient_kcal_mol_angstrom": 7.105427357601002e-15
+      },
+      "timings": {
+        "torch": {
+          "median_ms": 2.2824039988336153,
+          "q25_ms": 2.1510260012291837,
+          "q75_ms": 2.4949600010586437,
+          "samples_ms": [
+            2.2824039988336153,
+            2.1257179978420027,
+            2.176334004616365,
+            2.022352004132699,
+            2.611099997011479,
+            2.3788200051058084,
+            2.6566399974399246
+          ]
+        },
+        "torch_uncached": {
+          "median_ms": 2.8163500028313138,
+          "q25_ms": 2.7086579975730274,
+          "q75_ms": 2.96718800382223,
+          "samples_ms": [
+            3.2466699994984083,
+            2.6892589958151802,
+            2.8163500028313138,
+            2.576889004558325,
+            2.7280569993308745,
+            3.077414003200829,
+            2.8569620044436306
+          ]
+        },
+        "openmm_bridge": {
+          "median_ms": 1.7309019967797212,
+          "q25_ms": 1.707987998088356,
+          "q75_ms": 2.0228130015311763,
+          "samples_ms": [
+            1.6652019985485822,
+            1.7309019967797212,
+            1.7170819992315955,
+            1.6988939969451167,
+            2.281312001287006,
+            1.7908029985846952,
+            2.2548230044776574
+          ]
+        }
+      },
+      "cache_speedup": 1.233940180735121,
+      "speedup": 0.7583679303332233
+    },
+    {
+      "batch": 128,
+      "errors": {
+        "energy_kcal_mol": 1.2789769243681803e-13,
+        "gradient_kcal_mol_angstrom": 1.2860823517257813e-12,
+        "cache_energy_kcal_mol": 2.1316282072803006e-14,
+        "cache_gradient_kcal_mol_angstrom": 7.105427357601002e-15
+      },
+      "timings": {
+        "torch": {
+          "median_ms": 5.020516997319646,
+          "q25_ms": 4.9620684985711705,
+          "q75_ms": 5.181390002690023,
+          "samples_ms": [
+            4.8461439946549945,
+            6.269221004913561,
+            5.198345003009308,
+            5.1644350023707375,
+            5.020516997319646,
+            4.951962997438386,
+            4.972173999703955
+          ]
+        },
+        "torch_uncached": {
+          "median_ms": 5.672860999766272,
+          "q25_ms": 5.544763498619432,
+          "q75_ms": 5.9011354969698,
+          "samples_ms": [
+            5.293057998642325,
+            5.699280998669565,
+            5.463424997287802,
+            5.672860999766272,
+            5.626101999951061,
+            7.2081679973052815,
+            6.102989995270036
+          ]
+        },
+        "openmm_bridge": {
+          "median_ms": 5.827984998177271,
+          "q25_ms": 5.607953000435373,
+          "q75_ms": 6.107697499828646,
+          "samples_ms": [
+            5.711830002837814,
+            5.445508002594579,
+            6.954846998269204,
+            5.861274999915622,
+            5.504075998032931,
+            6.35411999974167,
+            5.827984998177271
+          ]
+        }
+      },
+      "cache_speedup": 1.1299356227246913,
+      "speedup": 1.1608336355177598
+    }
+  ]
+}

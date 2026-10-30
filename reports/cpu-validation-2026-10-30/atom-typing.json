@@ -1,0 +1,1339 @@
+{
+  "meeko": "0.8.0",
+  "rdkit": "2025.9.5",
+  "seed": 713,
+  "cases": 24,
+  "all_match": true,
+  "rows": [
+    {
+      "name": "acetate",
+      "smiles": "CC(=O)[O-]",
+      "native_ad4": [
+        "C",
+        "C",
+        "OA",
+        "OA",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_A"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "acetic_acid",
+      "smiles": "CC(=O)O",
+      "native_ad4": [
+        "C",
+        "C",
+        "OA",
+        "OA",
+        "H",
+        "H",
+        "H",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_DA"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "methylamine",
+      "smiles": "CN",
+      "native_ad4": [
+        "C",
+        "NA",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_DA"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "dimethylamine",
+      "smiles": "CNC",
+      "native_ad4": [
+        "C",
+        "NA",
+        "C",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_DA",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_DA",
+        "C_P"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_DA",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_DA",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "trimethylamine",
+      "smiles": "CN(C)C",
+      "native_ad4": [
+        "C",
+        "NA",
+        "C",
+        "C",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "ammonium",
+      "smiles": "C[NH3+]",
+      "native_ad4": [
+        "C",
+        "N",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_D"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "quaternary_ammonium",
+      "smiles": "C[N+](C)(C)C",
+      "native_ad4": [
+        "C",
+        "N",
+        "C",
+        "C",
+        "C",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_P",
+        "C_P",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_P",
+        "C_P",
+        "C_P",
+        "C_P"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_P",
+        "C_P",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_P",
+        "C_P",
+        "C_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "imidazole",
+      "smiles": "c1ncc[nH]1",
+      "native_ad4": [
+        "A",
+        "NA",
+        "A",
+        "A",
+        "N",
+        "H",
+        "H",
+        "H",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "N_D"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_P",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "pyridine",
+      "smiles": "c1ccncc1",
+      "native_ad4": [
+        "A",
+        "A",
+        "A",
+        "NA",
+        "A",
+        "A",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_H"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_A",
+        "C_P",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "pyrrole",
+      "smiles": "c1cc[nH]c1",
+      "native_ad4": [
+        "A",
+        "A",
+        "A",
+        "N",
+        "A",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "H"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_D",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_D",
+        "C_P"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_D",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_H",
+        "C_P",
+        "N_D",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "aniline",
+      "smiles": "Nc1ccccc1",
+      "native_ad4": [
+        "N",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "HD",
+        "HD",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "N_D",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "N_D",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H"
+      ],
+      "inferred_explicit": [
+        "N_D",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "N_D",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "amide",
+      "smiles": "CC(=O)N",
+      "native_ad4": [
+        "C",
+        "C",
+        "OA",
+        "N",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "N_D"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "nitrile",
+      "smiles": "CC#N",
+      "native_ad4": [
+        "C",
+        "C",
+        "NA",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_P",
+        "N_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_P",
+        "N_A"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_P",
+        "N_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_P",
+        "N_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "nitromethane",
+      "smiles": "C[N+](=O)[O-]",
+      "native_ad4": [
+        "C",
+        "N",
+        "OA",
+        "OA",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "N_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "N_P",
+        "O_A",
+        "O_A"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "N_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "N_P",
+        "O_A",
+        "O_A",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "phosphate",
+      "smiles": "OP(=O)([O-])[O-]",
+      "native_ad4": [
+        "OA",
+        "P",
+        "OA",
+        "OA",
+        "OA",
+        "HD"
+      ],
+      "expected_xs": [
+        "O_DA",
+        "P_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "inferred_heavy": [
+        "O_DA",
+        "P_P",
+        "O_A",
+        "O_A",
+        "O_A"
+      ],
+      "inferred_explicit": [
+        "O_DA",
+        "P_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "O_DA",
+        "P_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "sulfate",
+      "smiles": "OS(=O)(=O)[O-]",
+      "native_ad4": [
+        "OA",
+        "S",
+        "OA",
+        "OA",
+        "OA",
+        "HD"
+      ],
+      "expected_xs": [
+        "O_DA",
+        "S_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "inferred_heavy": [
+        "O_DA",
+        "S_P",
+        "O_A",
+        "O_A",
+        "O_A"
+      ],
+      "inferred_explicit": [
+        "O_DA",
+        "S_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "O_DA",
+        "S_P",
+        "O_A",
+        "O_A",
+        "O_A",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "phenol",
+      "smiles": "Oc1ccccc1",
+      "native_ad4": [
+        "OA",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "HD",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "O_DA",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "O_DA",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H"
+      ],
+      "inferred_explicit": [
+        "O_DA",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "O_DA",
+        "C_P",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "C_H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "alcohol",
+      "smiles": "CCO",
+      "native_ad4": [
+        "C",
+        "C",
+        "OA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_H",
+        "C_P",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_H",
+        "C_P",
+        "O_DA"
+      ],
+      "inferred_explicit": [
+        "C_H",
+        "C_P",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_H",
+        "C_P",
+        "O_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "thiol",
+      "smiles": "CS",
+      "native_ad4": [
+        "C",
+        "SA",
+        "H",
+        "H",
+        "H",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_P",
+        "S_P",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "S_P"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "S_P",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "S_P",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "sulfide",
+      "smiles": "CSC",
+      "native_ad4": [
+        "C",
+        "SA",
+        "C",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "S_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "S_P",
+        "C_P"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "S_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "S_P",
+        "C_P",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "sulfonamide",
+      "smiles": "CS(=O)(=O)N",
+      "native_ad4": [
+        "C",
+        "S",
+        "OA",
+        "OA",
+        "NA",
+        "H",
+        "H",
+        "H",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "C_P",
+        "S_P",
+        "O_A",
+        "O_A",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "S_P",
+        "O_A",
+        "O_A",
+        "N_DA"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "S_P",
+        "O_A",
+        "O_A",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "S_P",
+        "O_A",
+        "O_A",
+        "N_DA",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "urea",
+      "smiles": "NC(=O)N",
+      "native_ad4": [
+        "N",
+        "C",
+        "OA",
+        "N",
+        "HD",
+        "HD",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "N_D",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "N_D",
+        "C_P",
+        "O_A",
+        "N_D"
+      ],
+      "inferred_explicit": [
+        "N_D",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "N_D",
+        "C_P",
+        "O_A",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "guanidinium",
+      "smiles": "NC(=[NH2+])N",
+      "native_ad4": [
+        "N",
+        "C",
+        "N",
+        "N",
+        "HD",
+        "HD",
+        "HD",
+        "HD",
+        "HD",
+        "HD"
+      ],
+      "expected_xs": [
+        "N_D",
+        "C_P",
+        "N_D",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "N_D",
+        "C_P",
+        "N_D",
+        "N_D"
+      ],
+      "inferred_explicit": [
+        "N_D",
+        "C_P",
+        "N_D",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "N_D",
+        "C_P",
+        "N_D",
+        "N_D",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    },
+    {
+      "name": "fluoromethane",
+      "smiles": "CF",
+      "native_ad4": [
+        "C",
+        "F",
+        "H",
+        "H",
+        "H"
+      ],
+      "expected_xs": [
+        "C_P",
+        "F_H",
+        "H",
+        "H",
+        "H"
+      ],
+      "inferred_heavy": [
+        "C_P",
+        "F_H"
+      ],
+      "inferred_explicit": [
+        "C_P",
+        "F_H",
+        "H",
+        "H",
+        "H"
+      ],
+      "supplied_ad4_xs": [
+        "C_P",
+        "F_H",
+        "H",
+        "H",
+        "H"
+      ],
+      "match": true
+    }
+  ]
+}

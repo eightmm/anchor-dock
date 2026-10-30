@@ -1045,7 +1045,7 @@ def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkey
     root = tmp_path / "resume-epoch"
     current_epoch = batch_module._BATCH_SCHEMA_VERSION
     current_output_schema = batch_module.OUTPUT_SCHEMA_VERSION
-    assert current_epoch == "7"
+    assert current_epoch == "8"
     assert current_output_schema == "4"
 
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "3")

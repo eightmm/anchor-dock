@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.2 — 2026-10-30
+
+- independently verified CPU scorer, gradient, optimization, preparation and public workflow contracts; updated current documentation against executable APIs;
+- isolated Vina/Vinardo factory and prepared state from later mutations of caller config, receptor coordinates, features and masks, and kept factory fingerprints consistent with current configuration;
+- removed zero-strength LJ power evaluation in Torch AMBER, fixing finite Coulomb-only boundary inputs in both cached and tiled paths;
+- advanced batch resume epoch to `8`; ranked SDF schema remains `4` and standalone SF schemas remain version 1;
+- preserved dated validation evidence as explicitly historical snapshots and added a current CPU validation index.
+
+## 0.6.1 — 2026-10-30
+
+- focused the catalog on Torch Vina/Vinardo, AD4/ADGPU map formulations and a pure Torch AMBER vacuum potential;
+- removed external Smina/GNINA/native-Vina optimizer adapters and redundant DKOES presets; retained native numerical oracles and explicit OpenMM advanced/reference objects;
+- cached bounded static AMBER pair coefficients, shared AD4 map interpolation geometry and added opt-in sparse intra evaluation;
+- retained objective-checked SE(3)+torsion optimization, explicitly separated potential energies from empirical scores, and advanced batch epoch to `7`;
+- recorded CPU numerical and microbenchmark evidence in the [0.6.1 report](reports/torch-physical-2026-10-30.md).
+
+## 0.6.0 — 2026-10-30
+
+- removed SoftDock and defaulted interaction docking to Vina;
+- added scorer registration, optional Meeko preparation and independent existing-pose refinement with explicit units, directions, input hashes and atom mappings;
+- initially included native optimizer adapters and DKOES presets, subsequently removed in 0.6.1;
+- advanced batch epoch to `6` while retaining ranked SDF schema `4`.
+
 ## 0.5.0
 
 - added canonical ordered `interactions=[...]` input for up to eight simultaneous atom-pair constraints while preserving the five single-interaction keywords;

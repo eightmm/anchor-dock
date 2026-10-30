@@ -173,7 +173,7 @@ Every job receives a sanitized deterministic directory name and a `result.json`.
 
 Malformed rows and molecule records are reported as batch failures rather than silently dropped. `on_error="record"` continues, `"skip"` continues without returning the failed item, and `"raise"` stops at the first error.
 
-Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent/interaction contexts are reused through atom-typing-aware bounded caches; multi-interaction jobs score the union pocket around all selected residues. Version 0.5 advances the batch resume epoch to `5`, so earlier artifacts are recomputed rather than reused.
+Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent/interaction contexts are reused through atom-typing-aware bounded caches; multi-interaction jobs score the union pocket around all selected residues. Current batch resume epoch is `8`; earlier epochs are recomputed rather than reused. See [migration history](MIGRATION.md) for older changes.
 
 
-Version 0.6.1 focuses on Torch physical scorers and advances resume epoch to `7`. Independent SF comparisons use `refine_with_scorers` rather than mixing raw scores in one ranked docking batch.
+Version 0.6.2 preserves the Torch physical scorer catalog and advances resume epoch to `8` after input-snapshot and numerical-boundary fixes. Independent SF comparisons use `refine_with_scorers` rather than mixing raw scores in one ranked docking batch.

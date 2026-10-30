@@ -1,82 +1,89 @@
 # Architecture
 
-## Boundary
+This is the canonical architecture guide for the current Torch scoring implementation. Public signatures and executable examples are maintained in [API_REFERENCE.md](API_REFERENCE.md) and [USAGE.md](USAGE.md); scoring contracts are in [SCORING.md](SCORING.md).
 
-A strategy constructs a `PreparedDockingProblem`:
+## Entry points and boundaries
 
-- one RDKit topology;
-- one receptor context;
-- initial pose coordinates;
-- fixed anchor atoms, when applicable;
-- intramolecular and intermolecular exclusion masks;
-- a prepared differentiable scorer.
+| Entry point | Preparation and placement | Optimization and result |
+|---|---|---|
+| `dock_reference` | Reference MCS mappings and constrained conformers | Anchor-preserving torsion refinement; ranked docking output |
+| `dock_covalent` | Explicit receptor nucleophile and supported warhead product graph | Product geometry and exclusions, then movable torsions; ranked docking output |
+| `dock_interaction` | One to eight explicit atom-pair distance hypotheses and seeded local placement | Guided SE(3)+torsion search, restraint-free release, then hard distance filtering |
+| `dock_batch` | Input/manifest normalization and bounded job dispatch | The selected strategy's result, with per-job provenance and resume validation |
+| `refine_pose` / `refine_with_scorers` | Existing receptor-aligned 3D pose and scorer-specific preparation | Shared pose optimizer; separate per-SF results without cross-SF raw ranking |
 
-`DockingEngine` then performs scorer-independent optimization and reporting.
+The three docking strategies use `DockingEngine` for scorer-independent preparation, optimization and reporting. The existing-pose refinement workflow follows the scorer's declared preparation profile. Its AMBER path validates a complete all-atom topology and uses its fixed receptor directly; it does not run inferred XS preparation through `DockingEngine.prepare`.
 
-```text
-input strategy
-    ├── reference MCS
-    ├── residue–warhead covalent adduct
-    └── explicit single/multi atom-pair interaction guide
-            ↓
-PreparedDockingProblem
-            ↓
-rigid-frame kinematics + Torch optimizer
-            ↓
-search energy + reported score
-            ↓
-standard AnchorDock SDF/JSON output
-```
+`PreparedDockingProblem` contains the RDKit molecule, receptor context, prepared scorer, anchor indices, rotor count and optional prepared-input fingerprint. Initial coordinates are passed to optimization methods. Exclusion masks and derived pair data belong to the prepared scorer rather than separate problem fields.
+
+## Module ownership
+
+| Module | Responsibility |
+|---|---|
+| `core/engine.py` | Prepared problems, strategy-facing optimization and reporting |
+| `core/kinematics.py`, `core/topology.py` | Rigid frames, SO(3) rotations, torsions and anchor restrictions |
+| `core/optimization.py` | Shared Adam/AdamW/LBFGS, Cartesian pullback and pattern search |
+| `core/scoring.py` | Vina/Vinardo equations, prepared pair data, score reporting and custom Torch adapters |
+| `core/registry.py` | Named scorer factories, capability/preparation declarations and explicit plugin loading |
+| `core/prepared.py`, `preparation.py` | Authoritative graph/PDBQT mapping and optional Meeko PDB/PQR/ligand preparation |
+| `core/autogrid.py`, `core/grid.py`, `core/ad4.py` | AutoGrid ingestion, differentiable interpolation and declared AD4/ADGPU formulations |
+| `core/torch_amber.py` | Parameter import and pure Torch fixed-charge vacuum potential |
+| `core/amber.py` | Explicit optional OpenMM energy/force reference and advanced backend |
+| `core/native_vina.py` | Nondifferentiable FAST-table reference scoring, without a native search process |
+| `refinement.py` | Independent refinement, atom identity, metrics and provenance |
+| `batch.py`, `core/output.py` | Job ownership/resume and strategy output contracts |
+
+## Scoring and chemistry profiles
+
+The catalog has seven entries: continuous `vina`, `vinardo`, `ad4`, `adgpu`, `amber`, plus pattern-only `vina-final` and `vinardo-final` table references. All named backends expose Torch objectives. `adgpu` describes the inspected map/pair formulation; it does not execute AutoDock-GPU. Public Smina/GNINA/native Vina optimizer adapters, DKOES presets and SoftDock are removed.
+
+Three preparation profiles have different scientific contracts:
+
+- **Inferred XS:** Vina/Vinardo can infer supported atom roles from the supplied graph/PDB state. Diagnostics and strict-mode rejection expose unresolved chemistry. This does not assign protonation or tautomers.
+- **Prepared AD4:** An explicit chemical graph, atom mapping, types, charges and torsion tree are authoritative. Prepared Vina `num_tors` can be half-integral and differs from AD4 `TORSDOF`. AutoGrid maps are also authoritative; their association with a separately supplied receptor cannot be reconstructed from grid values alone.
+- **AMBER topology:** The complete parameterized System, reference coordinates and explicit movable-particle indices define the potential. The named Torch backend supports nonperiodic vacuum NoCutoff bond/angle/periodic-torsion, Coulomb/LJ and exceptions. Unsupported force models fail explicitly. PQR charges alone are insufficient.
+
+Native Vina bindings remain optional numerical oracles. `OpenMMScorer` is an explicit Python-object reference/advanced backend outside the named catalog. `NeuralScorerAdapter` remains a custom extension point; no built-in neural model or external optimizer is required by the physical catalog.
 
 ## Core invariants
 
-1. Coordinates are `[poses, atoms, 3]`; single poses may enter as `[atoms, 3]`.
-2. Pair masks normalize to `[poses, ligand_atoms, receptor_atoms]`.
-3. Intramolecular scoring excludes 1–2, 1–3, 1–4, and same-rigid-frame pairs.
-4. A torsion is disabled when fixed anchors occur on both graph sides.
-5. Early-stopped Adam rows cannot move through momentum; every pose restores its best parameter state.
-6. Output poses are sorted by reported score.
-7. Search energy and reported score are separate quantities.
-8. Kinematics and the Vina-family denominator share RDKit's strict rotor definition.
-9. Receptor/source/scorer/search identities and the intramolecular reporting baseline are persisted.
+1. Pose coordinates are `[B,N,3]` in angstroms; supported single-pose calls also accept `[N,3]`. Angles are radians.
+2. Docking masks broadcast to the declared batch/atom axes. Vina-family intra masks exclude 1–2, 1–3, 1–4 and same-rigid-frame pairs. AMBER instead retains its topology's bonded terms and explicit nonbonded exclusions/scaled exceptions.
+3. Inferred heavy-graph rotors are mapped back to the original atom order, so adding explicit H does not create terminal heavy-atom rotors. Prepared branches remain authoritative.
+4. A torsion is disabled when fixed anchors occur on both graph sides. One live pose model is reused through interaction guide and release phases.
+5. Shared optimization restores the best accepted state per pose. Early-stopped Adam rows cannot move through momentum. Cartesian and pattern trial-domain failures backtrack; an invalid initial potential still errors.
+6. Search objectives are lower-is-better. Reported scores have their own units and direction. Vina-family reporting, AD4 unbound conventions and AMBER full-complex potential are not interchangeable.
+7. Ranked strategy SDFs and independent-SF refinement outputs are separate contracts. Independent SF results never acquire a combined raw-score ranking.
+8. Atom mappings, input/model hashes, seed and effective optimizer/runtime choices enter the appropriate result provenance. Prepared artifacts do not prove chemical correctness merely by being parseable.
 
-## Reference strategy
+## Strategy-specific contracts
 
-1. Load and canonicalize the query.
-2. evaluate contiguous and bounded alternative disjoint-fragment MCS candidates, quotienting common pattern automorphisms;
-3. select `single`, `multi`, or `cross` deterministically and report candidate/global-maximum proof limits;
-4. generate ETKDG conformers with the coordinate map fixed in the absolute reference frame;
-5. validate exact anchors plus heavy-atom bond/1–3 geometry before clustering;
-6. optionally relax each representative exactly once with fixed anchors;
-7. optionally optimize torsions without moving any fixed anchor;
-8. pool all mappings and report against one intramolecular reference.
+### Reference
 
-## Covalent strategy
+Reference mode evaluates bounded contiguous and alternative disjoint-fragment MCS candidates, quotients common pattern automorphisms, and selects `single`, `multi` or `cross` mappings deterministically. ETKDG coordinates use the absolute reference frame. Exact anchors and heavy-atom bond/1–3 geometry are checked before clustering; optional fixed-anchor relaxation and torsion refinement preserve those constraints. Pooled mappings share one final intramolecular reporting baseline. Candidate enumeration limits and global-maximum proof limits are reported separately.
 
-1. Resolve one protein nucleophile; ambiguous automatic selection is rejected.
-2. Detect and select a supported ligand warhead.
-3. Apply a reaction-class topology transform.
-4. Add pseudo support and nucleophile atoms to the ligand topology.
-5. select a formed-bond target from validated carbon/residue values or atom-pair distance-geometry bounds;
-6. fix protein support/nucleophile coordinates, prepare noncarbon local geometry, and rigidly normalize the complete ligand branch to exact formed-bond and 1–3 geometry;
-7. copy the cached receptor features and retype the bonded nucleophile with versioned product-state donor/acceptor rules;
-8. optionally scan rotations around the support–nucleophile axis;
-9. exclude pseudo rows and formed-bond cross pairs equivalent to intramolecular 1–2/1–3/1–4 pairs;
-10. optimize remaining torsions and verify bond-length and 1–3 invariants.
+### Covalent
 
-## Interaction strategy
+Covalent mode resolves one receptor nucleophile and one supported warhead, applies a reaction-class topology transform, and introduces support/nucleophile atoms into the product topology. Validated formed-bond and 1–3 geometry, fixed protein support coordinates, product-state retyping and appropriate cross-pair exclusions constrain the remaining torsion search. Product-state features are copy-on-write so cached reactant contexts cannot be polluted. Generic distance restraints alone are not treated as covalent chemistry.
 
-1. Normalize the five single-interaction keywords or the canonical ordered `interactions` list into one to eight `ALL`/`AND` constraints; mixed forms and exact duplicate items fail closed.
-2. Resolve every exact standard-PDB receptor residue/atom and reject hydrogen, alternate-location, duplicate, absent, or ambiguous selectors.
-3. Generate ligand conformers and independently enumerate every distinct canonical heavy-atom match selected by each SMARTS `:1` atom. Each selector is capped by `max_matches=16`; the deterministic Cartesian joint assignments are capped by `max_joint_matches=64`, with errors instead of truncation.
-4. Score the union of complete residue-centered pockets around all selected receptor residues. The bounded cache key includes the complete ordered receptor selector set.
-5. Apply conservative pairwise shell-distance feasibility checks to every conformer/joint-assignment pair. Passing is not a global feasibility proof; failing must mean the rigid conformer cannot satisfy that pair of shells.
-6. Choose the constraint with the fewest ligand matches as the deterministic primary anchor. Seed bounded Haar-uniform orientations with its ligand atom exactly at target distance, and include every secondary flat-bottom violation in coarse preselection while distributing capacity across viable assignments and conformers.
-7. Optimize SE(3) and torsions with the mean of the per-constraint weighted flat-bottom penalties, then continue on the same live pose model with all restraints removed.
-8. After output-coordinate quantization, reject any released pose outside any requested window and rank survivors only by the unmodified scorer.
+### Interaction
 
-One ligand atom may satisfy multiple constraints, and each pose records its exact joint assignment. The constraints are generic atom-pair distance hypotheses. They do not discover receptor atoms or infer hydrogen bonds, salt bridges, metal interactions, pi interactions, protonation, tautomers, or chemical compatibility. `OR`, `ANY`, and k-of-n alternatives are separate jobs.
+Interaction mode normalizes the five compatibility keywords or an ordered `interactions` list into one to eight simultaneous `ALL`/`AND` constraints. Mixed forms, exact duplicates, invalid/ambiguous receptor selectors and over-cap enumeration fail explicitly. Distinct SMARTS `:1` ligand atoms are capped by `max_matches`; their Cartesian joint assignments are capped by `max_joint_matches` rather than truncated.
 
-## Receptor contexts
+For each conformer/assignment, conservative pairwise shell checks can reject an impossible rigid placement. Passing those checks is not a global feasibility proof. The constraint with the fewest ligand matches determines primary placement; seeded Haar-uniform orientations and all secondary violations affect bounded coarse preselection. Guidance adds the mean weighted flat-bottom penalties. Release removes every guide on the same live pose model. After output-coordinate quantization, every required distance window must pass before ranking by the unmodified scorer.
 
-`ReceptorContext` stores receptor coordinates, inferred atom features, an exact scoring-structure fingerprint, and the input PDB content fingerprint. Cache keys use content hash, device, and atom-typing version. Covalent mode additionally keys its bounded residue-centered pocket by the resolved selector. Interaction mode keys the union pocket by the complete ordered receptor selector set, cutoff, heteroatom policy, device, and typing version. Product-state retyping is copy-on-write, so cached reactant contexts cannot be polluted across warheads; the consumed product features receive a new structure fingerprint while retaining the source and reactant fingerprints. Pocket extraction preserves PDB residue metadata and includes heteroatoms by default.
+These are generic atom-pair distance hypotheses. They do not infer hydrogen bonds, salt bridges, metal/pi interactions, protonation, tautomers or chemical compatibility. `OR`, `ANY` and k-of-n alternatives are separate jobs.
+
+## Receptor and parameter reuse
+
+`ReceptorContext` stores coordinates, atom features, a scoring-structure fingerprint and the input-source fingerprint. Bounded context/pocket keys include content, device, typing version and the relevant ordered receptor selectors. Interaction pockets cover the union of selected complete residues; covalent product features receive a separate product-state identity. Pocket extraction preserves residue metadata and includes heteroatoms by default.
+
+Prepared ligand/receptor objects and existing maps/topology can be reused. This is distinct from an automatic target-artifact generation/cache service. Meeko preparation, AutoGrid execution and AMBER parameterization have separate responsibilities: this package offers the documented preparation/import helpers and GPF generation, while map execution and force-field parameterization remain external.
+
+AD4 shares interpolation cell/corner geometry among affinity/electrostatic/desolvation channels. Sparse Vina-family intra evaluation is opt-in because direct pair norms and shorter reductions can change FP32 rounding and total timing. Torch AMBER caches fixed–fixed energy once, removes that constant from search, and bounds cached moving-pair coefficients; larger systems use tiled evaluation. These optimizations do not establish global docking accuracy or GPU throughput.
+
+## Output and compatibility
+
+Ranked docking SDF output schema is `4`. Independent refinement uses `anchor-dock-sf-refinement-v1` and comparison uses `anchor-dock-sf-comparison-v1`. Batch resume epoch is `8`; content, search, typing and scorer contracts validate reuse. See [migration](MIGRATION.md) before reusing older artifacts.
+
+[Latest CPU validation](../reports/cpu-validation-2026-10-30.md) records the current release checks; historical measurements are indexed separately in [reports](../reports/README.md). A successful unit or local-recovery check is not binding-affinity calibration or proof of global pose recovery.

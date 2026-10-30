@@ -1,0 +1,688 @@
+{
+  "benchmark": "known-pocket seeded local pose recovery",
+  "label": "cpu-0.6.2-validation",
+  "complex_id": "5x72",
+  "limitations": [
+    "One crystal complex; not a population success-rate estimate.",
+    "Crystal-derived starts; not conformer generation, global docking or cross-docking.",
+    "Inferred chemistry; no authoritative prepared-receptor parity claim.",
+    "One timing sample per optimizer; no throughput/speedup claim.",
+    "Sanity checks cover finite coordinates, bond drift and <1A heavy clashes only."
+  ],
+  "source": {
+    "git_head": "4e11680f857781fda146396342907c1a0a0be20b",
+    "source_sha256": "e3d6881ba62f849debaebde25c9ec01c65be6a635abdd2be9f2c4369e1a695aa",
+    "atom_typing_contract": "inferred-xs-v3",
+    "optimization_contract": "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v2-pattern-v1"
+  },
+  "source_tree_changed_during_run": false,
+  "benchmark_driver_sha256": "sha256:0f022b687e61f89721261e2533e464f10cbe28f83d3c020e133fbba47328a0fa",
+  "benchmark_driver_changed_during_run": false,
+  "environment": {
+    "python": "3.12.14",
+    "torch": "2.10.0+cu128",
+    "rdkit": "2025.9.5",
+    "device": "cpu",
+    "cuda_available": false,
+    "torch_threads": 1
+  },
+  "inputs": {
+    "ligand_sha256": "sha256:a476b0d62652664596801fc88024fbd756294e9e2faf9234c8d90c2288aaa373",
+    "receptor_sha256": "sha256:9935612dacc69b161c98983b2bfb1bb83d6ac0cb8b59996c99a449f119b8722a",
+    "source_urls": [],
+    "ligand_filename": "5x72_ligand.sdf",
+    "receptor_filename": "5x72_pocket.pdb",
+    "ligand_heavy_atoms": 24,
+    "receptor_atoms": 1688,
+    "receptor_heavy_atoms": 845,
+    "rdkit_strict_rotors": 2,
+    "pivot_atom_index": 17,
+    "seed": 713,
+    "initial_poses_sha256": "7b4987beecbc460045f60da0cbffbff3427fd1c333ea8da13dc2577a08fd2993",
+    "poses_per_level": 2,
+    "levels": [
+      {
+        "name": "mild",
+        "translation_rms_angstrom": 0.5,
+        "rotation_vector_rms_degrees": 10.0,
+        "independent_torsion_std_degrees": 5.0
+      },
+      {
+        "name": "moderate",
+        "translation_rms_angstrom": 1.5,
+        "rotation_vector_rms_degrees": 30.0,
+        "independent_torsion_std_degrees": 15.0
+      }
+    ]
+  },
+  "metric": {
+    "name": "RDKit CalcRMS, fixed receptor frame",
+    "ligand_alignment": false,
+    "symmetrize_conjugated_terminal_groups": true,
+    "max_matches": 100000,
+    "reporting_reference": "same crystal intramolecular energy across starts/optimizers"
+  },
+  "preparation_seconds": 0.03275439600110985,
+  "preparation_warnings": [],
+  "scorer": "vina",
+  "scorer_fingerprint": "sha256:2a35f372605dcf48625f67e283e6ade8cc6b7abcf8636dede7e2763be43fa5fc",
+  "score_units": "kcal/mol-like",
+  "runs": [
+    {
+      "optimizer": "adam",
+      "learning_rate": 0.05,
+      "steps_per_pose": 40,
+      "optimization_seconds": 0.9688596190026146,
+      "poses": [
+        {
+          "index": 0,
+          "level": "crystal_control",
+          "initial_rmsd_angstrom": 0.0,
+          "final_rmsd_angstrom": 0.4816400243946886,
+          "initial_search_energy": -11.202873229980469,
+          "final_search_energy": -12.406405448913574,
+          "initial_reported_score": -9.663360595703125,
+          "final_reported_score": -10.74090576171875,
+          "initial_intermolecular": -10.793200492858887,
+          "final_intermolecular": -11.972750663757324,
+          "initial_intramolecular": -0.4096722900867462,
+          "final_intramolecular": -0.4336549639701843,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 0.0,
+            "minimum_receptor_heavy_distance_angstrom": 2.5378000736236572,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.3470649719238281e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.8851723670959473,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 1,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.507928120151112,
+          "final_rmsd_angstrom": 0.433722751908639,
+          "initial_search_energy": -8.871803283691406,
+          "final_search_energy": -12.409686088562012,
+          "initial_reported_score": -7.576308727264404,
+          "final_reported_score": -10.743843078613281,
+          "initial_intermolecular": -8.528756141662598,
+          "final_intermolecular": -11.972957611083984,
+          "initial_intramolecular": -0.34304702281951904,
+          "final_intramolecular": -0.43672844767570496,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 6.67572021484375e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.4296748638153076,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 9.655952453613281e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.8756792545318604,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 2,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.3529384433547459,
+          "final_rmsd_angstrom": 0.42200520839299455,
+          "initial_search_energy": -10.331609725952148,
+          "final_search_energy": -12.407944679260254,
+          "initial_reported_score": -8.883301734924316,
+          "final_reported_score": -10.742283821105957,
+          "initial_intermolecular": -9.954877853393555,
+          "final_intermolecular": -11.955761909484863,
+          "initial_intramolecular": -0.3767314553260803,
+          "final_intramolecular": -0.4521825313568115,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 8.58306884765625e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.350407361984253,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5139579772949219e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.8819549083709717,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 3,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 2.084510381116299,
+          "final_rmsd_angstrom": 0.48171423806450847,
+          "initial_search_energy": 15.738265037536621,
+          "final_search_energy": -12.35063362121582,
+          "initial_reported_score": 14.457559585571289,
+          "final_reported_score": -10.690972328186035,
+          "initial_intermolecular": 15.929341316223145,
+          "final_intermolecular": -11.988128662109375,
+          "initial_intramolecular": -0.1910758912563324,
+          "final_intramolecular": -0.3625048100948334,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5616416931152344e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.7059180736541748,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 2.3365020751953125e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.8753397464752197,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": false,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 4,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 1.5118284479313198,
+          "final_rmsd_angstrom": 0.4955632488579867,
+          "initial_search_energy": 17.02397346496582,
+          "final_search_energy": -12.390998840332031,
+          "initial_reported_score": 15.608678817749023,
+          "final_reported_score": -10.72711181640625,
+          "initial_intermolecular": 17.35679817199707,
+          "final_intermolecular": -11.930408477783203,
+          "initial_intramolecular": -0.3328254818916321,
+          "final_intramolecular": -0.46059003472328186,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5497207641601562e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.898292899131775,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.9550323486328125e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.917484998703003,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        }
+      ],
+      "by_level": {
+        "mild": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 0.43043328175292894,
+          "final_median_rmsd_angstrom": 0.4278639801508168,
+          "initial_within_2_angstrom": 2,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 0,
+          "lost": 0
+        },
+        "moderate": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 1.7981694145238092,
+          "final_median_rmsd_angstrom": 0.4886387434612476,
+          "initial_within_2_angstrom": 1,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 1,
+          "lost": 0
+        }
+      },
+      "initial_within_2_angstrom": 3,
+      "final_within_2_angstrom": 4,
+      "newly_recovered": 1,
+      "lost": 0,
+      "total_perturbed": 4,
+      "all_search_energies_nonincreasing": true,
+      "stats": [
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 5,
+          "initial_best_energy": -11.202873229980469,
+          "final_best_energy": -12.409686088562012
+        }
+      ]
+    },
+    {
+      "optimizer": "lbfgs",
+      "learning_rate": 0.5,
+      "steps_per_pose": 40,
+      "optimization_seconds": 6.356046168999455,
+      "poses": [
+        {
+          "index": 0,
+          "level": "crystal_control",
+          "initial_rmsd_angstrom": 0.0,
+          "final_rmsd_angstrom": 0.43723931053712983,
+          "initial_search_energy": -11.202873229980469,
+          "final_search_energy": -12.408879280090332,
+          "initial_reported_score": -9.663360595703125,
+          "final_reported_score": -10.743121147155762,
+          "initial_intermolecular": -10.793200492858887,
+          "final_intermolecular": -11.958047866821289,
+          "initial_intramolecular": -0.4096722900867462,
+          "final_intramolecular": -0.45083099603652954,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 0.0,
+            "minimum_receptor_heavy_distance_angstrom": 2.5378000736236572,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 7.271766662597656e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.8919336795806885,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 1,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.507928120151112,
+          "final_rmsd_angstrom": 0.47278064244421364,
+          "initial_search_energy": -8.871803283691406,
+          "final_search_energy": -12.395834922790527,
+          "initial_reported_score": -7.576308727264404,
+          "final_reported_score": -10.73144245147705,
+          "initial_intermolecular": -8.528756141662598,
+          "final_intermolecular": -11.92060661315918,
+          "initial_intramolecular": -0.34304702281951904,
+          "final_intramolecular": -0.47522875666618347,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 6.67572021484375e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.4296748638153076,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.3232231140136719e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.9124596118927,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 2,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.3529384433547459,
+          "final_rmsd_angstrom": 0.43063691679614435,
+          "initial_search_energy": -10.331609725952148,
+          "final_search_energy": -12.397127151489258,
+          "initial_reported_score": -8.883301734924316,
+          "final_reported_score": -10.732599258422852,
+          "initial_intermolecular": -9.954877853393555,
+          "final_intermolecular": -11.939781188964844,
+          "initial_intramolecular": -0.3767314553260803,
+          "final_intramolecular": -0.4573463499546051,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 8.58306884765625e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.350407361984253,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 7.3909759521484375e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.877037286758423,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 3,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 2.084510381116299,
+          "final_rmsd_angstrom": 0.5016822183796239,
+          "initial_search_energy": 15.738265037536621,
+          "final_search_energy": -12.376476287841797,
+          "initial_reported_score": 14.457559585571289,
+          "final_reported_score": -10.714109420776367,
+          "initial_intermolecular": 15.929341316223145,
+          "final_intermolecular": -11.934235572814941,
+          "initial_intramolecular": -0.1910758912563324,
+          "final_intramolecular": -0.44224098324775696,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5616416931152344e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.7059180736541748,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.7642974853515625e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.9384970664978027,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": false,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 4,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 1.5118284479313198,
+          "final_rmsd_angstrom": 0.43749361148660565,
+          "initial_search_energy": 17.02397346496582,
+          "final_search_energy": -12.389710426330566,
+          "initial_reported_score": 15.608678817749023,
+          "final_reported_score": -10.725958824157715,
+          "initial_intermolecular": 17.35679817199707,
+          "final_intermolecular": -11.925358772277832,
+          "initial_intramolecular": -0.3328254818916321,
+          "final_intramolecular": -0.46435171365737915,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5497207641601562e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.898292899131775,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 2.110004425048828e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.8990166187286377,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        }
+      ],
+      "by_level": {
+        "mild": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 0.43043328175292894,
+          "final_median_rmsd_angstrom": 0.45170877962017897,
+          "initial_within_2_angstrom": 2,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 0,
+          "lost": 0
+        },
+        "moderate": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 1.7981694145238092,
+          "final_median_rmsd_angstrom": 0.4695879149331148,
+          "initial_within_2_angstrom": 1,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 1,
+          "lost": 0
+        }
+      },
+      "initial_within_2_angstrom": 3,
+      "final_within_2_angstrom": 4,
+      "newly_recovered": 1,
+      "lost": 0,
+      "total_perturbed": 4,
+      "all_search_energies_nonincreasing": true,
+      "stats": [
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -11.202873229980469,
+          "final_best_energy": -12.408879280090332
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -8.871803283691406,
+          "final_best_energy": -12.395834922790527
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -10.331609725952148,
+          "final_best_energy": -12.397127151489258
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": 15.738265037536621,
+          "final_best_energy": -12.376476287841797
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": 17.02397346496582,
+          "final_best_energy": -12.389710426330566
+        }
+      ]
+    },
+    {
+      "optimizer": "cartesian",
+      "learning_rate": 1.0,
+      "steps_per_pose": 40,
+      "optimization_seconds": 5.426578368998889,
+      "poses": [
+        {
+          "index": 0,
+          "level": "crystal_control",
+          "initial_rmsd_angstrom": 0.0,
+          "final_rmsd_angstrom": 0.4291726610625358,
+          "initial_search_energy": -11.202873229980469,
+          "final_search_energy": -12.394363403320312,
+          "initial_reported_score": -9.663360595703125,
+          "final_reported_score": -10.730124473571777,
+          "initial_intermolecular": -10.793200492858887,
+          "final_intermolecular": -11.969067573547363,
+          "initial_intramolecular": -0.4096722900867462,
+          "final_intramolecular": -0.42529618740081787,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 0.0,
+            "minimum_receptor_heavy_distance_angstrom": 2.5378000736236572,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 7.3909759521484375e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.8738110065460205,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 1,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.507928120151112,
+          "final_rmsd_angstrom": 0.45938507493224606,
+          "initial_search_energy": -8.871803283691406,
+          "final_search_energy": -12.41438102722168,
+          "initial_reported_score": -7.576308727264404,
+          "final_reported_score": -10.748046875,
+          "initial_intermolecular": -8.528756141662598,
+          "final_intermolecular": -11.956949234008789,
+          "initial_intramolecular": -0.34304702281951904,
+          "final_intramolecular": -0.457431435585022,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 6.67572021484375e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.4296748638153076,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.2040138244628906e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.9121243953704834,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 2,
+          "level": "mild",
+          "initial_rmsd_angstrom": 0.3529384433547459,
+          "final_rmsd_angstrom": 0.42745722669702213,
+          "initial_search_energy": -10.331609725952148,
+          "final_search_energy": -12.406970024108887,
+          "initial_reported_score": -8.883301734924316,
+          "final_reported_score": -10.741411209106445,
+          "initial_intermolecular": -9.954877853393555,
+          "final_intermolecular": -11.979864120483398,
+          "initial_intramolecular": -0.3767314553260803,
+          "final_intramolecular": -0.4271059036254883,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 8.58306884765625e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.350407361984253,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.1682510375976562e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.8751697540283203,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 3,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 2.084510381116299,
+          "final_rmsd_angstrom": 0.45252706025953277,
+          "initial_search_energy": 15.738265037536621,
+          "final_search_energy": -12.347850799560547,
+          "initial_reported_score": 14.457559585571289,
+          "final_reported_score": -10.688481330871582,
+          "initial_intermolecular": 15.929341316223145,
+          "final_intermolecular": -11.933496475219727,
+          "initial_intramolecular": -0.1910758912563324,
+          "final_intramolecular": -0.41435426473617554,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5616416931152344e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.7059180736541748,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 8.106231689453125e-06,
+            "minimum_receptor_heavy_distance_angstrom": 2.872791290283203,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": false,
+          "final_within_2_angstrom": true
+        },
+        {
+          "index": 4,
+          "level": "moderate",
+          "initial_rmsd_angstrom": 1.5118284479313198,
+          "final_rmsd_angstrom": 0.45174841470882304,
+          "initial_search_energy": 17.02397346496582,
+          "final_search_energy": -12.417567253112793,
+          "initial_reported_score": 15.608678817749023,
+          "final_reported_score": -10.750899314880371,
+          "initial_intermolecular": 17.35679817199707,
+          "final_intermolecular": -11.964512825012207,
+          "initial_intramolecular": -0.3328254818916321,
+          "final_intramolecular": -0.4530544877052307,
+          "initial_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.5497207641601562e-05,
+            "minimum_receptor_heavy_distance_angstrom": 1.898292899131775,
+            "passes_sanity": true
+          },
+          "final_validity": {
+            "finite": true,
+            "max_bond_length_drift_angstrom": 1.728534698486328e-05,
+            "minimum_receptor_heavy_distance_angstrom": 2.9047374725341797,
+            "passes_sanity": true
+          },
+          "initial_within_2_angstrom": true,
+          "final_within_2_angstrom": true
+        }
+      ],
+      "by_level": {
+        "mild": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 0.43043328175292894,
+          "final_median_rmsd_angstrom": 0.44342115081463407,
+          "initial_within_2_angstrom": 2,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 0,
+          "lost": 0
+        },
+        "moderate": {
+          "poses": 2,
+          "initial_median_rmsd_angstrom": 1.7981694145238092,
+          "final_median_rmsd_angstrom": 0.4521377374841779,
+          "initial_within_2_angstrom": 1,
+          "final_within_2_angstrom": 2,
+          "newly_recovered": 1,
+          "lost": 0
+        }
+      },
+      "initial_within_2_angstrom": 3,
+      "final_within_2_angstrom": 4,
+      "newly_recovered": 1,
+      "lost": 0,
+      "total_perturbed": 4,
+      "all_search_energies_nonincreasing": true,
+      "stats": [
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -11.202873229980469,
+          "final_best_energy": -12.394363403320312
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -8.871803283691406,
+          "final_best_energy": -12.41438102722168
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": -10.331609725952148,
+          "final_best_energy": -12.406970024108887
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": 15.738265037536621,
+          "final_best_energy": -12.347850799560547
+        },
+        {
+          "average_steps": 40.0,
+          "minimum_steps": 40,
+          "maximum_steps": 40,
+          "num_poses": 1,
+          "initial_best_energy": 17.02397346496582,
+          "final_best_energy": -12.417567253112793
+        }
+      ]
+    }
+  ]
+}

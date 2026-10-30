@@ -1,5 +1,7 @@
 # Prepared full-ligand Vina/Vinardo scoring audit
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 This audit checks complete ligand scoring against the **native Vina 1.2.7 executable binding**, beyond the earlier one-pair checks. It does not measure docking accuracy.
 
 ## Inputs and alignment

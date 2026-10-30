@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "python_fences": 20,
+    "cli_commands_parsed": 11,
+    "signature_defaults_checked": 76
+  },
+  "pending_relative_files": [
+    [
+      "README.md",
+      "reports/cpu-validation-2026-10-30.md"
+    ],
+    [
+      "docs/USAGE.md",
+      "../reports/cpu-validation-2026-10-30.md"
+    ],
+    [
+      "docs/SCORING_FUNCTIONS.md",
+      "../reports/cpu-validation-2026-10-30.md"
+    ],
+    [
+      "docs/SCORING_FUNCTIONS.md",
+      "../reports/cpu-validation-2026-10-30.md"
+    ],
+    [
+      "docs/PREPARED.md",
+      "../reports/cpu-validation-2026-10-30.md"
+    ]
+  ]
+}

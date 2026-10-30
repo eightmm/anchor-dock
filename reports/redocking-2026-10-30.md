@@ -1,5 +1,7 @@
 # Known-pocket local pose recovery: 2026-10-30
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 Three public crystal complexes provide a local-refinement sanity check: one crystal control plus four mild and four moderate seeded rigid/torsional perturbations each. This does not measure global docking, cross-docking or screening enrichment.
 
 Each tested optimizer finishes with **24/24 perturbed starts within 2 Å and passing limited sanity checks**. **19/24 already passed initially: five are newly recovered and zero lost.** Adam/LBFGS already achieve this in the scientific baseline. Cartesian shows no general accuracy or speed improvement and remains opt-in.

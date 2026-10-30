@@ -1,10 +1,20 @@
 # Documentation
 
-- [ARCHITECTURE.md](ARCHITECTURE.md): strategy/core boundaries and invariants.
-- [SCORING.md](SCORING.md): Vina-family and custom scorers, and score semantics.
-- [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md): Torch scoring catalog, existing-pose refinement, prepared maps, AMBER vacuum energy, OpenMM reference backend and custom extensions.
-- [BATCH.md](BATCH.md): accepted inputs, mixed manifests, resume, and error handling.
-- [USAGE.md](USAGE.md): CLI workflows and output interpretation.
-- [API_REFERENCE.md](API_REFERENCE.md): supported high-level interfaces and result schema.
-- [MIGRATION.md](MIGRATION.md): the 0.6.1 Torch scoring scope, removed adapter names and earlier compatibility windows.
+The current implementation provides bounded guided docking and independent existing-pose refinement with Torch physical/empirical scoring functions.
 
+| Guide | Canonical content |
+|---|---|
+| [USAGE.md](USAGE.md) | Installation, CLI workflows and output interpretation |
+| [API_REFERENCE.md](API_REFERENCE.md) | Supported public Python interfaces and result fields |
+| [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md) | Named Torch catalog, preparation, map/topology requirements and plugin registration |
+| [SCORING.md](SCORING.md) | Energy equations, atom typing, reporting and derivative contracts |
+| [PREPARED.md](PREPARED.md) | Graph/PDBQT atom identity, authoritative branches and AutoGrid conventions |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Module boundaries, strategy invariants and independent-refinement architecture |
+| [BATCH.md](BATCH.md) | Manifest inputs, mixed jobs, ownership, errors and resume |
+| [MIGRATION.md](MIGRATION.md) | Current compatibility changes and earlier removed APIs |
+
+[Examples](../examples/README.md) distinguish bundled runnable checks from user-input templates. [Reports](../reports/README.md) separate current validation from historical measurements. [ANCHOR_DOCK_ARCHITECTURE.md](ANCHOR_DOCK_ARCHITECTURE.md) is a compatibility link to the canonical architecture guide.
+
+The seven named entries are `vina`, `vinardo`, `ad4`, `adgpu`, `amber`, `vina-final` and `vinardo-final`. The last two are nondifferentiable table references; `adgpu` does not launch AutoDock-GPU. The named `amber` implementation evaluates a supported vacuum potential in Torch after parameter import. The explicit OpenMM object remains a distinct reference/advanced backend. Historical Smina/GNINA optimizer results do not describe current functionality.
+
+[Latest CPU validation](../reports/cpu-validation-2026-10-30.md) records the current release checks; older reports retain their dated measurements.
