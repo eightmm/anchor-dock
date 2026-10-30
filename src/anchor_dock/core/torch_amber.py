@@ -19,7 +19,7 @@ import torch
 
 from .amber import PreparedOpenMMScorer, _fixed_positions, _openmm
 
-TORCH_AMBER_CONTRACT = "torch-fixed-charge-vacuum-nocutoff-fp64-v2"
+TORCH_AMBER_CONTRACT = "torch-fixed-charge-vacuum-nocutoff-fp64-v3"
 # OpenMM's CODATA-derived ONE_4PI_EPS0 in kJ*nm/(mol*e^2), converted to kcal*A.
 COULOMB_KCAL_ANGSTROM = 138.93545764438198 * 10. / 4.184
 
@@ -372,6 +372,12 @@ class TorchAmberScorer:
             product = torch.where(match, replacement[:, 0], product)
             sigma = torch.where(match, replacement[:, 1], sigma)
             epsilon = torch.where(match, replacement[:, 2], epsilon)
+        # A Coulomb-only pair may carry an arbitrary unused sigma. Remove
+        # that inactive LJ numerator before powers: multiplying an overflowing
+        # LJ expression by zero afterwards would produce NaN, including in
+        # its coordinate derivatives. This also keeps cached and tiled paths
+        # identical because both snapshot coefficients through this helper.
+        sigma = torch.where(epsilon != 0, sigma, 0.)
         active = (product != 0) | ((epsilon != 0) & (sigma != 0))
         return a[active], b[active], torch.stack((product[active], sigma[active], epsilon[active]), dim=-1)
 

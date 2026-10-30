@@ -1,6 +1,6 @@
 # API reference
 
-AnchorDock 0.6.1 exposes four docking/batch operations and independent existing-pose scoring-function refinement from `anchor_dock`:
+AnchorDock 0.6.2 exposes four docking/batch operations and independent existing-pose scoring-function refinement from `anchor_dock`:
 
 ```python
 from anchor_dock import (
@@ -9,10 +9,14 @@ from anchor_dock import (
 )
 ```
 
+The signatures below show selected effective options, not function implementations. Top-level `dock_reference` and `dock_covalent` retain compatibility wrappers, so these excerpts document selected effective pipeline options rather than their generic `*args, **kwargs` wrapper signatures. CPU examples pass `device="cpu"`; `device=None` in guided APIs selects the available device.
+
+The full seven-entry scoring catalog belongs to `refine_pose` and the prepared engine. The guided APIs use inferred chemistry by default and require a scorer compatible with their input/exclusion contracts. An AMBER or AD4 catalog name alone does not provide topology, maps, all-atom state or covalent exclusions.
+
 ## Reference (selected options)
 
 ```python
-dock_reference(
+def dock_reference(
     protein_pdb,
     reference_ligand,
     query_ligand,
@@ -29,13 +33,15 @@ dock_reference(
     match_chirality=False,
     relax=True,
     optimize=False,
-    optimizer="adam",             # adam | adamw | lbfgs
+    optimizer="adam",             # adam | adamw | lbfgs | cartesian | pattern
+    opt_steps=100, opt_lr=0.05, opt_batch_size=128,
     freeze_anchor=True,
     scorer="vina",                # vina | vinardo | nn.Module
     top_k=None,
     random_seed=42,
     device=None,
-)
+):
+    ...
 ```
 
 Every successful mapping is pooled. Pattern automorphisms preserve symmetry-related correspondences. Results expose attempted, selected, and failed mappings, exact atom-index spaces, `mcs_candidate_complete`, `mcs_max_size_proven`, and the configured candidate limit. A nonempty bounded cross search, including one considered by `auto`, prevents a claim of global completeness or maximum-size proof.
@@ -43,7 +49,7 @@ Every successful mapping is pooled. Pattern automorphisms preserve symmetry-rela
 ## Covalent (selected options)
 
 ```python
-dock_covalent(
+def dock_covalent(
     protein_pdb,
     query_ligand,
     reactive_residue=None,
@@ -53,11 +59,15 @@ dock_covalent(
     rotation_scan_step=30,
     rotation_top_k=50,
     optimize=False,
+    optimizer="adam",
+    opt_steps=100, opt_lr=0.05, opt_batch_size=128,
     scorer="vina",
     top_k=None,
+    random_seed=42, device=None,
     warhead_index=0,
     strict_compatibility=False,
-)
+):
+    ...
 ```
 
 Automatic residue selection succeeds only for one unambiguous supported nucleophile. The output is an adduct-conditioned pose ranking, not a reaction energy. Scoring uses a copy-on-write product-state type for the bonded receptor atom; results record the base and product typing versions, structured change, reactant fingerprint, and exact scoring-structure fingerprint.
@@ -67,7 +77,7 @@ Omitting `optimize` at the top-level compatibility entry point currently runs wi
 ## Interaction-guided local search (selected options)
 
 ```python
-dock_interaction(
+def dock_interaction(
     protein_pdb,
     query_ligand,
     output_dir="anchor_dock_interaction",
@@ -86,12 +96,15 @@ dock_interaction(
     max_matches=16,
     max_joint_matches=64,
     optimize=True,
-    opt_steps=50,
+    optimizer="adam",
+    opt_steps=50, opt_lr=0.05, opt_batch_size=32,
     release_steps=25,
     restraint_weight=10.0,
     scorer="vina",
     top_k=10,
-)
+    random_seed=42, device=None,
+):
+    ...
 ```
 
 The canonical multi-interaction form is an ordered non-empty list of mappings:
@@ -139,29 +152,40 @@ so a one-item run retains the 0.4 objective exactly. Restraints are removed for 
 ## Existing-pose scoring-function refinement
 
 ```python
-refine_pose(
+def refine_pose(
     protein, ligand, *, scorer="vina", scorer_options=None,
     preparation="auto", preparation_options=None,
     optimizer=None, num_steps=100, learning_rate=None,
     optimizer_options=None, seed=42, device="cpu", output_dir=None,
-)
-refine_with_scorers(
+):
+    ...
+
+def refine_with_scorers(
     protein, ligand, scorers, *, scorer_options=None,
     on_error="record", output_dir=None, **refinement_options,
-)
+):
+    ...
 ```
 
-Inputs must contain one positioned 3D ligand in the receptor coordinate frame. Atom order and existing coordinates are preserved on a copy; preparation can add polar H, merge nonpolar H and quantize PDBQT, with atom mapping and preparation provenance recorded. Every function starts independently from the same supplied pose. `num_steps=0` scores without optimization. Scores declare units/direction and are not ranked across functions.
+Inputs must contain one positioned 3D ligand in the receptor coordinate frame. Atom order and existing coordinates are preserved on a copy; preparation can add polar H, merge nonpolar H and quantize PDBQT, with atom mapping and preparation provenance recorded. Every function starts independently from the same supplied pose. `num_steps=0` evaluates the prepared starting pose without optimizer steps; preparation and its recorded changes still apply. Scores declare units/direction and are not ranked across functions.
 
 The catalog contains `vina`, `vinardo`, `ad4`, `adgpu`, `amber`, `vina-final` and `vinardo-final`. `list_scoring_functions()` reports capabilities and requirements; `create_scoring_function(name, **options)` constructs a scorer. Removed SoftDock, DKOES and public native optimizer names fail explicitly.
 
 `ad4` and `adgpu` require `maps_prefix`, `atom_types` and authoritative prepared ligand chemistry. They optimize declared map/pair reference formulations, without executing AutoDock/AutoDock-GPU search. `vina-final`/`vinardo-final` use nondifferentiable FAST-table energies and require pattern search.
 
-The named `amber` entry is `TorchAmberScorer`, with `prmtop`, `inpcrd` and every `ligand_atom_indices` required in `scorer_options`. OpenMM imports parameters once; evaluation is pure Torch FP64. Only nonperiodic vacuum NoCutoff systems are supported. `protein=None` uses the topology's fixed receptor; a separately supplied receptor must match. All mapped ligand atoms, including H, must be present and ordered correctly.
+The named `amber` entry is `TorchAmberScorer`, with `prmtop`, `inpcrd` and an ordered zero-based `ligand_atom_indices` list covering every ligand atom required in `scorer_options`. OpenMM imports parameters once; evaluation is pure Torch FP64. `pair_cache_max_pairs=200000` bounds precomputed moving-pair coefficients; `0` disables that cache and retains tiled evaluation. Only nonperiodic vacuum NoCutoff systems are supported. `protein=None` uses the topology's fixed receptor; a separately supplied receptor must match. All mapped ligand atoms, including H, must be present and ordered correctly.
 
 For an OpenMM Context oracle or supported GB options, pass `OpenMMScorer.from_amber(...)` as the scorer object. This is a distinct backend; its full-complex potential is not a binding affinity. `TorchAmberScorer.from_system(...)` imports a supported parameterized System directly. See [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md) for limits, examples and the custom `NeuralScorerAdapter`/registry contract.
 
-`refine_pose` returns `PoseRefinementResult` with the refined molecule/coordinates, initial and final metrics, optimized objective and metadata. `as_dict()` emits `anchor-dock-sf-refinement-v1`; a multi-function sweep emits `anchor-dock-sf-comparison-v1`. Per-function output is `refined.sdf` plus `result.json`; sweeps add `comparison.json`. These standalone schemas are separate from ranked docking SDF schema `4`.
+`refine_pose` returns `PoseRefinementResult` with the refined molecule/coordinates, initial and final metrics, optimized objective and metadata. `as_dict()` emits `anchor-dock-sf-refinement-v1`; a multi-function sweep emits `anchor-dock-sf-comparison-v1`. With `output_dir` supplied, per-function output is `refined.sdf` plus `result.json`; sweeps add `comparison.json`. With `output_dir=None`, the operation returns in-memory results. Existing result files are not overwritten. These standalone schemas are separate from ranked docking SDF schema `4`.
+
+## Preparation helpers
+
+`prepare_ligand(ligand, *, seed=42, generate_coordinates_if_missing=True, charge_model="gasteiger")` returns a `LigandPreparation` with `.prepared`, `.pdbqt`, `.source_mol`, `.metadata` and `.fingerprint`. Its optional 3D embedding does not perform receptor-relative placement. `refine_pose` disables that implicit generation.
+
+`prepare_receptor(receptor, *, charge_model=None, set_template=None, residues_to_delete=(), default_altloc=None, wanted_altloc=None)` returns a `ReceptorPreparation` with `.pdbqt`, `.mol`, `.serial_to_atom_index`, `.context(device)`, `.metadata` and `.fingerprint`. Ambiguous chemical states require explicit choices. PQR charge handling and map preparation are described in [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md#prepared-chemistry-and-map-scoring).
+
+Prepared objects can be reused across functions in one process. `PreparedLigand` imports explicit graph/PDBQT mapping; no nearest-coordinate mapping or persistent artifact cache is implied. See [PREPARED.md](PREPARED.md).
 
 ## Results and output
 

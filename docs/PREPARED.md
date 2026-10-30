@@ -1,6 +1,6 @@
 # Prepared inputs and map scoring
 
-High-level reference, covalent and interaction pipelines retain inferred preparation. The lower-level `DockingEngine` also accepts an authoritative prepared ligand and rigid receptor, preserving supplied chemistry without choosing protonation or tautomer states.
+The high-level reference, covalent and interaction strategies use inferred chemistry. `refine_pose` and the lower-level `DockingEngine` also accept authoritative prepared ligand/receptor state. Prepared input preserves supplied chemistry without selecting protonation or tautomer states. The catalog, automatic Meeko/PQR preparation and Torch AMBER topology path are documented in [SCORING_FUNCTIONS.md](SCORING_FUNCTIONS.md).
 
 ## Explicit graph and mapping
 
@@ -38,16 +38,17 @@ engine = DockingEngine(
 )
 problem = engine.prepare(prepared.mol, receptor, prepared_ligand=prepared)
 xyz = prepared.coordinates("cpu")[None]
+pivot = next(atom.GetIdx() for atom in prepared.mol.GetAtoms() if atom.GetAtomicNum() != 1)
 guided, final, guide_stats, release_stats = engine.optimize_se3(
-    problem, xyz, pivot_atom_index=0,
-    centers=xyz[:, 0], rotation_vectors=torch.zeros(1, 3),
+    problem, xyz, pivot_atom_index=pivot,
+    centers=xyz[:, pivot], rotation_vectors=torch.zeros(1, 3),
 )
 initial_score, final_score = engine.report_scores(problem, xyz, final)
 ```
 
 Choose a heavy pivot. Coordinates are angstroms; angles are radians. Optional positive-energy curl follows Vina's per-ligand-atom receptor sum and per-intra-pair convention. The uncapped default preserves the prior continuous objective and reduction order. Scores are lower-is-better with `kcal/mol-like` units.
 
-The explicit `native_vina_score(problem.scorer, final.detach(), intramolecular_reference=...)` API uses the ordinary native FAST radial-table convention and cap for final scoring. It is nondifferentiable and belongs after optimization. Prepared graph, mobility and rotor conventions must match native preparation. See the [48-case audit](../reports/native-scoring-parity-2026-10-30.md) for precision and limits.
+The explicit `native_vina_score(problem.scorer, final.detach())` API uses the ordinary native FAST radial-table convention and cap for final scoring. It is nondifferentiable and belongs after continuous optimization; it does not execute a Vina optimizer. The catalog's `vina-final`/`vinardo-final` entries can instead optimize those detached table energies using pattern search. If an explicit `intramolecular_reference` is supplied, compute it under the same native-table convention; do not reuse an analytic continuous reference blindly. Prepared graph, mobility and rotor conventions must match native preparation. The [current CPU validation](../reports/cpu-validation-2026-10-30.md) records present checks; the [historical 48-case audit](../reports/native-scoring-parity-2026-10-30.md) preserves the earlier precision/contract snapshot.
 
 ## AutoGrid / AD4 reference backend
 
@@ -65,7 +66,7 @@ problem = engine.prepare(prepared.mol, receptor, prepared_ligand=prepared)
 
 The loader reads `prefix.TYPE.map`, `prefix.e.map` and `prefix.d.map`. It validates headers, finite samples, counts, common receptor label and geometry. `NELEMENTS` counts intervals; nodes are one larger. Samples vary x fastest, tensors use `[channel,z,y,x]`, and origin is `center - nelements*spacing/2`.
 
-The backend includes intermolecular maps, prepared intra contributors, additive torsion and explicit unbound reporting. `same_as_bound` reports `inter + torsion`; `fixed` requires `unbound_energy` and reports `inter + intra + torsion - unbound`. Search minimizes `inter + intra`. Maps already contain weights: `AD4Weights` controls analytic intra/torsion terms without reweighting map samples.
+The backend includes intermolecular maps, prepared intra contributors, additive torsion and explicit unbound reporting. `same_as_bound` reports `inter + torsion`; `fixed` requires `unbound_energy` and reports `inter + intra + torsion - unbound`. Search minimizes `inter + intra`. Maps already contain weights: `AD4Weights` controls analytic intra/torsion terms without reweighting map samples. The named `adgpu` catalog route fixes `map_mode="raw"` and `formulation="adgpu"`; choose an explicit `AD4Scorer` object when using another supported convention.
 
 `map_mode="raw"` uses raw samples and upper-exclusive bounds. `"vina"` applies native positive map-sample and intra-pair curl conventions with closed bounds. `formulation="standard"` uses analytic AD4 dielectric/Gaussian terms; `"adgpu"` uses inspected GPU forward approximations with exact differentiation of that forward. These choices reflect differences between native programs.
 
@@ -73,6 +74,6 @@ The backend includes intermolecular maps, prepared intra contributors, additive 
 
 ## Geometry-aware optimizer
 
-`optimizer="cartesian"` is opt-in across Python and CLI (`--optimizer cartesian --opt-lr 1`). It uses a damped Cartesian pullback metric, bounds actual atom displacement (default 0.25 Å/step) and checks the actual objective's Armijo condition. Grid-domain failures reject trials; invalid initial poses error. The existing raw rotation-vector chart is retained.
+`optimizer="cartesian"` is opt-in across Python and CLI (`--optimizer cartesian --opt-lr 1` for guided docking, or `--optimizer cartesian --learning-rate 1` for `refine`). It uses a damped Cartesian pullback metric, bounds actual atom displacement (default 0.25 Å/step) and checks the actual objective's Armijo condition. Grid-domain and physical singularity failures reject trial steps; invalid initial poses error. The existing raw rotation-vector chart is retained.
 
 The dense reference is bounded to 256 parameters/pose and two million Jacobian elements. Engine entry points process it one pose at a time. Adam remains the default; geometric scaling does not establish faster or more accurate docking. Low-level `optimize_pose_module` exposes `geometry_damping`, `max_atom_displacement` and `max_backtracks`. CUDA correctness and throughput require a CUDA-enabled run.

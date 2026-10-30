@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from functools import partial
 from types import (
@@ -204,9 +205,10 @@ def positive_energy_curl(energy: torch.Tensor, cap: float | None) -> torch.Tenso
 
 def _pairwise_fingerprint(config: ScoringConfig, cap: float | None, intra_mode: str = "dense") -> str:
     payload = {
-        "config": asdict(config), "positive_energy_cap": cap,
+        "config": asdict(config), "weight_reduction_order": list(config.weights), "positive_energy_cap": cap,
         "wrapper": "vina-per-atom-inter-per-pair-intra-v1", "intra_mode": intra_mode,
         "intra_contract": "dense-half-sum-v1" if intra_mode == "dense" else "sparse-unordered-mask-half-sum-v1",
+        "prepared_input_state": "independent-config-coordinates-features-masks-v1",
     }
     return "sha256:" + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
@@ -386,6 +388,19 @@ class PreparedPairwiseScorer:
         return self.report(self.raw_components(ligand_coords), intramolecular_reference)
 
 
+def _snapshot_pairwise_input(value):
+    """Copy caller-owned state once without severing Tensor autograd edges."""
+    if isinstance(value, torch.Tensor):
+        return value.clone()
+    if isinstance(value, dict):
+        return {key: _snapshot_pairwise_input(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return tuple(_snapshot_pairwise_input(item) for item in value)
+    if isinstance(value, list):
+        return [_snapshot_pairwise_input(item) for item in value]
+    return deepcopy(value)
+
+
 class PairwiseScorer:
     """Factory for prepared Vina-family analytic scorers.
 
@@ -393,6 +408,8 @@ class PairwiseScorer:
     masks snapshotted by ``prepare``. Dense remains the default: direct pair
     norms and a shorter reduction can differ from dense cdist by roundoff and
     thereby change an optimization trajectory. Formulae and cutoffs are shared.
+    Configurations are copied on construction and prepared inputs are snapshots;
+    editing factory weights affects only subsequently prepared scorers.
     """
 
     def __init__(self, config: ScoringConfig | str, *, positive_energy_cap: float | None = None,
@@ -414,12 +431,15 @@ class PairwiseScorer:
             if isinstance(positive_energy_cap, bool) or not math.isfinite(positive_energy_cap) or positive_energy_cap <= 0:
                 raise ValueError("positive_energy_cap must be finite and positive")
             positive_energy_cap = float(positive_energy_cap)
-        self.config = config
+        self.config = deepcopy(config)
         self.intra_mode = intra_mode
         self.positive_energy_cap = positive_energy_cap
         self.name = config.name
         self.units = config.units
-        self.fingerprint = _pairwise_fingerprint(config, positive_energy_cap, intra_mode)
+
+    @property
+    def fingerprint(self) -> str:
+        return _pairwise_fingerprint(self.config, self.positive_energy_cap, self.intra_mode)
 
     def prepare(
         self,
@@ -433,8 +453,14 @@ class PairwiseScorer:
     ) -> PreparedPairwiseScorer:
         if isinstance(num_rotatable_bonds, bool) or not math.isfinite(num_rotatable_bonds) or num_rotatable_bonds < 0:
             raise ValueError("num_rotatable_bonds must be finite and non-negative")
+        config = deepcopy(self.config)
+        receptor_coords = _snapshot_pairwise_input(receptor_coords)
+        ligand_features = _snapshot_pairwise_input(ligand_features)
+        receptor_features = _snapshot_pairwise_input(receptor_features)
+        intramolecular_mask = _snapshot_pairwise_input(intramolecular_mask)
+        intermolecular_exclusion_mask = _snapshot_pairwise_input(intermolecular_exclusion_mask)
         device = receptor_coords.device
-        if self.config.formula == "vina":
+        if config.formula == "vina":
             unknown_ligand = [
                 index for index, atom_type in enumerate(ligand_features.get("xs_types", ())) if atom_type == "X"
             ]
@@ -447,12 +473,12 @@ class PairwiseScorer:
                     f"ligand atoms {unknown_ligand} or receptor atoms {unknown_receptor}; "
                     "use a calibrated custom scorer instead"
                 )
-        inter = prepare_interaction_matrices(ligand_features, receptor_features, self.config, device)
-        intra = prepare_interaction_matrices(ligand_features, ligand_features, self.config, device)
+        inter = prepare_interaction_matrices(ligand_features, receptor_features, config, device)
+        intra = prepare_interaction_matrices(ligand_features, ligand_features, config, device)
         sparse = (_prepare_sparse_intra(intramolecular_mask, intra, device)
                   if self.intra_mode == "sparse" else (None, None, None))
         return PreparedPairwiseScorer(
-            config=self.config,
+            config=config,
             receptor_coords=receptor_coords,
             ligand_features=ligand_features,
             receptor_features=receptor_features,
@@ -579,7 +605,8 @@ ScorerLike = str | PairwiseScorer | NeuralScorerAdapter | nn.Module
 
 
 def scoring_config_fingerprint(config: ScoringConfig) -> str:
-    payload = json.dumps(asdict(config), sort_keys=True, separators=(",", ":"))
+    payload = json.dumps({"config": asdict(config), "weight_reduction_order": list(config.weights)},
+                         sort_keys=True, separators=(",", ":"))
     return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

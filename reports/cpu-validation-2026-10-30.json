@@ -1,0 +1,343 @@
+{
+  "schema": "anchor-dock-cpu-validation-v1",
+  "version": "0.6.2",
+  "date": "2026-10-30",
+  "scope": "CPU numerical correctness, bounded local recovery, public workflows and current-documentation audit; not global docking, binding-affinity or GPU validation",
+  "public_parent_commit": "2e9042beef6b4b7cb9c3bace3c3bf6bdeba89de3",
+  "source_package_hash_convention": "SHA256 of compact sorted-key JSON mapping repository-relative Python source paths to SHA256 digests",
+  "source_package_sha256": "cb35e32c9efaea69348240d09478a4c6ebaa17cadcee0cf25abd2acc36867a83",
+  "source_file_sha256": {
+    "src/anchor_dock/__init__.py": "93d47f6b49f8234a18a567f9f48433ec9db941b78cdcd5d347898706cda29206",
+    "src/anchor_dock/_compat.py": "fd5600f422000103c41c67b0aa1c698482d6b1011ae45a3cb254fa2da2f13e4c",
+    "src/anchor_dock/_version.py": "2ecdefe1f7e2f0eddb9398e21ff5a4ca7bbd8bd465527c66ab6c526646881c3b",
+    "src/anchor_dock/batch.py": "a174351cd9aaa961b5b4f66697abf2ff1c9080ea021266476e91c11e8c7a8e36",
+    "src/anchor_dock/cli.py": "a7cabd76c58de32012e730cfc2a5b01add3e92d42e182376dec25a49e98f5030",
+    "src/anchor_dock/core/__init__.py": "6de674557ee84d1f5a196d5463702070412e46ae718fc31241f502632c85e97f",
+    "src/anchor_dock/core/ad4.py": "7899c5d51c8552d827e37ca926ab5deb9b49f5fe232a56609c7fda3a400af774",
+    "src/anchor_dock/core/amber.py": "43dd81279db75a15dad8616b480eb46e917ba881c5a621615c7721e7af7b23f3",
+    "src/anchor_dock/core/autogrid.py": "f72afeb0a80b1ce6c96df3336e1b354fa1c34bf8ad90864d7ff041ad120b2e32",
+    "src/anchor_dock/core/conformers.py": "22d30592ad25798ab470f78d973ffdfe6d3472b1f9cf7f34b1b0d627e63ca331",
+    "src/anchor_dock/core/engine.py": "c3c75cf059ebd98d877be08b214e124c04fa644ed895fcb563fcdac3a2058270",
+    "src/anchor_dock/core/features.py": "4028b9536bd3c186f73f30aabe739b1263d7605caec0a62357ce6e0d7e100695",
+    "src/anchor_dock/core/geometry.py": "8b043ab4b756682ddb0829577148b2ea401f58eae7aef36ee675573444f73486",
+    "src/anchor_dock/core/grid.py": "6cce9348248bd70f3d61f5a73b21b46c13b6277658146113227966cf1be93f70",
+    "src/anchor_dock/core/io.py": "97ee9598ec3589f6633656c37e5958a63f4d27fea4a2a5fd398028b4ea50df14",
+    "src/anchor_dock/core/kinematics.py": "53b0b261b490f3cfc9755da409dae1277556738b45fd4ee1b9d6bca8042d4eec",
+    "src/anchor_dock/core/masks.py": "d21f6cdc937e54243ce7611f3d8d17e1b8de1659f98464bf5b38028f063104a7",
+    "src/anchor_dock/core/native_vina.py": "25543fd24cd2252ca9cc11b3c887fd19d3393095663a5d088e2c60be8a30c846",
+    "src/anchor_dock/core/optimization.py": "e227b5e63a54aa2d2ba08d5569e8724eb38190f77c04656922876c7147d8cab6",
+    "src/anchor_dock/core/output.py": "b6fa49464722cac8c77446eeb1531d9536030aa3d963f3be26e7eb77f518c9a8",
+    "src/anchor_dock/core/prepared.py": "d9f33f57d5194f3ed534187cbdf920345f036acb7d9d86946bc3d857771cc0e9",
+    "src/anchor_dock/core/registry.py": "eee41e1360bb13249226b4685b8e5f07ef3f778aac934f242f17f0b52d3b141a",
+    "src/anchor_dock/core/scoring.py": "03ce423a5a4dfb91252e8c2eb1cf33d0486156ee1a61073a04b6905e52d51424",
+    "src/anchor_dock/core/topology.py": "9a72dd4cec37df97ae59ef14b401be78d067c7a77619290684ddd01b7bf93260",
+    "src/anchor_dock/core/torch_amber.py": "e9a917be6e456602d261c0715f80fd37acb0cfd735bc06b8fe5460e16362b52c",
+    "src/anchor_dock/covalent/__init__.py": "ed9aef2275a5e92569ebecef8bd0ba07ef0e1f8bedf729ce1e32e1c1b61d5e24",
+    "src/anchor_dock/covalent/adduct.py": "41dad55c753d69752f8c8054b004a0ef78e2707c968a182d7d9b8cbc22c8f9ac",
+    "src/anchor_dock/covalent/anchor.py": "61641e0dea06f2e81040fa449cba3c100d9d69b8e9dbc124f29bbb9a4ab3abf7",
+    "src/anchor_dock/covalent/pipeline.py": "0e657c81a91be62de891228a89a258157595ded46460d8ee98daf4a6f95b8a4a",
+    "src/anchor_dock/interaction/__init__.py": "c0f2ebccbdbf06fa85884d4f622524386dcfc53f0c85674b441a03eb07cf5a97",
+    "src/anchor_dock/interaction/hypotheses.py": "724a01159d74c3196984270e0c8b0f7470664fbbbcb2a66825ce56731ace3887",
+    "src/anchor_dock/interaction/pipeline.py": "8e06493740b67dfdf2b8cd1d339a259d23c0bcc8b26967bd13ea23c880901c63",
+    "src/anchor_dock/interaction/restraint.py": "fc01b03bd6d9eb38d6bd686613ddf2d3ae5a0ed5243a13cf5898d2cae312ab39",
+    "src/anchor_dock/interaction/selectors.py": "fce840f5f0d1a6e8249b3bed0cd86bd5c479c5a5c481fd6e5eb3b074a0985fba",
+    "src/anchor_dock/interaction/spec.py": "a890b172d9fb51179ec24f1de99ce4fe54af84ad543fb8a7a0f453a5ba835d18",
+    "src/anchor_dock/preparation.py": "6e0e2c1c2471ec96e556b3aa8e67b434cfc9380610b3211f8f3e2ed1cd4981ec",
+    "src/anchor_dock/reference/__init__.py": "89833c2ee2b99eadacde19bad2661863607daac0fa57c257a9518e936d04e7af",
+    "src/anchor_dock/reference/mcs.py": "b6338eef46cf49304ebf6ba1984ced978d25f781e17393e60ef58f53a285fd70",
+    "src/anchor_dock/reference/pipeline.py": "4debecdb532816bbb517e59828c607898bc02477833de23a60969f19b03f8754",
+    "src/anchor_dock/reference/relax.py": "386b730d6b94704189ca93db89eafc9251432a637d503c5e072922800a8cd2df",
+    "src/anchor_dock/refinement.py": "65b7fdde7310365d060212fe2f6f4ba9054b0a293f03448ff6d3b2a7931a77d8"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+    "versions": {
+      "torch": "2.10.0",
+      "numpy": "2.4.2",
+      "rdkit": "2025.9.5",
+      "meeko": "0.8.0",
+      "vina": "1.2.7",
+      "openmm": "8.6.1",
+      "scipy": "1.18.1",
+      "gemmi": "0.7.5"
+    },
+    "device": "cpu",
+    "timing_threads": 1
+  },
+  "validation": {
+    "frozen_all_extras": {
+      "passed": 985,
+      "cuda_only_skipped": 18
+    },
+    "ruff": "passed",
+    "uv_lock_check": "passed",
+    "fresh_wheel_build": "passed",
+    "documentation": {
+      "markdown_files": 28,
+      "python_code_blocks": 27,
+      "relative_file_and_heading_links": "passed",
+      "preserved_remote_assets": 10,
+      "selected_cli_calls_parsed": 11,
+      "selected_signature_defaults_checked": 76
+    },
+    "installed_wheel": "passed"
+  },
+  "catalog": [
+    {
+      "name": "ad4",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "adgpu",
+      "family": "ad4",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [
+        "maps_prefix",
+        "atom_types"
+      ],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Preweighted AutoGrid maps; Torch refinement, not a native engine",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "amber",
+      "family": "amber",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "amber-topology",
+      "units": "kcal/mol",
+      "direction": "lower",
+      "required_options": [
+        "prmtop",
+        "inpcrd",
+        "ligand_atom_indices"
+      ],
+      "optional_modules": [
+        "openmm"
+      ],
+      "description": "Torch fixed-charge vacuum potential; OpenMM only imports parameters",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": true
+    },
+    {
+      "name": "vina",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vina-final",
+      "family": "vina",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "autograd",
+        "pattern"
+      ],
+      "preparation": "inferred",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [],
+      "description": "",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    },
+    {
+      "name": "vinardo-final",
+      "family": "vinardo",
+      "backend": "torch",
+      "optimization": [
+        "pattern"
+      ],
+      "preparation": "prepared-ad4",
+      "units": "kcal/mol-like",
+      "direction": "lower",
+      "required_options": [],
+      "optional_modules": [
+        "meeko"
+      ],
+      "description": "Nondifferentiable native FAST-table energy; pattern optimization only",
+      "dependencies_available": true,
+      "missing_dependencies": [],
+      "requires_configuration": false
+    }
+  ],
+  "artifacts": {
+    "pairwise-audit.json": {
+      "path": "reports/cpu-validation-2026-10-30/pairwise-audit.json",
+      "sha256": "a82bf3ae3449669ed3194701489749d791982c13dfd712c90883b7745a0a43a6",
+      "bytes": 4298
+    },
+    "amber-audit.json": {
+      "path": "reports/cpu-validation-2026-10-30/amber-audit.json",
+      "sha256": "97a62a3cd50f957aea75a04377364a5b071bd1f4b57c8eeed3be51e0166bae7b",
+      "bytes": 22985
+    },
+    "workflows.json": {
+      "path": "reports/cpu-validation-2026-10-30/workflows.json",
+      "sha256": "d88035b52fccb137dcee0351fbe8a9050f04723ee10c9b0b4861f9250483358a",
+      "bytes": 105209
+    },
+    "atom-typing.json": {
+      "path": "reports/cpu-validation-2026-10-30/atom-typing.json",
+      "sha256": "437b73845e68e66e37537e70c2241a765394a15c537e51c12a7dc6af078276fc",
+      "bytes": 19715
+    },
+    "native-vina-parity.json": {
+      "path": "reports/cpu-validation-2026-10-30/native-vina-parity.json",
+      "sha256": "ae627f4f4c71312f41eb16284dd2d49f4632c7f81cd2e2d69961301c16fef28c",
+      "bytes": 79612
+    },
+    "ad4-parity.json": {
+      "path": "reports/cpu-validation-2026-10-30/ad4-parity.json",
+      "sha256": "d9dd39e8c196ca7e7b039f9073c6af94fcf2d22a5467fdea5d169accc8bb9b4d",
+      "bytes": 4621
+    },
+    "physical-benchmark.json": {
+      "path": "reports/cpu-validation-2026-10-30/physical-benchmark.json",
+      "sha256": "fd2f1fc415ee1a04ad3bf3868f46a87c27f63121567c7c43bc3e02638f4dbf54",
+      "bytes": 7283
+    },
+    "kernel-benchmark.json": {
+      "path": "reports/cpu-validation-2026-10-30/kernel-benchmark.json",
+      "sha256": "a8c3b1ed35acacdc9244f0a436a1773deee788d293d498ebfebe194c1d84b160",
+      "bytes": 7225
+    },
+    "documentation-examples.json": {
+      "path": "reports/cpu-validation-2026-10-30/documentation-examples.json",
+      "sha256": "aaf9bc575533b7464a25d17febff74ea82f8bbcbf9fab90120e5b5fbc9ddea9c",
+      "bytes": 589
+    },
+    "recovery-10gs.json": {
+      "path": "reports/cpu-validation-2026-10-30/recovery-10gs.json",
+      "sha256": "dd80f165b1efc466186dca855c039984a4ac7157387812c2aaec7543d4d9de8c",
+      "bytes": 26702
+    },
+    "recovery-1iep.json": {
+      "path": "reports/cpu-validation-2026-10-30/recovery-1iep.json",
+      "sha256": "5aac3463386fc051ead8c048a1744971a301062c4c69648fffb1a9ecb6de1f10",
+      "bytes": 26618
+    },
+    "recovery-5x72.json": {
+      "path": "reports/cpu-validation-2026-10-30/recovery-5x72.json",
+      "sha256": "275d9b1f5c8c9caee6624061204386b1a275aafe5f98048c43ac3abe49277445",
+      "bytes": 26672
+    },
+    "documentation-audit.json": {
+      "path": "reports/cpu-validation-2026-10-30/documentation-audit.json",
+      "sha256": "ba11ca109cf8aaad8e3dd7b40252fd69cb2bace600d7a010207857807853aee4",
+      "bytes": 4118
+    },
+    "installed-wheel.json": {
+      "path": "reports/cpu-validation-2026-10-30/installed-wheel.json",
+      "sha256": "505df2f7f4a70b65f64a59c5e85cd0c44dca15d78d22d706f52bdef23e0ae207",
+      "bytes": 15755
+    }
+  },
+  "baseline_note": "The local benchmark baseline 4e11680 has the same relevant source bytes as public parent 2e9042beef6b4b7cb9c3bace3c3bf6bdeba89de3; raw local labels are retained.",
+  "data_provenance": {
+    "10gs": {
+      "source_urls": [
+        "https://github.com/eightmm/anchor-dock/blob/2e9042beef6b4b7cb9c3bace3c3bf6bdeba89de3/examples/10gs/10gs_ligand.sdf",
+        "https://github.com/eightmm/anchor-dock/blob/2e9042beef6b4b7cb9c3bace3c3bf6bdeba89de3/examples/10gs/10gs_pocket.pdb"
+      ],
+      "preparation_policy": "See archived redocking report input provenance; external pockets preserve complete residues within 12 A and explicitly select 5x72 altloc A.",
+      "input_hashes": {
+        "ligand_sha256": "sha256:8a011b8f09456561273fb71adfb802d685535f6dc3a3e133ec9088708731174a",
+        "receptor_sha256": "sha256:08896e399082a4dba14d7b5804087e4694a7c25a035b6066fbf5b8d68266922d",
+        "initial_poses_sha256": "f646eaaaaae5d6933ab6d2c133fed54b18e25b34e9d17d40d39a27708a649db3"
+      }
+    },
+    "1iep": {
+      "source_urls": [
+        "https://github.com/forlilab/AutoDock-Vina/blob/bb64e5e26b520569a86360d69248069b5e665b3f/example/basic_docking/data/1iep_ligand.sdf",
+        "https://github.com/forlilab/AutoDock-Vina/blob/bb64e5e26b520569a86360d69248069b5e665b3f/example/basic_docking/data/1iep_receptorH.pdb"
+      ],
+      "preparation_policy": "See archived redocking report input provenance; external pockets preserve complete residues within 12 A and explicitly select 5x72 altloc A.",
+      "input_hashes": {
+        "ligand_sha256": "sha256:051b8742c32adc05c07fb486a4e7c9327f84e131cee33ac4e6a568d07553eb38",
+        "receptor_sha256": "sha256:0d7138db2cd148034ba9b0ea994214e544056fe2f9f7f5e7746ed580612619ce",
+        "initial_poses_sha256": "afbf48511d92b93a5314756dd7a1aa9c1d2fd9b9ff9f03e4dfd9fd7be777fe7e"
+      }
+    },
+    "5x72": {
+      "source_urls": [
+        "https://github.com/forlilab/AutoDock-Vina/blob/bb64e5e26b520569a86360d69248069b5e665b3f/example/mulitple_ligands_docking/data/5x72_ligand_p59.sdf",
+        "https://github.com/forlilab/AutoDock-Vina/blob/bb64e5e26b520569a86360d69248069b5e665b3f/example/mulitple_ligands_docking/data/5x72_receptorH.pdb"
+      ],
+      "preparation_policy": "See archived redocking report input provenance; external pockets preserve complete residues within 12 A and explicitly select 5x72 altloc A.",
+      "input_hashes": {
+        "ligand_sha256": "sha256:a476b0d62652664596801fc88024fbd756294e9e2faf9234c8d90c2288aaa373",
+        "receptor_sha256": "sha256:9935612dacc69b161c98983b2bfb1bb83d6ac0cb8b59996c99a449f119b8722a",
+        "initial_poses_sha256": "7b4987beecbc460045f60da0cbffbff3427fd1c333ea8da13dc2577a08fd2993"
+      }
+    }
+  }
+}

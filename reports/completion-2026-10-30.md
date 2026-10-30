@@ -1,5 +1,7 @@
 # Prepared scoring and optimization completion — 2026-10-30
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 This extends scientific correction snapshot `957c75c`. Supported tasks remain bounded local docking/refinement with supplied chemistry; global search completeness and automatic protonation/tautomer selection are outside scope.
 
 ## Implemented

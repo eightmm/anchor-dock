@@ -1,5 +1,13 @@
 # Migration
 
+## 0.6.2 CPU validation and prepared-state ownership
+
+The scorer catalog and normal-input energy formulas are unchanged. Vina/Vinardo factories snapshot caller-supplied configs; preparation snapshots config, receptor coordinates, features and masks. Later mutations of those input objects do not change an already prepared scorer. Factory fingerprints reflect the current configuration and actual weight evaluation order; preparing again captures a new independent state.
+
+Torch AMBER omits zero-strength Lennard-Jones terms before computing powers, preserving finite Coulomb-only energy and derivatives for finite supported parameters. This fixes cached and tiled evaluation without changing ordinary force-field parameters.
+
+The package version is `0.6.2`, batch resume epoch is `8`, ranked docking SDF schema remains `4`, and standalone SF schemas remain `anchor-dock-sf-refinement-v1` / `anchor-dock-sf-comparison-v1`. Older batch records rerun. See the [current CPU validation report](../reports/cpu-validation-2026-10-30.md) and [current scoring guide](SCORING_FUNCTIONS.md).
+
 ## 0.6.1 Torch scoring focus
 
 The current catalog focuses on Vina/Vinardo, explicit AD4/AutoDock-GPU map references and pure Torch AMBER. The named `amber` entry now constructs `TorchAmberScorer`: it imports an explicitly parameterized AMBER topology through OpenMM once, then evaluates energy and gradients in Torch. It supports nonperiodic vacuum NoCutoff systems and rejects GB, PBC and PME. There is no separate `amber-torch` alias.

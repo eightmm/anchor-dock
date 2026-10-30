@@ -234,6 +234,50 @@ def test_coulomb_units_exceptions_and_coincident_exclusion():
         scorer.energy(torch.zeros_like(xyz))
 
 
+@pytest.mark.parametrize("limit", [0, 10])
+@pytest.mark.parametrize("exception", [False, True])
+def test_coulomb_only_pairs_ignore_unused_sigma_before_lj_powers(limit, exception):
+    system, force = openmm.System(), openmm.NonbondedForce()
+    for charge in (1., -1.):
+        system.addParticle(12.)
+        # Finite imported parameters whose unused LJ power would overflow.
+        force.addParticle(charge, 1e100, 0.)
+    product = -1.
+    if exception:
+        product = .25
+        force.addException(0, 1, product, 1e100, 0.)
+    system.addForce(force)
+    scorer = TorchAmberScorer.from_system(system, [[0., 0., 0.], [2., .1, .3]], [1],
+                                         pair_cache_max_pairs=limit)
+    coordinates = scorer.ligand_coordinates(dtype=torch.float64).requires_grad_()
+    expected = COULOMB_KCAL_ANGSTROM * product / torch.linalg.vector_norm(coordinates, dim=-1)
+    energy = scorer.energy(coordinates)
+    gradient, = torch.autograd.grad(energy.sum(), coordinates)
+    expected_gradient = -COULOMB_KCAL_ANGSTROM * product * coordinates / torch.linalg.vector_norm(
+        coordinates, dim=-1, keepdim=True).pow(3)
+    torch.testing.assert_close(energy, expected, atol=1e-12, rtol=1e-12)
+    torch.testing.assert_close(gradient, expected_gradient, atol=1e-12, rtol=1e-12)
+    assert torch.autograd.gradcheck(scorer.energy, (coordinates,), eps=1e-5, atol=1e-7, rtol=1e-6)
+    assert torch.autograd.gradgradcheck(scorer.relative_energy, (coordinates,), eps=1e-5, atol=1e-6, rtol=1e-6)
+
+
+@pytest.mark.parametrize("limit", [0, 10])
+def test_fixed_coulomb_only_constant_ignores_unused_sigma(limit):
+    system, force = openmm.System(), openmm.NonbondedForce()
+    for charge in (1., -1., 0.):
+        system.addParticle(12.)
+        force.addParticle(charge, 1e100, 0.)
+    system.addForce(force)
+    scorer = TorchAmberScorer.from_system(system, [[0., 0., 0.], [2., 0., 0.], [5., 0., 0.]], [2],
+                                         pair_cache_max_pairs=limit)
+    coordinates = scorer.ligand_coordinates(dtype=torch.float64).requires_grad_()
+    energy = scorer.energy(coordinates)
+    gradient, = torch.autograd.grad(energy.sum(), coordinates)
+    assert energy.item() == pytest.approx(-COULOMB_KCAL_ANGSTROM / 2, abs=1e-12)
+    torch.testing.assert_close(scorer.relative_energy(coordinates), torch.zeros(1, dtype=torch.float64), atol=0, rtol=0)
+    torch.testing.assert_close(gradient, torch.zeros_like(coordinates), atol=0, rtol=0)
+
+
 def test_fixed_constant_removed_before_search_and_fp32_gradient_preserved():
     system = openmm.System()
     for _ in range(4):

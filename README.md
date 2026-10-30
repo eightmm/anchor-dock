@@ -6,7 +6,7 @@ AnchorDock is a Torch-native ligand pose engine with three explicit search strat
 - **covalent**: construct a residue–warhead adduct and preserve its reaction geometry;
 - **interaction**: test one or more explicit receptor-atom/ligand-atom distance hypotheses with bounded local search.
 
-All three strategies use the same scorer interface, rigid-frame kinematics, pose optimizer, receptor context, output schema, and heterogeneous batch runner. The only Python namespace is `anchor_dock`.
+The three search strategies share scorer contracts, rigid-frame kinematics, pose optimization, receptor contexts, ranked output and heterogeneous batch execution. `refine_pose` is a separate operation for an already positioned ligand; it does not generate a binding-site placement. The only Python namespace is `anchor_dock`.
 
 Prepared graph/PDBQT inputs, an analytic AD4/AutoGrid reference backend, explicit native Vina-family final scoring, and an opt-in geometry-aware optimizer are documented in [prepared inputs and map scoring](docs/PREPARED.md). These additions retain bounded local search; GPU throughput and native AutoDock-GPU end-to-end agreement require separate validation.
 
@@ -16,16 +16,25 @@ Prepared graph/PDBQT inputs, an analytic AD4/AutoGrid reference backend, explici
 uv sync --frozen --group dev
 ```
 
-Python 3.12 or newer is required.
+Python 3.12 or newer is required. Commands below use `uv run --frozen` so activating the virtual environment is not required. Use `--device cpu` for a CPU run.
+
+Optional preparation and force-field dependencies:
+
+```bash
+uv sync --frozen --extra prepare --extra amber --group dev
+```
+
+The core installation supports inferred Vina/Vinardo scoring. `prepare` adds Meeko preparation; `amber` adds the topology importer and OpenMM reference. `native-vina` is optional numerical-oracle tooling. No external docking executable is needed by the named Torch scoring functions.
 
 ## Scoring-function refinement
 
-Version 0.6.1 focuses on differentiable scoring in Torch: Vina/Vinardo, AD4/AutoDock-GPU map references, and an all-atom AMBER vacuum potential. Existing positioned SDF poses can be refined independently under each function. The named `amber` backend uses `TorchAmberScorer`: it imports an explicit topology once through OpenMM, then evaluates energies and gradients in Torch. `OpenMMScorer` remains a separate advanced Python backend and numerical reference.
+Version 0.6.2 focuses on differentiable scoring in Torch: Vina/Vinardo, AD4/AutoDock-GPU map references, and an all-atom AMBER vacuum potential. Existing positioned SDF poses can be refined independently under each function. The named `amber` backend uses `TorchAmberScorer`: it imports an explicit topology once through OpenMM, then evaluates energies and gradients in Torch. `OpenMMScorer` remains a separate advanced Python backend and numerical reference.
 
 ```bash
-anchor-dock scorers
-anchor-dock refine -p protein.pdb -l positioned_pose.sdf \
-  --scorers vina vinardo --steps 100 -o sf_comparison
+uv run --frozen anchor-dock scorers
+uv run --frozen anchor-dock refine \
+  -p examples/10gs/10gs_pocket.pdb -l examples/10gs/10gs_ligand.sdf \
+  --scorers vina vinardo --steps 20 --seed 713 --device cpu -o sf_comparison
 ```
 
 See [scoring functions, preparation and plugins](docs/SCORING_FUNCTIONS.md). AMBER requires a complete parameterized topology and explicit all-atom mapping; AD4/AutoDock-GPU scoring requires prepared inputs and maps. The Torch AMBER implementation currently supports nonperiodic vacuum NoCutoff systems; implicit solvent and periodic electrostatics require a different implementation. Smina/GNINA, native Vina optimizer adapters and DKOES presets have been removed. Custom models can still use `NeuralScorerAdapter`.
@@ -43,7 +52,7 @@ result = dock_reference(
     relax=True,               # one fixed-anchor MMFF/UFF relaxation
     optimize=True,
     scorer="vina",           # vina | vinardo
-    device="cuda",
+    device="cpu",
 )
 ```
 
@@ -60,6 +69,7 @@ result = dock_covalent(
     reactive_residue="CYS145:A",
     optimize=True,
     scorer="vina",
+    device="cpu",
 )
 ```
 
@@ -81,6 +91,7 @@ result = dock_interaction(
     target_distance=3.0,
     distance_tolerance=0.5,
     scorer="vina",
+    device="cpu",
 )
 ```
 
@@ -111,6 +122,7 @@ result = dock_interaction(
     ],
     max_joint_matches=64,
     scorer="vina",
+    device="cpu",
 )
 ```
 
@@ -158,46 +170,23 @@ Ligands and references must contain exactly one connected component. AnchorDock 
 
 ## Custom differentiable scorer
 
-```python
-import torch
-import torch.nn as nn
-from anchor_dock import dock_interaction
-
-class MyScorer(nn.Module):
-    def forward(self, ligand_coords, receptor_coords, ligand_features, receptor_features):
-        distances = torch.cdist(
-            ligand_coords,
-            receptor_coords.unsqueeze(0).expand(ligand_coords.shape[0], -1, -1),
-        )
-        return -torch.exp(-distances).sum(dim=(1, 2))
-
-result = dock_interaction(
-    "pocket.pdb",
-    "CCO",
-    receptor_residue="ASP189:A",
-    receptor_atom="OD1",
-    ligand_smarts="[O:1]",
-    target_distance=3.0,
-    distance_tolerance=0.5,
-    scorer=MyScorer(),
-)
-```
+Custom Torch models can implement the shared prepared-scorer contract or use `NeuralScorerAdapter`. Registration declares preparation, units, score direction and a deterministic fingerprint. See [the extension contract](docs/SCORING_FUNCTIONS.md#optimization-and-custom-extensions); an arbitrary custom energy is not a calibrated binding affinity.
 
 ## Score interpretation
 
 The Vina and Vinardo backends follow the modern AutoDock Vina implementation's pair functions, defaults, radii, 8 Å cutoff, and torsion transform. SMILES/SDF/PDB inputs do not carry authoritative PDBQT XS types, so AnchorDock infers XS-like types and labels the score as `kcal/mol-like`, not an exact Vina affinity. See [docs/SCORING.md](docs/SCORING.md).
 
-Vina/Vinardo offer opt-in sparse intramolecular evaluation through `scorer_options={"intra_mode": "sparse"}` during refinement; dense evaluation remains the default. AD4 shares grid-cell and corner-weight calculations across its three map channels. Workload limits, numerical checks and measured CPU timings are recorded in the [Torch physical-scoring report](reports/torch-physical-2026-10-30.md); GPU speed has not been validated.
+Vina/Vinardo offer opt-in sparse intramolecular evaluation through `scorer_options={"intra_mode": "sparse"}` during refinement; dense evaluation remains the default. AD4 shares grid-cell and corner-weight calculations across its three map channels. Current numerical checks and executed examples are recorded in the [CPU validation report](reports/cpu-validation-2026-10-30.md). The [0.6.1 physical-scoring snapshot](reports/torch-physical-2026-10-30.md) retains its measured workloads and timings; GPU speed has not been validated.
 
 Covalent scores are conditioned on an already formed adduct. Interaction-mode scores rank poses that survived every requested atom-pair distance filter; guide penalties are never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`. Scores from different scorers or search modes should not be mixed without calibration.
 
 ## Upgrading
 
-Version 0.6.1 adds pure Torch AMBER vacuum scoring, exposes the AutoDock-GPU map formulation explicitly, and removes the public native optimizer adapters and DKOES presets. Batch resume epoch is `7`. Ranked docking SDF schema remains `4`; standalone SF results use separate explicit schemas.
+Version 0.6.2 hardens prepared-state/fingerprint isolation and inactive force-field terms after CPU validation. Batch resume epoch is `8`. Ranked docking SDF schema remains `4`; standalone SF result schemas remain at `v1`. Version 0.6.1 introduced pure Torch AMBER vacuum scoring and the explicit AutoDock-GPU map formulation, and removed native optimizer adapters and DKOES presets.
 
 Version 0.6 removed SoftDock, changed the interaction default to Vina and added independent SF refinement. Earlier transitions are documented in [docs/MIGRATION.md](docs/MIGRATION.md).
 
-Version 0.5 adds bounded simultaneous `AND` interaction constraints while keeping 0.4 single-interaction calls source-compatible. It advances the SDF output schema to `4` and batch resume epoch to `5`. Version 0.4 removed the public unconstrained search; all earlier transitions remain documented in [docs/MIGRATION.md](docs/MIGRATION.md).
+Version 0.5 added bounded simultaneous `AND` interaction constraints while keeping 0.4 single-interaction calls source-compatible. It advanced the SDF output schema to `4` and batch resume epoch to `5`. Version 0.4 removed the public unconstrained search. See [migration notes](docs/MIGRATION.md) for the complete version history.
 
 ## Development
 
@@ -213,6 +202,8 @@ uv build --wheel
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Scoring](docs/SCORING.md)
+- [Scoring-function catalog and refinement](docs/SCORING_FUNCTIONS.md)
+- [Prepared chemistry and maps](docs/PREPARED.md)
 - [Batch inputs and manifests](docs/BATCH.md)
 - [Python and CLI usage](docs/USAGE.md)
 - [API reference](docs/API_REFERENCE.md)

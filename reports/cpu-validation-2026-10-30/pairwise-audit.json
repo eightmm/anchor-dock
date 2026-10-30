@@ -1,0 +1,170 @@
+{
+  "scope": "CPU Vina/Vinardo snapshot and provenance audit; no performance measurements",
+  "seed": 20261030,
+  "source_sha256": "03ce423a5a4dfb91252e8c2eb1cf33d0486156ee1a61073a04b6905e52d51424",
+  "baseline_source_sha256": "a5322fd0da345ad50d02323b7c0b3b48e523f3a1345cb075348ce73efcdcb942",
+  "unchanged_runtime_methods": {
+    "pair_terms": true,
+    "_weighted_pair_energy": true,
+    "positive_energy_curl": true,
+    "PreparedPairwiseScorer.raw_components": true
+  },
+  "cpu_forward_backward_cases": [
+    {
+      "name": "vina",
+      "dtype": "torch.float32",
+      "mode": "dense",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float32",
+      "mode": "dense",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float32",
+      "mode": "sparse",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float32",
+      "mode": "sparse",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float64",
+      "mode": "dense",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float64",
+      "mode": "dense",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float64",
+      "mode": "sparse",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vina",
+      "dtype": "torch.float64",
+      "mode": "sparse",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float32",
+      "mode": "dense",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float32",
+      "mode": "dense",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float32",
+      "mode": "sparse",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float32",
+      "mode": "sparse",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float64",
+      "mode": "dense",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float64",
+      "mode": "dense",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float64",
+      "mode": "sparse",
+      "cap": null,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    },
+    {
+      "name": "vinardo",
+      "dtype": "torch.float64",
+      "mode": "sparse",
+      "cap": 1000.0,
+      "energy_max_delta": 0.0,
+      "gradient_max_delta": 0.0
+    }
+  ],
+  "before_fix_reproduction": {
+    "factory_hash_stale_after_input_weights_mutation": true,
+    "prepared_search_energy_before": 8.937915802001953,
+    "prepared_search_energy_after": 17.875831604003906,
+    "equal_weight_mapping_order_fingerprint_collision": {
+      "same_fingerprint": true,
+      "energy_values": [
+        0.0,
+        1.0
+      ]
+    }
+  },
+  "fix": {
+    "factory_configuration": "deep snapshot on construction",
+    "factory_fingerprint": "dynamic current config/cap/mode property",
+    "prepared_inputs": "independent config, coordinates, features and masks, preserving tensor autograd edges",
+    "weight_reduction_order": "included in factory/prepared and standalone scoring_config_fingerprint identities"
+  },
+  "tests": {
+    "focused": {
+      "passed": 193,
+      "cuda_skipped": 1
+    },
+    "additional_scoring_interaction_reference": "included in the 193-pass focused run"
+  },
+  "ruff": "passed",
+  "diff_check": "passed",
+  "source_frozen": true
+}

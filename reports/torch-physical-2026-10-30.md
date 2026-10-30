@@ -1,5 +1,7 @@
 # Torch physical scoring — 2026-10-30
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 AnchorDock 0.6.1 focuses on Torch energy functions and shared SE(3)+torsion optimization. Public Smina/GNINA/native-Vina optimizer adapters and the three DKOES presets are removed. They are not replaced silently. Vina remains the interaction default; Vina and Vinardo retain their empirical meaning.
 
 The catalog contains five continuous objectives (`vina`, `vinardo`, `ad4`, `adgpu`, `amber`) and two separate nondifferentiable table references (`vina-final`, `vinardo-final`). These seven entries are not seven independent physical models. Native Vina remains an optional numerical oracle, while `OpenMMScorer` remains an explicit reference/advanced backend.

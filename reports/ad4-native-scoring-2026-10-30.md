@@ -1,5 +1,7 @@
 # AD4 map and intramolecular score checks
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 The rigid-receptor reference backend combines AutoGrid ingestion, prepared intra contributors, torsion and explicit unbound reporting through AD4Scorer. See [usage and boundaries](../docs/PREPARED.md).
 
 An external CPU check used Meeko 0.8.0 and native Vina 1.2.7 AD4 on four flexible ligands with 6, 9, 17 and 21 prepared intra contributors. Receptor fields are **synthetic affine AutoGrid-format maps**, isolating interpolation/wrapper behavior from receptor preparation.

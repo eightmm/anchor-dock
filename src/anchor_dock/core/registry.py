@@ -152,13 +152,16 @@ class NativeFinalScorer:
     preparation_requirement = "prepared-ad4"
 
     def __init__(self, name: str):
-        import hashlib
-
-        from .native_vina import NATIVE_VINA_SCORE_CONTRACT
         from .scoring import PairwiseScorer
         self.base = PairwiseScorer(name)
         self.name, self.units = name + "-final", self.base.units
-        self.fingerprint = "sha256:" + hashlib.sha256(
+
+    @property
+    def fingerprint(self):
+        import hashlib
+
+        from .native_vina import NATIVE_VINA_SCORE_CONTRACT
+        return "sha256:" + hashlib.sha256(
             (NATIVE_VINA_SCORE_CONTRACT + self.base.fingerprint).encode()).hexdigest()
 
     def prepare(self, *args, **kwargs):

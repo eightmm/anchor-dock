@@ -1,5 +1,7 @@
 # Archived pre-0.3 progress report
 
+> **Historical snapshot.** For the current implementation and verified CPU status, see [CPU validation](cpu-validation-2026-10-30.md). The results and commands below belong to the recorded source version; their original evidence is retained.
+
 > Historical record only. The current AnchorDock 0.3 engine, score semantics,
 > metadata schema, and runtime behavior differ; see the repository README and
 > `docs/`.
@@ -18,7 +20,7 @@ Core idea:
 Architecture reference:
 
 - [Current architecture](../docs/ARCHITECTURE.md)
-- [Current reference strategy](../docs/ARCHITECTURE.md#reference-strategy)
+- [Current reference strategy](../docs/ARCHITECTURE.md)
 - [Full architecture note](../docs/ARCHITECTURE.md)
 
 Quick flow:
