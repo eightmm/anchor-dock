@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -20,6 +21,10 @@ from .optimization import (
     optimize_torsions,
 )
 from .scoring import PreparedScorer, ScoreComponents, ScorerLike, resolve_scorer
+
+
+class AtomTypingWarning(UserWarning):
+    """A selected scoring input has unresolved inferred atom chemistry."""
 
 
 def _aggregate_optimization_stats(stats_values: list[OptimizationStats], total_poses: int) -> OptimizationStats:
@@ -62,6 +67,7 @@ class DockingEngine:
         early_stopping: bool = True,
         patience: int = 30,
         min_delta: float = 1e-5,
+        strict_atom_typing: bool = False,
     ) -> None:
         if num_steps < 0:
             raise ValueError("num_steps must be non-negative")
@@ -84,6 +90,7 @@ class DockingEngine:
         self.early_stopping = early_stopping
         self.patience = patience
         self.min_delta = min_delta
+        self.strict_atom_typing = strict_atom_typing
 
     @property
     def scorer_name(self) -> str:
@@ -103,7 +110,10 @@ class DockingEngine:
         exclude_intramolecular_atoms: set[int] | None = None,
         intermolecular_exclusion_mask: torch.Tensor | None = None,
     ) -> PreparedDockingProblem:
-        features = compute_atom_features(mol, self.device)
+        features = compute_atom_features(mol, self.device, strict=self.strict_atom_typing)
+        receptor_ambiguities = tuple(receptor.features.get("typing_ambiguities", ()))
+        if self.strict_atom_typing and receptor_ambiguities:
+            raise ValueError("ambiguous receptor atom typing: " + "; ".join(receptor_ambiguities))
         intramolecular_mask = compute_intramolecular_mask(
             mol,
             self.device,
@@ -117,6 +127,15 @@ class DockingEngine:
             intramolecular_mask=intramolecular_mask,
             intermolecular_exclusion_mask=intermolecular_exclusion_mask,
         )
+        diagnostics = tuple(features.get("typing_ambiguities", ())) + receptor_ambiguities
+        if diagnostics:
+            warnings.warn(
+                f"Scoring input has {len(diagnostics)} atom-typing ambiguities: "
+                + "; ".join(diagnostics[:4])
+                + ". Supply prepared protonation/types or enable strict_atom_typing.",
+                AtomTypingWarning,
+                stacklevel=2,
+            )
         return PreparedDockingProblem(
             mol=mol,
             receptor=receptor,
@@ -252,3 +271,4 @@ class DockingEngine:
             "optimization_steps": self.num_steps,
             "learning_rate": self.learning_rate,
         }
+

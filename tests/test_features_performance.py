@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -14,11 +13,11 @@ from anchor_dock.core import features
     ("smiles", "types", "donors", "acceptors"),
     [
         ("CCO", ("C_H", "C_P", "O_DA"), [2], [2]),
-        ("CC(=O)[O-]", ("C_H", "C_P", "O_A", "O_P"), [], [2]),
+        ("CC(=O)[O-]", ("C_H", "C_P", "O_A", "O_A"), [], [2, 3]),
         ("c1ccncc1", ("C_H", "C_H", "C_P", "N_A", "C_P", "C_H"), [], [3]),
         ("NC(=O)N", ("N_D", "C_P", "O_A", "N_D"), [0, 3], [2]),
         ("CS", ("C_P", "S_P"), [], []),
-        ("CS(=O)(=O)N", ("C_P", "S_P", "O_A", "O_A", "N_D"), [4], [2, 3]),
+        ("CS(=O)(=O)N", ("C_P", "S_P", "O_A", "O_A", "N_DA"), [4], [2, 3, 4]),
         ("[Zn+2]", ("Met_D",), [0], []),
         ("[Na+].[Cl-]", ("Met_D", "Cl_H"), [0], []),
         ("B(O)O", ("X", "O_DA", "O_DA"), [1, 2], [1, 2]),
@@ -34,20 +33,19 @@ def test_feature_chemistry_is_preserved(smiles, types, donors, acceptors):
     assert actual["typing_version"] == features.ATOM_TYPING_VERSION
 
 
-def test_compute_extracts_chemical_features_and_pdb_fallbacks_once(monkeypatch):
-    # RDKit feature extraction is substantial CPU work even for GPU scorers.
-    factory = Mock(wraps=features._FEATURE_FACTORY.GetFeaturesForMol)
+def test_compute_extracts_graph_roles_and_pdb_fallbacks_once(monkeypatch):
+    graph_roles = Mock(wraps=features._feature_atom_sets)
     fallbacks = Mock(wraps=features._apply_pdb_fallbacks)
-    monkeypatch.setattr(features, "_FEATURE_FACTORY", SimpleNamespace(GetFeaturesForMol=factory))
+    monkeypatch.setattr(features, "_feature_atom_sets", graph_roles)
     monkeypatch.setattr(features, "_apply_pdb_fallbacks", fallbacks)
     features.compute_atom_features(Chem.MolFromSmiles("NCC(=O)O"), "cpu")
-    factory.assert_called_once()
+    graph_roles.assert_called_once()
     fallbacks.assert_called_once()
 
 
 def test_unsanitized_protein_fallback_and_element_overrides(monkeypatch):
-    # Force the documented RDKit-failure fallback, including misleading donor
-    # annotations on S/H that must not override their XS element semantics.
+    # Misleading graph-role assignments cannot override declared protein
+    # chemistry, unresolved HIS, or the XS sulfur/hydrogen element semantics.
     molecule = Chem.RWMol()
     entries = [
         (8, "HOH", "O"),
@@ -63,14 +61,15 @@ def test_unsanitized_protein_fallback_and_element_overrides(monkeypatch):
         atom = Chem.Atom(element)
         atom.SetMonomerInfo(Chem.AtomPDBResidueInfo(atomName=f"{name:>4}", residueName=residue))
         molecule.AddAtom(atom)
-    factory = Mock(side_effect=RuntimeError("partially sanitized input"))
-    monkeypatch.setattr(features, "_FEATURE_FACTORY", SimpleNamespace(GetFeaturesForMol=factory))
+    graph_roles = Mock(return_value=(set(range(len(entries))), set(range(len(entries)))))
+    monkeypatch.setattr(features, "_feature_atom_sets", graph_roles)
     actual = features.compute_atom_features(molecule.GetMol(), "cpu")
-    assert actual["xs_types"] == ("O_DA", "N_D", "N_DA", "S_P", "N_P", "O_A", "H", "Met_D")
-    assert actual["donor"].tolist() == [1, 1, 1, 0, 0, 0, 0, 1]
-    assert actual["acceptor"].tolist() == [1, 0, 1, 0, 0, 1, 0, 0]
+    assert actual["xs_types"] == ("O_DA", "N_D", "N_P", "S_P", "N_P", "O_A", "H", "Met_D")
+    assert actual["donor"].tolist() == [1, 1, 0, 0, 0, 0, 0, 1]
+    assert actual["acceptor"].tolist() == [1, 0, 0, 0, 0, 1, 0, 0]
     assert actual["active"].tolist() == [True, True, True, True, True, True, False, True]
-    factory.assert_called_once()
+    graph_roles.assert_called_once()
+    assert len(actual["typing_ambiguities"]) == 1
 
 
 @pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=pytest.mark.skipif(

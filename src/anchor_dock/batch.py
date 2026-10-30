@@ -24,7 +24,9 @@ import torch
 from rdkit import Chem, rdBase
 
 from ._version import __version__
+from .core.features import ATOM_TYPING_VERSION
 from .core.io import file_content_fingerprint
+from .core.optimization import OPTIMIZATION_CONTRACT
 from .core.output import OUTPUT_SCHEMA_VERSION
 from .interaction.spec import InteractionInput, interaction_dicts, normalize_interactions
 
@@ -378,6 +380,8 @@ def _job_signature(
         "schema": _BATCH_SCHEMA_VERSION,
         "output_schema": OUTPUT_SCHEMA_VERSION,
         "anchor_dock_version": __version__,
+        "atom_typing_version": ATOM_TYPING_VERSION,
+        "optimization_contract": OPTIMIZATION_CONTRACT,
         "runtime": dict(runtime_identity),
         "mode": job.mode,
         "ligand": _file_identity(job.ligand),
@@ -1621,3 +1625,4 @@ def dock_batch(
         },
     )
     return results
+

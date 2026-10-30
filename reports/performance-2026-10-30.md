@@ -2,6 +2,8 @@
 
 The patch reuses one RDKit donor/acceptor extraction during preparation and removes repeated CUDA host reads from optimizer row helpers. Atomic typing, score equations, restraint/release behavior, and public APIs retain their existing semantics.
 
+This historical report describes performance-only commit `beefe6a79df0b0c4b86e81ca0833ddd7c3627ab8`, before the typing/Jacobian corrections. See [the scientific audit](scoring-audit-2026-10-30.md) for current behavior. Check out that commit before reproducing these same-semantics timings.
+
 Base: `125a4f82ec94cc0ffeb71d44d92912f58ff9ba79`. The validation environment held an immutable local snapshot (`372bd86`) of that fetched source; the benchmark JSON retains that local provenance. Use the upstream commit when reproducing from a full clone.
 
 ## Measured CPU preparation and optimizer overhead

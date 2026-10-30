@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Literal
@@ -10,10 +11,11 @@ import torch
 import torch.nn as nn
 from rdkit import Chem
 
-from .kinematics import LigandKinematics, get_batched_rotation_matrix
+from .kinematics import LigandKinematics, rotation_vector_to_matrix
 from .scoring import PreparedScorer
 
 OptimizerName = Literal["adam", "adamw", "lbfgs"]
+OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1"
 
 
 @dataclass(frozen=True)
@@ -101,6 +103,34 @@ def _assign_pose_gradients(loss: torch.Tensor, parameters: list[nn.Parameter]) -
         parameter.grad = gradient
 
 
+def _clip_pose_gradients_(parameters: list[nn.Parameter], batch_size: int, max_norm: float) -> torch.Tensor:
+    """Clip each pose across its parameter blocks, without coupling batch rows.
+
+    This is a numerical Euclidean norm of the chosen parameterization, not a
+    physical Cartesian metric: translations and angular parameters still need
+    separately chosen scales if such a metric is desired.
+    """
+    if not math.isfinite(max_norm) or max_norm <= 0:
+        raise ValueError("gradient_clip must be finite and positive")
+    gradients = [parameter.grad for parameter in parameters if parameter.grad is not None]
+    if not gradients:
+        raise RuntimeError("no pose gradients to clip")
+    norm_device = gradients[0].device
+    norms = torch.stack([
+        torch.linalg.vector_norm(gradient.reshape(batch_size, -1), dim=1).to(norm_device)
+        for gradient in gradients
+    ])
+    total_norm = torch.linalg.vector_norm(norms, dim=0)
+    if not torch.isfinite(total_norm).all():
+        raise FloatingPointError("pose gradients contain NaN, infinity or an overflowing norm")
+    scale = (max_norm / (total_norm + 1e-6)).clamp(max=1.0)
+    with torch.no_grad():
+        for gradient in gradients:
+            mask_shape = (batch_size,) + (1,) * (gradient.ndim - 1)
+            gradient.mul_(scale.to(device=gradient.device, dtype=gradient.dtype).reshape(mask_shape))
+    return total_norm
+
+
 def optimize_pose_module(
     model: nn.Module,
     energy_fn: Callable[[torch.Tensor], torch.Tensor],
@@ -122,8 +152,8 @@ def optimize_pose_module(
         raise ValueError("patience must be positive")
     if min_delta < 0:
         raise ValueError("min_delta must be non-negative")
-    if gradient_clip is not None and gradient_clip <= 0:
-        raise ValueError("gradient_clip must be positive or None")
+    if gradient_clip is not None and (not math.isfinite(gradient_clip) or gradient_clip <= 0):
+        raise ValueError("gradient_clip must be finite and positive or None")
     initial_coords = model()
     if initial_coords.ndim == 2:
         initial_coords = initial_coords.unsqueeze(0)
@@ -155,7 +185,9 @@ def optimize_pose_module(
     if optimizer == "adam":
         torch_optimizer: torch.optim.Optimizer = torch.optim.Adam(parameters, lr=learning_rate)
     elif optimizer == "adamw":
-        torch_optimizer = torch.optim.AdamW(parameters, lr=learning_rate, weight_decay=0.01)
+        # Pose coordinates/angles have no physical preference for chart zero.
+        # A nonzero decay would add an origin-dependent force not in energy_fn.
+        torch_optimizer = torch.optim.AdamW(parameters, lr=learning_rate, weight_decay=0.0)
     elif optimizer == "lbfgs":
         torch_optimizer = torch.optim.LBFGS(
             parameters,
@@ -180,8 +212,8 @@ def optimize_pose_module(
                 losses = _checked_losses(energy_fn(model()), batch_size)
                 loss = losses[active].sum()
                 _assign_pose_gradients(loss, parameters)
-                if gradient_clip is not None:
-                    torch.nn.utils.clip_grad_norm_(parameters, gradient_clip)
+                # Strong-Wolfe line search needs the actual derivative of the
+                # returned objective. Gradient clipping is an Adam-only guard.
                 return loss
 
             torch_optimizer.step(closure)
@@ -195,7 +227,7 @@ def optimize_pose_module(
                     mask = (~active).reshape((batch_size,) + (1,) * (parameter.ndim - 1))
                     parameter.grad.masked_fill_(mask, 0)
             if gradient_clip is not None:
-                torch.nn.utils.clip_grad_norm_(parameters, gradient_clip)
+                _clip_pose_gradients_(parameters, batch_size, gradient_clip)
             torch_optimizer.step()
             _restore_rows(parameters, best_parameters, ~active)
             _clear_adam_rows(torch_optimizer, parameters, ~active)
@@ -360,8 +392,7 @@ class SE3PoseModel(nn.Module):
         flexible = self.kinematics()
         pivot = flexible[:, self.pivot_atom_index, :]
         centered = flexible - pivot[:, None, :]
-        angle = torch.linalg.vector_norm(self.rotation_vectors, dim=1)
-        rotation = get_batched_rotation_matrix(self.rotation_vectors, angle)
+        rotation = rotation_vector_to_matrix(self.rotation_vectors)
         rotated = torch.matmul(centered, rotation.transpose(1, 2))
         return rotated + self.translations[:, None, :]
 

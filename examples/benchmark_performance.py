@@ -184,6 +184,9 @@ def _assert_features(before: dict[str, Any], after: dict[str, Any]) -> None:
 
 
 def _preparation_bench(args: argparse.Namespace, baseline: types.ModuleType, device: torch.device) -> list[dict[str, Any]]:
+    if baseline.ATOM_TYPING_VERSION != features.ATOM_TYPING_VERSION:
+        return [{"skipped": "atom-typing contracts differ; preparation timings would compare different semantics",
+                 "baseline_contract": baseline.ATOM_TYPING_VERSION, "current_contract": features.ATOM_TYPING_VERSION}]
     ligands = Chem.MolFromSmiles("CC(=O)Nc1ccc(O)c(S(=O)(=O)NCCN)c1")
     if ligands is None:
         raise RuntimeError("benchmark ligand could not be constructed")
@@ -206,6 +209,10 @@ def _preparation_bench(args: argparse.Namespace, baseline: types.ModuleType, dev
 
 
 def _optimization_bench(args: argparse.Namespace, baseline: types.ModuleType, device: torch.device) -> dict[str, Any]:
+    before_contract = getattr(baseline, "OPTIMIZATION_CONTRACT", "legacy-v1")
+    if before_contract != optimization.OPTIMIZATION_CONTRACT:
+        return {"skipped": "optimizer contracts differ; pose trajectories are intentionally not parity-comparable",
+                "baseline_contract": before_contract, "current_contract": optimization.OPTIMIZATION_CONTRACT}
     class Pose(torch.nn.Module):
         def __init__(self, values):
             super().__init__()
