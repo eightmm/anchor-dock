@@ -255,7 +255,7 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--ligand-atoms", type=int, default=32)
     parser.add_argument("--receptor-atoms", type=int, default=512)
-    parser.add_argument("--scorers", nargs="+", choices=("vina", "vinardo", "softdock"), default=["vina", "vinardo", "softdock"])
+    parser.add_argument("--scorers", nargs="+", choices=("vina", "vinardo"), default=["vina", "vinardo"])
     parser.add_argument("--skip-preparation", action="store_true", help="Skip potentially expensive RDKit preparation")
     parser.add_argument("--skip-optimization", action="store_true", help="Skip the synthetic optimizer loop")
     parser.add_argument("--optimizer-steps", type=int, default=75)

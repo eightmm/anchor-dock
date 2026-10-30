@@ -56,6 +56,11 @@ def test_invalid_curl_fails(value):
         PairwiseScorer("vina", positive_energy_cap=value)
 
 
-def test_softdock_cannot_claim_vina_wrapper():
-    with pytest.raises(ValueError, match="only for Vina"):
-        PairwiseScorer("softdock", positive_energy_cap=1000.)
+def test_removed_softdock_is_not_silently_aliased_to_vina():
+    from anchor_dock.core.scoring import SCORING_CONFIGS, resolve_scorer
+
+    assert "softdock" not in SCORING_CONFIGS
+    with pytest.raises(ValueError, match="softdock was removed"):
+        PairwiseScorer("softdock")
+    with pytest.raises(ValueError, match="softdock was removed"):
+        resolve_scorer("softdock")

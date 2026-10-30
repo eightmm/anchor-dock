@@ -4,6 +4,8 @@ This directory contains versioned validation evidence and historical progress no
 
 ## Current validation
 
+- [Scoring-function integration](scoring-functions-2026-10-30.md): 0.6 SF catalog/refinement, optional native/OpenMM execution and explicit limits.
+
 - [Implementation and validation](completion-2026-10-30.md): prepared input, scoring and optimizer completion, checks and limits.
 - [Native Vina/Vinardo scoring](native-scoring-parity-2026-10-30.md): 48 same-preparation full-ligand comparisons.
 - [AD4 scoring](ad4-native-scoring-2026-10-30.md): synthetic map and prepared intra checks against native Vina AD4.

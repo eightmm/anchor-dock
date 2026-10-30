@@ -271,7 +271,7 @@ def dock_covalent(
     rotation_scan_step: int = 30,
     rotation_top_k: int = 50,
     optimize: bool = False,
-    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian", "pattern"] = "adam",
     opt_steps: int = 100,
     opt_lr: float = 0.05,
     opt_batch_size: int = 128,

@@ -96,8 +96,8 @@ results = dock_batch(jobs)
 ```json
 {"id":"ref-001","mode":"reference","smiles":"CCO","protein_pdb":"pocket.pdb","reference_ligand":"known.sdf","options":{"mcs_mode":"multi"}}
 {"id":"cov-001","mode":"covalent","smiles":"C=CC(=O)NCC","protein_pdb":"protein.pdb","reactive_residue":"CYS145:A"}
-{"id":"interaction-001","mode":"interaction","smiles":"CCN","protein_pdb":"pocket.pdb","receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5,"options":{"num_candidates":128,"scorer":"softdock"}}
-{"id":"interaction-multi-001","mode":"interaction","smiles":"NCCO","protein_pdb":"pocket.pdb","interactions":[{"receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5},{"receptor_residue":"SER190:A","receptor_atom":"OG","ligand_smarts":"[O:1]","target_distance":2.9,"distance_tolerance":0.4,"restraint_weight":12.0}],"options":{"max_joint_matches":64,"scorer":"softdock"}}
+{"id":"interaction-001","mode":"interaction","smiles":"CCN","protein_pdb":"pocket.pdb","receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5,"options":{"num_candidates":128,"scorer":"vina"}}
+{"id":"interaction-multi-001","mode":"interaction","smiles":"NCCO","protein_pdb":"pocket.pdb","interactions":[{"receptor_residue":"ASP189:A","receptor_atom":"OD1","ligand_smarts":"[N:1]","target_distance":3.0,"distance_tolerance":0.5},{"receptor_residue":"SER190:A","receptor_atom":"OG","ligand_smarts":"[O:1]","target_distance":2.9,"distance_tolerance":0.4,"restraint_weight":12.0}],"options":{"max_joint_matches":64,"scorer":"vina"}}
 ```
 
 ```python
@@ -174,3 +174,6 @@ Every job receives a sanitized deterministic directory name and a `result.json`.
 Malformed rows and molecule records are reported as batch failures rather than silently dropped. `on_error="record"` continues, `"skip"` continues without returning the failed item, and `"raise"` stops at the first error.
 
 Molecule-level execution is sequential. Pose scoring and optimization inside each job remain batched. Full-receptor and residue-extracted covalent/interaction contexts are reused through atom-typing-aware bounded caches; multi-interaction jobs score the union pocket around all selected residues. Version 0.5 advances the batch resume epoch to `5`, so earlier artifacts are recomputed rather than reused.
+
+
+Version 0.6 changes the default interaction scorer to Vina and advances resume epoch to `6`. Independent SF comparisons use `refine_with_scorers` rather than mixing raw scores in one ranked docking batch.

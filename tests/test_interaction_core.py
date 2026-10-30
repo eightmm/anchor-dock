@@ -24,7 +24,7 @@ def _embedded(smiles: str, seed: int = 5) -> tuple[Chem.Mol, torch.Tensor]:
 def _prepared_scorer():
     mol, _ = _embedded("CCO")
     features = compute_atom_features(mol, "cpu")
-    scorer = PairwiseScorer("softdock").prepare(
+    scorer = PairwiseScorer("vina").prepare(
         features,
         torch.tensor([[10.0, 0.0, 0.0]]),
         compute_atom_features(Chem.MolFromSmiles("C"), "cpu"),
@@ -215,7 +215,7 @@ def test_optimize_se3_returns_expected_shapes_and_stats() -> None:
     centers = torch.tensor([[10.0, 0.0, 0.0], [10.0, 1.0, 0.0], [10.0, 0.0, 1.0]])
     rotation_vectors = torch.zeros(num_poses, 3)
 
-    engine = DockingEngine("softdock", device="cpu", optimizer="adam", num_steps=4, learning_rate=0.05, batch_size=2)
+    engine = DockingEngine("vina", device="cpu", optimizer="adam", num_steps=4, learning_rate=0.05, batch_size=2)
     guided, final, guide_stats, release_stats = engine.optimize_se3(
         problem,
         base_coords,
@@ -239,7 +239,7 @@ def test_optimize_se3_without_release_leaves_final_equal_to_guided_and_zero_stat
     centers = torch.tensor([[10.0, 0.0, 0.0]])
     rotation_vectors = torch.zeros(1, 3)
 
-    engine = DockingEngine("softdock", device="cpu", optimizer="adam", num_steps=4, learning_rate=0.05, batch_size=4)
+    engine = DockingEngine("vina", device="cpu", optimizer="adam", num_steps=4, learning_rate=0.05, batch_size=4)
     guided, final, _, release_stats = engine.optimize_se3(
         problem,
         base_coords,
@@ -259,7 +259,7 @@ def test_optimize_se3_rejects_negative_release_steps() -> None:
     _, scorer = _prepared_scorer()
     problem = PreparedDockingProblem(mol=mol, receptor=None, scorer=scorer, anchor_indices=(), num_rotatable_bonds=0)
     base_coords = base.unsqueeze(0)
-    engine = DockingEngine("softdock", device="cpu", num_steps=1, batch_size=4)
+    engine = DockingEngine("vina", device="cpu", num_steps=1, batch_size=4)
     with pytest.raises(ValueError, match="release_steps"):
         engine.optimize_se3(
             problem,
@@ -269,3 +269,4 @@ def test_optimize_se3_rejects_negative_release_steps() -> None:
             rotation_vectors=torch.zeros(1, 3),
             release_steps=-1,
         )
+

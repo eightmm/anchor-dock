@@ -1,0 +1,144 @@
+{
+  "source_pin": "ad0c51cf041081c138507e23cdbf8360d983ac4e",
+  "scope": "native OpenMM force/energy parity; not binding-affinity or docking accuracy",
+  "results": [
+    {
+      "contract": "openmm-fixed-receptor-kcal-ang-relative-search-v1",
+      "python": "3.12.14",
+      "torch": "2.10.0+cu128",
+      "openmm": "8.6.1",
+      "system_particles": 22,
+      "movable_particle_indices": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "implicit_solvent": null,
+      "poses": 2,
+      "gradcheck": true,
+      "energy_kcal_mol": [
+        -21.053677959077092,
+        -20.36370535825134
+      ],
+      "reference_energy_kcal_mol": -21.053677959077092,
+      "relative_search_energy_kcal_mol": [
+        0.0,
+        0.689972600825751
+      ],
+      "max_energy_error_kcal_mol": 0.0,
+      "max_gradient_error_kcal_mol_angstrom": 3.552713678800501e-15,
+      "metadata": {
+        "contract": "openmm-fixed-receptor-kcal-ang-relative-search-v1",
+        "objective": "full_complex_potential",
+        "openmm_version": "8.6.1",
+        "system_particles": 22,
+        "periodic": false,
+        "units": "kcal/mol",
+        "direction": "lower",
+        "platform": "Reference",
+        "platform_properties": {},
+        "source": {
+          "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+          "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+          "implicit_solvent": null,
+          "nonbonded_method": "NoCutoff",
+          "cutoff_angstrom": 10.0,
+          "solute_dielectric": 1.0,
+          "solvent_dielectric": 78.5
+        },
+        "component_semantics": "inter/intra unavailable; search is complex minus fixed reference; score is full complex potential",
+        "search_reference": "input full-complex potential",
+        "reference_energy_kcal_mol": -21.053677959077092,
+        "ligand_atom_indices": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "fingerprint": "sha256:1cac195108b044eae37e3c0882d6a162631b417418d463c0df4dc440eb45c286"
+      }
+    },
+    {
+      "contract": "openmm-fixed-receptor-kcal-ang-relative-search-v1",
+      "python": "3.12.14",
+      "torch": "2.10.0+cu128",
+      "openmm": "8.6.1",
+      "system_particles": 22,
+      "movable_particle_indices": [
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "implicit_solvent": "GBn2",
+      "poses": 2,
+      "gradcheck": true,
+      "energy_kcal_mol": [
+        -32.509028501048284,
+        -31.89383309048726
+      ],
+      "reference_energy_kcal_mol": -32.509028501048284,
+      "relative_search_energy_kcal_mol": [
+        0.0,
+        0.6151954105610251
+      ],
+      "max_energy_error_kcal_mol": 0.0,
+      "max_gradient_error_kcal_mol_angstrom": 3.552713678800501e-15,
+      "metadata": {
+        "contract": "openmm-fixed-receptor-kcal-ang-relative-search-v1",
+        "objective": "full_complex_potential",
+        "openmm_version": "8.6.1",
+        "system_particles": 22,
+        "periodic": false,
+        "units": "kcal/mol",
+        "direction": "lower",
+        "platform": "Reference",
+        "platform_properties": {},
+        "source": {
+          "prmtop_sha256": "2ce81216c7e18fd4d354fac44e22ba3843d89e297884bd6389a4cd57c74ecf6e",
+          "inpcrd_sha256": "b8a151fd35b909de52b7f50b09f4a0c9fc5221d0b423c6a9ec3133bf867c4954",
+          "implicit_solvent": "GBn2",
+          "nonbonded_method": "NoCutoff",
+          "cutoff_angstrom": 10.0,
+          "solute_dielectric": 1.0,
+          "solvent_dielectric": 78.5
+        },
+        "component_semantics": "inter/intra unavailable; search is complex minus fixed reference; score is full complex potential",
+        "search_reference": "input full-complex potential",
+        "reference_energy_kcal_mol": -32.509028501048284,
+        "ligand_atom_indices": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "fingerprint": "sha256:973628b36a9aea296c51b85ab2404e22084d3d3c5babfa7a49a4b5a3203d09fd"
+      }
+    }
+  ]
+}

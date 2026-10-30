@@ -37,8 +37,8 @@ jobs:
           smoke_dir="$(mktemp -d)"
           cd "$smoke_dir"
           uv run --isolated --no-project --with "$wheel" python -c \
-            'import importlib.metadata, importlib.util, inspect, anchor_dock; from anchor_dock.core.output import OUTPUT_SCHEMA_VERSION; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.5.0"; assert OUTPUT_SCHEMA_VERSION == "4"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_interaction", "dock_batch", "PreparedLigand", "AD4Scorer", "native_vina_score", "load_autogrid_maps")); params = inspect.signature(anchor_dock.dock_interaction).parameters; assert "interactions" in params and "max_joint_matches" in params; assert not hasattr(anchor_dock, "dock_free"); assert importlib.util.find_spec("anchor_dock.free") is None; assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
-          for command in reference covalent interaction batch; do
+            'import importlib.metadata, importlib.util, inspect, anchor_dock; from anchor_dock.core.output import OUTPUT_SCHEMA_VERSION; assert anchor_dock.__version__ == importlib.metadata.version("anchor-dock") == "0.6.0"; assert OUTPUT_SCHEMA_VERSION == "4"; assert all(hasattr(anchor_dock, name) for name in ("dock_reference", "dock_covalent", "dock_interaction", "dock_batch", "PreparedLigand", "AD4Scorer", "native_vina_score", "load_autogrid_maps", "refine_pose", "refine_with_scorers", "list_scoring_functions")); params = inspect.signature(anchor_dock.dock_interaction).parameters; assert "interactions" in params and "max_joint_matches" in params; assert not hasattr(anchor_dock, "dock_free"); assert importlib.util.find_spec("anchor_dock.free") is None; assert importlib.util.find_spec("lig_align") is None; assert importlib.util.find_spec("cov_vina") is None; assert importlib.util.find_spec("anchor_dock.reference.aligner") is None'
+          for command in reference covalent interaction batch refine scorers; do
             uv run --isolated --no-project --with "$wheel" anchor-dock "$command" --help
           done
           uv run --isolated --no-project --with "$wheel" anchor-dock interaction --help | grep -q -- "--interactions-json"
@@ -53,3 +53,17 @@ jobs:
             dist/*.whl
             anchor-dock-source.tar.gz
 
+
+  optional-backends:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install uv==0.10.3
+      - name: Install optional backends
+        run: uv sync --frozen --all-extras --group dev
+      - name: Validate actual optional engines and public workflow
+        run: uv run --frozen --all-extras pytest -q tests/test_automatic_preparation.py tests/test_native_backends.py tests/test_amber_backend.py tests/test_sf_registry_workflow.py

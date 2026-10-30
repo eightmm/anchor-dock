@@ -1045,7 +1045,7 @@ def test_resume_invalidates_when_signature_epoch_or_output_schema_changes(monkey
     root = tmp_path / "resume-epoch"
     current_epoch = batch_module._BATCH_SCHEMA_VERSION
     current_output_schema = batch_module.OUTPUT_SCHEMA_VERSION
-    assert current_epoch == "5"
+    assert current_epoch == "6"
     assert current_output_schema == "4"
 
     monkeypatch.setattr(batch_module, "_BATCH_SCHEMA_VERSION", "3")
@@ -1435,3 +1435,4 @@ def test_reference_dispatch_uses_canonical_pipeline_without_compat_warning(
         warnings.simplefilter("error", FutureWarning)
         _dispatch(job, tmp_path / "reference-dispatch", {})
     assert "optimize" not in captured["options"]
+

@@ -28,7 +28,7 @@ dock_reference(
     optimize=False,
     optimizer="adam",             # adam | adamw | lbfgs
     freeze_anchor=True,
-    scorer="vina",                # vina | vinardo | softdock | nn.Module
+    scorer="vina",                # vina | vinardo | nn.Module
     top_k=None,
     random_seed=42,
     device=None,
@@ -86,7 +86,7 @@ dock_interaction(
     opt_steps=50,
     release_steps=25,
     restraint_weight=10.0,
-    scorer="softdock",
+    scorer="vina",
     top_k=10,
 )
 ```
@@ -151,3 +151,4 @@ SDF properties use only the versioned `AnchorDock_*` schema, including:
 Ligand and reference inputs must each contain one connected component. Salts and mixtures fail explicitly; no implicit desalting policy is applied. Single-molecule SDF loaders (`load_ligand`, `load_reference_ligand`) require exactly one SDF record and point multi-ligand inputs to `dock_batch`. Output schema `4` adds ordered multi-interaction provenance while retaining the true RDKit conformer ID in `AnchorDock_Source_Conformer` and its representative ordinal in `AnchorDock_Source_Representative_Index`.
 
 The advanced shared engine is available as `DockingEngine`. Removed 0.2 façade classes and internal cache hooks are not public API.
+

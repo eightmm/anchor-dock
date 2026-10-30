@@ -213,7 +213,7 @@ def test_zero_torsion_optimization_is_a_noop() -> None:
 
     mol, coords = _embedded("CC")
     features = compute_atom_features(mol, "cpu")
-    scorer = PairwiseScorer("softdock").prepare(
+    scorer = PairwiseScorer("vina").prepare(
         features,
         torch.tensor([[10.0, 0.0, 0.0]]),
         compute_atom_features(Chem.MolFromSmiles("C"), "cpu"),
@@ -221,3 +221,4 @@ def test_zero_torsion_optimization_is_a_noop() -> None:
     output, stats = optimize_torsions(mol, [0, 1], coords, scorer, "cpu", num_steps=5)
     assert torch.allclose(output, coords)
     assert stats.maximum_steps == 0
+

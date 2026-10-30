@@ -256,7 +256,7 @@ _SUPPORTED_SUFFIXES = {
 }
 _COMPRESSED_SUFFIXES = {".gz", ".bz2", ".xz", ".lzma"}
 # Resume-signature epoch: bump whenever older successful artifacts are no longer semantically reusable.
-_BATCH_SCHEMA_VERSION = "5"
+_BATCH_SCHEMA_VERSION = "6"
 _BATCH_MANIFEST_NAMES = ("results.jsonl", "summary.json")
 
 

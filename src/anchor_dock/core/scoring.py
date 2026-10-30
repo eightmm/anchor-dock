@@ -78,24 +78,9 @@ VINARDO_CONFIG = ScoringConfig(
     hbond_good=-0.6,
 )
 
-SOFTDOCK_CONFIG = ScoringConfig(
-    name="softdock",
-    units="arbitrary",
-    radius_key="radius_vina",
-    cutoff=10.0,
-    formula="softdock",
-    weights={
-        "repulsion": 1.0,
-        "contact": -0.18,
-        "hydrophobic": -0.32,
-        "hbond": -0.75,
-    },
-)
-
 SCORING_CONFIGS = {
     "vina": VINA_CONFIG,
     "vinardo": VINARDO_CONFIG,
-    "softdock": SOFTDOCK_CONFIG,
 }
 
 
@@ -161,15 +146,9 @@ def pair_terms(
     config: ScoringConfig,
 ) -> dict[str, torch.Tensor]:
     """Return unweighted pair terms for one scorer configuration."""
+    if config.formula != "vina":
+        raise ValueError("PairwiseScorer supports the Vina-family formula; use a registered SF factory for other formulas")
     surface_distance = distances - radius_sum
-    if config.formula == "softdock":
-        overlap = torch.nn.functional.softplus(-surface_distance / 0.20) * 0.20
-        return {
-            "repulsion": overlap.square(),
-            "contact": torch.exp(-((surface_distance - 0.6) / 1.6).square()),
-            "hydrophobic": hydrophobic_match * torch.sigmoid((1.5 - surface_distance) / 0.35),
-            "hbond": hbond_match * torch.exp(-((surface_distance + 0.25) / 0.65).square()),
-        }
 
     gauss1 = torch.exp(-((surface_distance / config.gauss1_width) ** 2))
     if config.gauss2_offset is None:
@@ -335,21 +314,17 @@ class PreparedPairwiseScorer:
         raw: RawScoreComponents,
         intramolecular_reference: torch.Tensor | float | None = None,
     ) -> ScoreComponents:
-        if self.config.formula == "softdock":
-            reference = torch.zeros((), dtype=raw.search_energy.dtype, device=raw.search_energy.device)
-            score = raw.search_energy
+        if intramolecular_reference is None:
+            best = torch.argmin(raw.search_energy)
+            reference = raw.intramolecular[best].detach()
         else:
-            if intramolecular_reference is None:
-                best = torch.argmin(raw.search_energy)
-                reference = raw.intramolecular[best].detach()
-            else:
-                reference = torch.as_tensor(
-                    intramolecular_reference,
-                    dtype=raw.search_energy.dtype,
-                    device=raw.search_energy.device,
-                )
-            denominator = 1.0 + self.config.torsion_weight * self.num_rotatable_bonds
-            score = (raw.search_energy - reference) / denominator
+            reference = torch.as_tensor(
+                intramolecular_reference,
+                dtype=raw.search_energy.dtype,
+                device=raw.search_energy.device,
+            )
+        denominator = 1.0 + self.config.torsion_weight * self.num_rotatable_bonds
+        score = (raw.search_energy - reference) / denominator
         return ScoreComponents(
             raw.intermolecular,
             raw.intramolecular,
@@ -367,14 +342,18 @@ class PreparedPairwiseScorer:
 
 
 class PairwiseScorer:
-    """Factory for prepared Vina, Vinardo and SoftDock scorers."""
+    """Factory for prepared Vina-family analytic scorers."""
 
     def __init__(self, config: ScoringConfig | str, *, positive_energy_cap: float | None = None):
         if isinstance(config, str):
+            if config.lower() == "softdock":
+                raise ValueError("softdock was removed; choose a validated scoring function such as vina or vinardo")
             try:
                 config = SCORING_CONFIGS[config.lower()]
             except KeyError as exc:
                 raise ValueError(f"unknown scorer {config!r}; choose from {sorted(SCORING_CONFIGS)}") from exc
+        if config.formula != "vina":
+            raise ValueError("PairwiseScorer requires the Vina-family formula")
         if positive_energy_cap is not None:
             if config.formula != "vina":
                 raise ValueError("positive_energy_cap is supported only for Vina/Vinardo pair functions")
@@ -1155,8 +1134,9 @@ def neural_module_fingerprint(module: nn.Module) -> str:
 def scorer_fingerprint(scorer: object) -> str:
     if isinstance(scorer, str):
         try:
-            return scoring_config_fingerprint(SCORING_CONFIGS[scorer.lower()])
-        except KeyError:
+            from .registry import create_scoring_function
+            return create_scoring_function(scorer).fingerprint
+        except (ValueError, ImportError, AttributeError):
             return f"unresolved:{scorer}"
     fingerprint = getattr(scorer, "fingerprint", None)
     if isinstance(fingerprint, str) and fingerprint:
@@ -1168,10 +1148,11 @@ def scorer_fingerprint(scorer: object) -> str:
 
 def resolve_scorer(scorer: ScorerLike) -> PairwiseScorer | NeuralScorerAdapter:
     if isinstance(scorer, str):
-        try:
-            return PairwiseScorer(SCORING_CONFIGS[scorer.lower()])
-        except KeyError as exc:
-            raise ValueError(f"unknown scorer {scorer!r}; choose from {sorted(SCORING_CONFIGS)}") from exc
+        from .registry import create_scoring_function, scoring_function_info
+        info = scoring_function_info(scorer)
+        if info.backend == "native":
+            raise ValueError("native scoring functions use refine_pose(), not Torch DockingEngine optimization")
+        return create_scoring_function(scorer)
     if isinstance(scorer, nn.Module):
         return NeuralScorerAdapter(scorer)
     if hasattr(scorer, "prepare"):
