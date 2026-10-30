@@ -19,6 +19,7 @@ from ..core.conformers import generate_conformers_and_cluster
 from ..core.engine import DockingEngine
 from ..core.features import ATOM_TYPING_VERSION
 from ..core.io import (
+    RECEPTOR_PREPARATION_CONTRACT,
     ReceptorContext,
     choose_device,
     extract_pocket_around_residue,
@@ -204,12 +205,13 @@ def _prepare_covalent_receptor(
         bool(include_heteroatoms),
         str(target_device),
         ATOM_TYPING_VERSION,
+        RECEPTOR_PREPARATION_CONTRACT,
     )
     cached = _COVALENT_CONTEXT_CACHE.get(key)
     if cached is not None:
         _COVALENT_CONTEXT_CACHE.move_to_end(key)
         return cached
-    protein = Chem.MolFromPDBFile(path, sanitize=False, removeHs=True)
+    protein = Chem.MolFromPDBFile(path, sanitize=False, removeHs=False)
     if protein is None:
         raise ValueError(f"failed to load protein from {protein_pdb}")
     anchor = select_reactive_anchor(protein, reactive_residue)
@@ -269,7 +271,7 @@ def dock_covalent(
     rotation_scan_step: int = 30,
     rotation_top_k: int = 50,
     optimize: bool = False,
-    optimizer: Literal["adam", "adamw", "lbfgs"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
     opt_steps: int = 100,
     opt_lr: float = 0.05,
     opt_batch_size: int = 128,
@@ -622,3 +624,4 @@ def dock_covalent(
             f"covalent docking complete: {result['num_poses']} poses, best={result['best_score']:.4f}, {runtime:.2f}s"
         )
     return result
+

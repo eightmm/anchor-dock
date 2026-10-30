@@ -1,0 +1,106 @@
+{
+  "scope": "prepared flexible ligands, synthetic affine AutoGrid maps, native Vina AD4 CPU; no native ADGPU or real receptor maps",
+  "seed": 713,
+  "versions": {
+    "rdkit": "2025.09.5",
+    "meeko": "0.8.0",
+    "vina": "1.2.7"
+  },
+  "max_inter_abs_error": 3.552713678800501e-15,
+  "max_intra_abs_error": 0.0009117777190349452,
+  "max_score_abs_error": 3.552713678800501e-15,
+  "max_native_fast_table_probe_abs_error": 1.1102230246251565e-16,
+  "rows": [
+    {
+      "smiles": "CCCCCO",
+      "atoms": 7,
+      "pairs": 6,
+      "torsdof": 4,
+      "native_inter": 8.147346888136374,
+      "own_inter": 8.147346888136376,
+      "native_intra": -0.040048976804805216,
+      "own_intra": -0.04005675427625688,
+      "native_score": 9.340546888136373,
+      "own_score": 9.340546888136377,
+      "finite_gradient": true,
+      "native_fast_table_probe": -0.04004897680480522,
+      "map_source_sha256": {
+        "C": "b48a3cd42211b04c9a2722c627792ff82adafa521d4fd871f85a7c976c3668c5",
+        "HD": "fd95c32012a6f16840b44abced6a2f34b919d61d7dbf463ff29175ef0a6a455c",
+        "OA": "74f01382d1cc3e9866448daf2523a3fefe31962f37bd808650be3e44b3f4cc81",
+        "e": "2e3f6a19b8c8f7229722cf6aa0df291a41f90d576838f286eacac58bd5eda8af",
+        "d": "e161de3988702c5e2480664ff4625ca0816430dc48cee035a9ad897dfffe05e1"
+      },
+      "prepared_fingerprint": "sha256:a563fb700071e902f0f5dab3e16ff600fda687c1568b6ab5217eec482fddb923"
+    },
+    {
+      "smiles": "CCOCCN",
+      "atoms": 8,
+      "pairs": 9,
+      "torsdof": 4,
+      "native_inter": 10.250112180628804,
+      "own_inter": 10.250112180628804,
+      "native_intra": -0.15973752706047156,
+      "own_intra": -0.15970380859017902,
+      "native_score": 11.443312180628805,
+      "own_score": 11.443312180628805,
+      "finite_gradient": true,
+      "native_fast_table_probe": -0.1597375270604716,
+      "map_source_sha256": {
+        "C": "b48a3cd42211b04c9a2722c627792ff82adafa521d4fd871f85a7c976c3668c5",
+        "HD": "fd95c32012a6f16840b44abced6a2f34b919d61d7dbf463ff29175ef0a6a455c",
+        "NA": "74f01382d1cc3e9866448daf2523a3fefe31962f37bd808650be3e44b3f4cc81",
+        "OA": "ef631fcbac2a8c25d737c7f110d1d7e59880f4308055a9e4f3bccbfafe307848",
+        "e": "2e3f6a19b8c8f7229722cf6aa0df291a41f90d576838f286eacac58bd5eda8af",
+        "d": "e161de3988702c5e2480664ff4625ca0816430dc48cee035a9ad897dfffe05e1"
+      },
+      "prepared_fingerprint": "sha256:6d8031afb43edb6e48b9ee4a304418c7ce348bfddb7fc0ced74e268be151bce1"
+    },
+    {
+      "smiles": "CCCOCC(=O)N",
+      "atoms": 10,
+      "pairs": 17,
+      "torsdof": 4,
+      "native_inter": 13.324395677062743,
+      "own_inter": 13.324395677062746,
+      "native_intra": -0.5041482919837194,
+      "own_intra": -0.5050600697027543,
+      "native_score": 14.517595677062744,
+      "own_score": 14.517595677062747,
+      "finite_gradient": true,
+      "native_fast_table_probe": -0.5041482919837195,
+      "map_source_sha256": {
+        "C": "b48a3cd42211b04c9a2722c627792ff82adafa521d4fd871f85a7c976c3668c5",
+        "HD": "fd95c32012a6f16840b44abced6a2f34b919d61d7dbf463ff29175ef0a6a455c",
+        "N": "74f01382d1cc3e9866448daf2523a3fefe31962f37bd808650be3e44b3f4cc81",
+        "OA": "ef631fcbac2a8c25d737c7f110d1d7e59880f4308055a9e4f3bccbfafe307848",
+        "e": "2e3f6a19b8c8f7229722cf6aa0df291a41f90d576838f286eacac58bd5eda8af",
+        "d": "e161de3988702c5e2480664ff4625ca0816430dc48cee035a9ad897dfffe05e1"
+      },
+      "prepared_fingerprint": "sha256:53e087cc25fbb11334994f86fc70cfc26d0b6893ef83362e37dfb3e18891dd80"
+    },
+    {
+      "smiles": "c1ccccc1CCCO",
+      "atoms": 11,
+      "pairs": 21,
+      "torsdof": 4,
+      "native_inter": 13.045560026949955,
+      "own_inter": 13.045560026949955,
+      "native_intra": -0.1336922446662296,
+      "own_intra": -0.13363989622424155,
+      "native_score": 14.238760026949954,
+      "own_score": 14.238760026949954,
+      "finite_gradient": true,
+      "native_fast_table_probe": -0.13369224466622953,
+      "map_source_sha256": {
+        "A": "b48a3cd42211b04c9a2722c627792ff82adafa521d4fd871f85a7c976c3668c5",
+        "C": "fd95c32012a6f16840b44abced6a2f34b919d61d7dbf463ff29175ef0a6a455c",
+        "HD": "74f01382d1cc3e9866448daf2523a3fefe31962f37bd808650be3e44b3f4cc81",
+        "OA": "ef631fcbac2a8c25d737c7f110d1d7e59880f4308055a9e4f3bccbfafe307848",
+        "e": "2e3f6a19b8c8f7229722cf6aa0df291a41f90d576838f286eacac58bd5eda8af",
+        "d": "e161de3988702c5e2480664ff4625ca0816430dc48cee035a9ad897dfffe05e1"
+      },
+      "prepared_fingerprint": "sha256:c3466655cd9155191fe2b0086c9d786601a1cc17b23efcc6117cde745209dd01"
+    }
+  ]
+}

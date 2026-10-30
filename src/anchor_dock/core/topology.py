@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 from collections import deque
 from dataclasses import dataclass
 
 from rdkit import Chem
+
+PREPARED_ROTORS_PROPERTY = "_AnchorDockPreparedRotatableBonds"
 
 _ROTATABLE_BOND_PATTERN = Chem.MolFromSmarts(
     "[!$(*#*)&!D1&!$(C(F)(F)F)&!$(C(Cl)(Cl)Cl)&!$(C(Br)(Br)Br)"
@@ -32,6 +35,19 @@ def find_rotatable_bonds(mol: Chem.Mol) -> list[tuple[int, int]]:
     The SMARTS mirrors RDKit's strict rotor definition so the differentiable
     kinematics and Vina-family torsion denominator use the same bond set.
     """
+    if mol.HasProp(PREPARED_ROTORS_PROPERTY):
+        try:
+            values = json.loads(mol.GetProp(PREPARED_ROTORS_PROPERTY))
+            pairs = [tuple(sorted(pair)) for pair in values]
+            if any(len(pair) != 2 or any(type(i) is not int or i < 0 or i >= mol.GetNumAtoms() for i in pair)
+                   or pair[0] == pair[1] or mol.GetBondBetweenAtoms(*pair) is None
+                   or mol.GetBondBetweenAtoms(*pair).IsInRing() for pair in pairs):
+                raise ValueError("invalid graph cut")
+            if len(set(pairs)) != len(pairs):
+                raise ValueError("duplicate branch")
+        except (ValueError, TypeError, IndexError) as error:
+            raise ValueError("invalid prepared rotor metadata") from error
+        return sorted(pairs)
     if _ROTATABLE_BOND_PATTERN is None:
         return []
     bonds = {tuple(sorted(match)) for match in mol.GetSubstructMatches(_ROTATABLE_BOND_PATTERN)}
@@ -109,3 +125,4 @@ def component_side(
             if edge_idx != blocked_edge and neighbor not in side:
                 queue.append(neighbor)
     return side
+

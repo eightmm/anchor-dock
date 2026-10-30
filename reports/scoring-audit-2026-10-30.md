@@ -1,5 +1,7 @@
 # AnchorDock scientific scoring and Jacobian audit
 
+This report records the initial correction snapshot `957c75c`. The subsequent [implementation and validation report](completion-2026-10-30.md) adds prepared PDBQT input, score-only native radial evaluation, AutoGrid/AD4 reference scoring and opt-in Cartesian-metric optimization. The initial prototype limitations below describe that earlier snapshot.
+
 The prior performance suite preserved existing behavior. This audit uses independent prepared types, native executables and analytic derivatives. It found substantive atom-typing and optimizer errors; correcting them intentionally changes scores and trajectories. Historical v2 scores do not use the v3 contract.
 
 ## Primary sources

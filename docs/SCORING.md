@@ -62,9 +62,11 @@ Official Vina derives XS roles from prepared AutoDock/PDBQT types and polar-H bo
 
 Reference/interaction outputs record `AnchorDock_Atom_Typing=inferred-xs-v3`; covalent product typing records `inferred-xs-v3+covalent-product-v1`. The batch signature includes typing and optimizer contracts, invalidating old numerical semantics.
 
-Pair weights/radii and analytic equations match the represented ordinary Vina/Vinardo terms. Exact native compatibility additionally requires the same prepared type/rotor/mobility model, intra-pair set, reference convention, radial/grid interpolation and positive-energy curl wrapper. RDKit strict rotors are not automatically native Vina num_tors or AD4 TORSDOF. Values remain labelled `kcal/mol-like`.
+Pair weights/radii and analytic equations match the represented ordinary Vina/Vinardo terms. Exact native compatibility additionally requires the same prepared type/rotor/mobility model, intra-pair set, reference convention, radial/grid interpolation and positive-energy curl wrapper. `PreparedLigand` preserves a supplied graph/PDBQT mapping and tree, deriving half-integral Vina `num_tors` independently of AD4 `TORSDOF`. Inferred inputs retain RDKit strict rotors. Values remain labelled `kcal/mol-like`.
 
-Unsupported ordinary XS elements (for example boron) and extended macrocycle/dummy types fail explicitly. The authoritative converter is low-level; top-level SMILES/PDB pipelines still perform inferred preparation and are not a complete PDBQT importer.
+Unsupported ordinary XS elements (for example boron) and extended macrocycle/dummy types fail explicitly. Top-level SMILES/PDB pipelines retain inferred preparation; the engine's explicit prepared path imports ordinary ligand/rigid receptor PDBQT together with a caller-supplied chemical graph and serial mapping. It does not infer connectivity or protonation. See [prepared inputs](PREPARED.md).
+
+`PairwiseScorer(..., positive_energy_cap=1000.0)` opts into native positive-energy curl: after the receptor sum for each ligand atom, and separately for each intra pair. The default retains uncapped analytic energies. The score-only `native_vina_score` additionally follows native FAST radial-table conventions; it rejects coordinate gradients and is not an optimizer objective. The [full-ligand native audit](../reports/native-scoring-parity-2026-10-30.md) quantifies continuous and table-reference differences.
 
 ## SoftDock
 
@@ -100,12 +102,14 @@ Parameters and buffers must already be on the receptor device. AnchorDock evalua
 
 `rotation_vector_to_matrix` uses a stable SO(3) exponential, including the infinitesimal Jacobian at zero rotation. A collapsed bond axis still uses the separate axis-angle identity fallback. Autograd computes `J(q).T @ grad_x(E)` without a dense Jacobian. At a finite raw rotation vector, world torque needs the SO(3) left-Jacobian transpose; it is directly the parameter gradient only at identity or under a local retraction. Torsion derivatives use current axis-cross-lever actions in radians.
 
-Adam/AdamW clipping is per pose across parameter blocks. This numerical norm still mixes translation/angular units; it is not a Cartesian metric. Pose AdamW has zero weight decay, avoiding origin-dependent forces. LBFGS strong-Wolfe closures use the true objective gradient without clipping. A damped `J.T @ W @ J + lambda * D` metric with displacement limits is a proposed experiment, not an implemented energy Hessian.
+Adam/AdamW clipping is per pose across parameter blocks. This numerical norm still mixes translation/angular units. Pose AdamW has zero weight decay, avoiding origin-dependent forces. LBFGS strong-Wolfe closures use the true objective gradient without clipping. Opt-in `cartesian` implements the dense reference metric `J.T @ J + lambda * D`, block-isotropic damping, actual atom-displacement limits and objective-based Armijo backtracking. It uses the existing rotation-vector chart and bounded per-pose Jacobians; it is not an energy Hessian or a fused GPU optimizer. Defaults remain unchanged.
 
 ## Experimental AD4 map component
 
 `core.grid.TrilinearGrid` samples fixed `[C,Z,Y,X]` maps at physical angstrom coordinates with explicit origin/spacing. Cell derivatives include inverse spacing and can jump across cell faces. Closed-box bounds reject outside points; native ADGPU instead has upper-exclusive bounds and search-specific penalties.
 
-`AD4IntermolecularGrid` evaluates only `sum_i A_type_i(x_i) + q_i*E_map(x_i) + abs(q_i)*D_map(x_i)`. Maps are already weighted. Caller-supplied map/type/charge alignment is required. There is no AutoGrid parser, intra contributor list, torsion/unbound report or full ADGPU scorer registration. The validation-heavy sampler is a correctness reference and synchronizes CUDA; GPU throughput is unmeasured.
+`AD4IntermolecularGrid` evaluates `sum_i A_type_i(x_i) + q_i*E_map(x_i) + abs(q_i)*D_map(x_i)`. Maps are already weighted. The companion AutoGrid loader validates physical geometry and channel order. `AD4Scorer` adds ordinary prepared intra contributors, torsion and explicit same-as-bound/fixed unbound reporting through the engine scorer interface. Standard analytic AD4 and inspected ADGPU forward approximations are explicit formulations; raw-map and Vina curl/boundary conventions are explicit modes. Receptor-atom exclusions and flexible receptors are unsupported.
+
+Maps are the authoritative receptor field: contents are fingerprinted, but their physical association with a separately supplied receptor graph cannot be established from map values. The validation-heavy sampler synchronizes CUDA. Native radial-table differences, native AutoDock-GPU execution, real receptor map generation and GPU throughput remain separate validation boundaries. See [usage and contracts](PREPARED.md).
 
 See [scientific audit](../reports/scoring-audit-2026-10-30.md) for primary sources, external checks and remaining parity boundaries.

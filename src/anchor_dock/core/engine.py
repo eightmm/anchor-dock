@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
+from numbers import Integral, Real
 from typing import Any
 
 import torch
@@ -20,6 +22,7 @@ from .optimization import (
     optimize_pose_module,
     optimize_torsions,
 )
+from .prepared import PreparedLigand
 from .scoring import PreparedScorer, ScoreComponents, ScorerLike, resolve_scorer
 
 
@@ -49,7 +52,8 @@ class PreparedDockingProblem:
     receptor: ReceptorContext
     scorer: PreparedScorer
     anchor_indices: tuple[int, ...]
-    num_rotatable_bonds: int
+    num_rotatable_bonds: float
+    prepared_input_fingerprint: str | None = None
 
 
 class DockingEngine:
@@ -69,16 +73,17 @@ class DockingEngine:
         min_delta: float = 1e-5,
         strict_atom_typing: bool = False,
     ) -> None:
-        if num_steps < 0:
-            raise ValueError("num_steps must be non-negative")
-        if learning_rate <= 0:
-            raise ValueError("learning_rate must be positive")
-        if batch_size <= 0:
-            raise ValueError("batch_size must be positive")
-        if patience <= 0:
-            raise ValueError("patience must be positive")
-        if min_delta < 0:
-            raise ValueError("min_delta must be non-negative")
+        for name, value, minimum in (("num_steps", num_steps, 0), ("batch_size", batch_size, 1), ("patience", patience, 1)):
+            if isinstance(value, bool) or not isinstance(value, Integral) or value < minimum:
+                raise ValueError(f"{name} must be an integer >= {minimum}")
+        for name, value, strict_positive in (("learning_rate", learning_rate, True), ("min_delta", min_delta, False)):
+            if (isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value)
+                    or (value <= 0 if strict_positive else value < 0)):
+                raise ValueError(f"{name} must be finite and {'positive' if strict_positive else 'nonnegative'}")
+        if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+            raise ValueError(f"unsupported optimizer: {optimizer!r}")
+        if not isinstance(strict_atom_typing, bool):
+            raise ValueError("strict_atom_typing must be bool")
         self.scoring_model = resolve_scorer(scorer)
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         if self.device.type == "cuda" and not torch.cuda.is_available():
@@ -106,19 +111,46 @@ class DockingEngine:
         receptor: ReceptorContext,
         *,
         anchor_indices: tuple[int, ...] | list[int] = (),
-        num_rotatable_bonds: int = 0,
+        num_rotatable_bonds: int | float | None = None,
         exclude_intramolecular_atoms: set[int] | None = None,
         intermolecular_exclusion_mask: torch.Tensor | None = None,
+        prepared_ligand: PreparedLigand | None = None,
     ) -> PreparedDockingProblem:
-        features = compute_atom_features(mol, self.device, strict=self.strict_atom_typing)
+        """Prepare inferred input or explicitly mapped authoritative ligand data.
+
+        With ``prepared_ligand``, pass ``prepared_ligand.mol``. Its types,
+        charges, tree mobility and Vina rotor count override graph inference;
+        use its coordinates for pose initialization. Input preparation never
+        assigns missing protonation/tautomer states.
+        """
+        if prepared_ligand is not None:
+            if not isinstance(prepared_ligand, PreparedLigand):
+                raise TypeError("prepared_ligand must be PreparedLigand")
+            prepared_ligand.validate_mol(mol)
+            mol = prepared_ligand.mol
+            features = prepared_ligand.features(self.device)
+            if num_rotatable_bonds is not None and num_rotatable_bonds != prepared_ligand.vina_num_tors:
+                raise ValueError("explicit rotor count conflicts with prepared Vina num_tors")
+            num_rotatable_bonds = prepared_ligand.vina_num_tors
+            intramolecular_mask = prepared_ligand.intramolecular_mask(self.device)
+            if exclude_intramolecular_atoms:
+                for index in exclude_intramolecular_atoms:
+                    index = int(index)
+                    if 0 <= index < mol.GetNumAtoms():
+                        intramolecular_mask[index, :] = False
+                        intramolecular_mask[:, index] = False
+        else:
+            num_rotatable_bonds = 0 if num_rotatable_bonds is None else num_rotatable_bonds
+            features = compute_atom_features(mol, self.device, strict=self.strict_atom_typing)
+            intramolecular_mask = compute_intramolecular_mask(
+                mol, self.device, exclude_atom_indices=exclude_intramolecular_atoms,
+            )
+        if (isinstance(num_rotatable_bonds, bool) or not isinstance(num_rotatable_bonds, Real)
+                or not math.isfinite(num_rotatable_bonds) or num_rotatable_bonds < 0):
+            raise ValueError("rotor count must be finite and nonnegative")
         receptor_ambiguities = tuple(receptor.features.get("typing_ambiguities", ()))
         if self.strict_atom_typing and receptor_ambiguities:
             raise ValueError("ambiguous receptor atom typing: " + "; ".join(receptor_ambiguities))
-        intramolecular_mask = compute_intramolecular_mask(
-            mol,
-            self.device,
-            exclude_atom_indices=exclude_intramolecular_atoms,
-        )
         prepared_scorer = self.scoring_model.prepare(
             features,
             receptor.coords.to(self.device),
@@ -141,7 +173,8 @@ class DockingEngine:
             receptor=receptor,
             scorer=prepared_scorer,
             anchor_indices=tuple(int(index) for index in anchor_indices),
-            num_rotatable_bonds=int(num_rotatable_bonds),
+            num_rotatable_bonds=num_rotatable_bonds,
+            prepared_input_fingerprint=None if prepared_ligand is None else prepared_ligand.fingerprint,
         )
 
     def optimize_anchored(
@@ -198,7 +231,7 @@ class DockingEngine:
         final_outputs: list[torch.Tensor] = []
         guide_stats_values: list[OptimizationStats] = []
         release_stats_values: list[OptimizationStats] = []
-        chunk_size = 1 if self.optimizer == "lbfgs" else self.batch_size
+        chunk_size = 1 if self.optimizer in {"lbfgs", "cartesian"} else self.batch_size
         for start in range(0, base_coords.shape[0], chunk_size):
             stop = min(start + chunk_size, base_coords.shape[0])
             model = SE3PoseModel(

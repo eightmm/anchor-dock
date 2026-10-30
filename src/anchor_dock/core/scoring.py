@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from functools import partial
 from types import (
@@ -207,12 +208,34 @@ def _weighted_pair_energy(
     return energy.masked_fill(~(active & cutoff), 0.0)
 
 
+def positive_energy_curl(energy: torch.Tensor, cap: float | None) -> torch.Tensor:
+    """Vina's positive-energy wrapper, with an exact derivative of this forward.
+
+    Native rigid-receptor evaluation wraps the *sum per ligand atom*, whereas
+    movable intramolecular pairs are wrapped individually. This is independent
+    of radial lookup/grid approximation and does not by itself imply parity.
+    """
+    if cap is None:
+        return energy
+    # A nonnegative denominator also keeps the unselected negative branch
+    # finite, including at E=-cap, so autograd cannot inherit a spurious NaN.
+    denominator = 1.0 + energy.clamp_min(0.0) / cap
+    return torch.where(energy > 0.0, energy / denominator, energy)
+
+
+def _pairwise_fingerprint(config: ScoringConfig, cap: float | None) -> str:
+    if cap is None:
+        return scoring_config_fingerprint(config)
+    payload = {"config": asdict(config), "positive_energy_cap": cap, "wrapper": "vina-per-atom-inter-per-pair-intra-v1"}
+    return "sha256:" + hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
 @runtime_checkable
 class PreparedScorer(Protocol):
     name: str
     units: str
     fingerprint: str
-    effective_rotatable_bonds: int
+    effective_rotatable_bonds: int | float
     torsion_penalty_applied: bool
 
     def search_energy(self, ligand_coords: torch.Tensor) -> torch.Tensor: ...
@@ -232,11 +255,12 @@ class PreparedPairwiseScorer:
     receptor_coords: torch.Tensor
     ligand_features: dict[str, object]
     receptor_features: dict[str, object]
-    num_rotatable_bonds: int
+    num_rotatable_bonds: int | float
     intramolecular_mask: torch.Tensor | None
     intermolecular_exclusion_mask: torch.Tensor | None
     intermolecular_matrices: dict[str, torch.Tensor]
     intramolecular_matrices: dict[str, torch.Tensor]
+    positive_energy_cap: float | None = None
 
     @property
     def name(self) -> str:
@@ -248,10 +272,10 @@ class PreparedPairwiseScorer:
 
     @property
     def fingerprint(self) -> str:
-        return scoring_config_fingerprint(self.config)
+        return _pairwise_fingerprint(self.config, self.positive_energy_cap)
 
     @property
-    def effective_rotatable_bonds(self) -> int:
+    def effective_rotatable_bonds(self) -> int | float:
         if self.config.formula != "vina" or self.config.torsion_weight <= 0:
             return 0
         return self.num_rotatable_bonds
@@ -279,13 +303,19 @@ class PreparedPairwiseScorer:
         )
         if exclusion is not None:
             inter_energy = inter_energy.masked_fill(exclusion, 0.0)
-        intermolecular = inter_energy.sum(dim=(1, 2))
+        if self.positive_energy_cap is None:
+            # Preserve the default reduction order: even tiny FP32 changes can
+            # alter a subsequent line-search trajectory.
+            intermolecular = inter_energy.sum(dim=(1, 2))
+        else:
+            intermolecular = positive_energy_curl(inter_energy.sum(dim=2), self.positive_energy_cap).sum(dim=1)
 
         if self.intramolecular_mask is None:
             intramolecular = torch.zeros_like(intermolecular)
         else:
             intra_distances = torch.cdist(ligand_coords, ligand_coords)
             intra_energy = _weighted_pair_energy(intra_distances, self.intramolecular_matrices, self.config)
+            intra_energy = positive_energy_curl(intra_energy, self.positive_energy_cap)
             intra_mask = normalize_pair_mask(
                 self.intramolecular_mask,
                 batch_size,
@@ -339,16 +369,23 @@ class PreparedPairwiseScorer:
 class PairwiseScorer:
     """Factory for prepared Vina, Vinardo and SoftDock scorers."""
 
-    def __init__(self, config: ScoringConfig | str):
+    def __init__(self, config: ScoringConfig | str, *, positive_energy_cap: float | None = None):
         if isinstance(config, str):
             try:
                 config = SCORING_CONFIGS[config.lower()]
             except KeyError as exc:
                 raise ValueError(f"unknown scorer {config!r}; choose from {sorted(SCORING_CONFIGS)}") from exc
+        if positive_energy_cap is not None:
+            if config.formula != "vina":
+                raise ValueError("positive_energy_cap is supported only for Vina/Vinardo pair functions")
+            if isinstance(positive_energy_cap, bool) or not math.isfinite(positive_energy_cap) or positive_energy_cap <= 0:
+                raise ValueError("positive_energy_cap must be finite and positive")
+            positive_energy_cap = float(positive_energy_cap)
         self.config = config
+        self.positive_energy_cap = positive_energy_cap
         self.name = config.name
         self.units = config.units
-        self.fingerprint = scoring_config_fingerprint(config)
+        self.fingerprint = _pairwise_fingerprint(config, positive_energy_cap)
 
     def prepare(
         self,
@@ -356,10 +393,12 @@ class PairwiseScorer:
         receptor_coords: torch.Tensor,
         receptor_features: dict[str, object],
         *,
-        num_rotatable_bonds: int = 0,
+        num_rotatable_bonds: int | float = 0,
         intramolecular_mask: torch.Tensor | None = None,
         intermolecular_exclusion_mask: torch.Tensor | None = None,
     ) -> PreparedPairwiseScorer:
+        if isinstance(num_rotatable_bonds, bool) or not math.isfinite(num_rotatable_bonds) or num_rotatable_bonds < 0:
+            raise ValueError("num_rotatable_bonds must be finite and non-negative")
         device = receptor_coords.device
         if self.config.formula == "vina":
             unknown_ligand = [
@@ -381,11 +420,12 @@ class PairwiseScorer:
             receptor_coords=receptor_coords,
             ligand_features=ligand_features,
             receptor_features=receptor_features,
-            num_rotatable_bonds=max(0, int(num_rotatable_bonds)),
+            num_rotatable_bonds=num_rotatable_bonds,
             intramolecular_mask=intramolecular_mask,
             intermolecular_exclusion_mask=intermolecular_exclusion_mask,
             intermolecular_matrices=inter,
             intramolecular_matrices=intra,
+            positive_energy_cap=self.positive_energy_cap,
         )
 
 

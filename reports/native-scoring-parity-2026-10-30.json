@@ -1,0 +1,2396 @@
+{
+  "scope": "complete prepared-ligand scoring in a controlled multi-atom rigid receptor",
+  "seed": 713,
+  "python": "3.12.14",
+  "versions": {
+    "rdkit": "2025.9.5",
+    "meeko": "0.8.0",
+    "vina": "1.2.7",
+    "torch": "2.10.0"
+  },
+  "cuda_available": false,
+  "device": "cpu",
+  "native_call": "Vina._vina.score(0.0), no_refine=False; private binding pinned to 1.2.7",
+  "native_score_contract": "vina-1.2.7-fast-r2-factor32-curl1000-prepared-v1",
+  "preparation": "Meeko explicit-H graph, INDEX MAP, shared PDBQT-rounded coordinates",
+  "receptor": "ETKDGv3 glycine, prepared once and held rigid",
+  "ligand_10gs_sha256": "c9581b7dc11046465e051f1da75f3c439bdce39dee1b2619456bd33ffb4414ba",
+  "cases": 48,
+  "max_absolute_errors": {
+    "analytic": {
+      "intermolecular": 0.5845646107039073,
+      "intramolecular": 0.0026581148560353984,
+      "total_zero_reference": 0.4615456524766799
+    },
+    "native_positive_cap": {
+      "intermolecular": 0.16534805308789302,
+      "intramolecular": 0.002620275596313837,
+      "total_zero_reference": 0.14427640149162357
+    },
+    "native_fast_reference": {
+      "intermolecular": 4.098287650577959e-06,
+      "intramolecular": 3.2481979495013746e-07,
+      "total_zero_reference": 2.9134874388603293e-06
+    }
+  },
+  "limitations": [
+    "Analytic equations do not emulate native radial lookup tables.",
+    "Native distance-based bond perception may differ from supplied chemistry graph.",
+    "No macrocycle, flexible-receptor, metal-coordination or GPU validation.",
+    "Scoring-contract check; no docking-quality or affinity-prediction claim."
+  ],
+  "rows": [
+    {
+      "ligand": "ethanol",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "b43413d87afe1caa6e3b868e69a78d26a241cfe6a9b37e349c65a7b4604a5879",
+      "native": {
+        "intermolecular": 6.180080219088583,
+        "intramolecular": 0.0,
+        "total_zero_reference": 6.004566733469276
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 6.193075256072402,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.017192713069384
+        },
+        "native_positive_cap": {
+          "intermolecular": 6.159181949334135,
+          "intramolecular": 0.0,
+          "total_zero_reference": 5.984261971895625
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.180079483276751,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.004566018554406
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.012995036983818764,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.012625979600107584
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.020898269754447973,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.020304761573650687
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.358118319089613e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.149148704144181e-07
+        }
+      }
+    },
+    {
+      "ligand": "ethanol",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "0cfce60feade7b1c0913dbc76a936ce861b11e16a42ff77cbfc55173b6834146",
+      "native": {
+        "intermolecular": 0.04670952121822321,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.0453829768061786
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.04620651149632435,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.04489425249587006
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.04619980284026204,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.04488773436477953
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.046709456233776814,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.04538291366728215
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0005030097218988588,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0004887243103085387
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0005097183779611686,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.00049524244139907
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.49844463934679e-08,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.313889645143123e-08
+        }
+      }
+    },
+    {
+      "ligand": "ethanol",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "ccb3874f80057b4b7dea1801983b95b663de8b736c0193cb01b18cbbae7f58da",
+      "native": {
+        "intermolecular": -0.0489122561682967,
+        "intramolecular": 0.0,
+        "total_zero_reference": -0.047523154366173444
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.0489124742858047,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.04752336628917219
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.0489124742858047,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.04752336628917219
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.04891225631786937,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.04752315451149827
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.181175079996045e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.119229987468385e-07
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.181175079996045e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.119229987468385e-07
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.4957267369108962e-10,
+          "intramolecular": 0.0,
+          "total_zero_reference": 1.453248285598896e-10
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "b063ba4d3dbd4e43723320de7cf91a71b2585dd0f91eef9552e5fae0cbda7984",
+      "native": {
+        "intermolecular": 17.909089485192702,
+        "intramolecular": -0.03690865162715901,
+        "total_zero_reference": 14.83648718968425
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 18.100696853931883,
+          "intramolecular": -0.03702879927003355,
+          "total_zero_reference": 14.995449194894489
+        },
+        "native_positive_cap": {
+          "intermolecular": 17.97052190079902,
+          "intramolecular": -0.03702879927003355,
+          "total_zero_reference": 14.887385213080574
+        },
+        "native_fast_reference": {
+          "intermolecular": 17.90908855977303,
+          "intramolecular": -0.036908643962937415,
+          "total_zero_reference": 14.836486427814886
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.19160736873918083,
+          "intramolecular": 0.00012014764287453933,
+          "total_zero_reference": 0.1589620052102383
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.06143241560631907,
+          "intramolecular": 0.00012014764287453933,
+          "total_zero_reference": 0.05089802339632321
+        },
+        "native_fast_reference": {
+          "intermolecular": 9.254196733365916e-07,
+          "intramolecular": 7.664221597647458e-09,
+          "total_zero_reference": 7.618693640409901e-07
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "7fe84633f92ea9bbf6982d55f3c8c1d4a3b960da9280f4d170645f5f8baa6499",
+      "native": {
+        "intermolecular": -0.20216299969833273,
+        "intramolecular": -0.03690865162715901,
+        "total_zero_reference": -0.19846394378719398
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.20481183970037076,
+          "intramolecular": -0.03706063368035105,
+          "total_zero_reference": -0.20078902996050327
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.20481183970037078,
+          "intramolecular": -0.03706063368035105,
+          "total_zero_reference": -0.20078902996050327
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.20216289727446843,
+          "intramolecular": -0.036908643962937415,
+          "total_zero_reference": -0.19846385239820843
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.002648840002038022,
+          "intramolecular": 0.000151982053192036,
+          "total_zero_reference": 0.0023250861733092876
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.00264884000203805,
+          "intramolecular": 0.000151982053192036,
+          "total_zero_reference": 0.0023250861733092876
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.024238643065889e-07,
+          "intramolecular": 7.664221597647458e-09,
+          "total_zero_reference": 9.138898554583719e-08
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "5a0060a1072111c2da33250a0368e7e16fb28ea287f5fd6f34550a573cbadb9b",
+      "native": {
+        "intermolecular": -0.09489240397202947,
+        "intramolecular": -0.03711461316544615,
+        "total_zero_reference": -0.10958485911413289
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.09489229278911442,
+          "intramolecular": -0.03708431561376819,
+          "total_zero_reference": -0.10955961547960137
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.09489229278911442,
+          "intramolecular": -0.03708431561376819,
+          "total_zero_reference": -0.10955961547960137
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.09489240359233,
+          "intramolecular": -0.0371146054876625,
+          "total_zero_reference": -0.10958485242526006
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 1.1118291505518574e-07,
+          "intramolecular": 3.0297551677958834e-05,
+          "total_zero_reference": 2.5243634531518788e-05
+        },
+        "native_positive_cap": {
+          "intermolecular": 1.1118291505518574e-07,
+          "intramolecular": 3.0297551677958834e-05,
+          "total_zero_reference": 2.5243634531518788e-05
+        },
+        "native_fast_reference": {
+          "intermolecular": 3.7969946631299933e-10,
+          "intramolecular": 7.677783644965963e-09,
+          "total_zero_reference": 6.688872830618031e-09
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "6ba8677174956768b670c813979f784a03f1a6755511903ff67a99cb53130014",
+      "native": {
+        "intermolecular": 14.309809603925592,
+        "intramolecular": 0.21466951526412106,
+        "total_zero_reference": 12.67240685703417
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 14.404623243221685,
+          "intramolecular": 0.2136180240991442,
+          "total_zero_reference": 12.75421303260553
+        },
+        "native_positive_cap": {
+          "intermolecular": 14.304818452893274,
+          "intramolecular": 0.21353995688658411,
+          "total_zero_reference": 12.667066622850287
+        },
+        "native_fast_reference": {
+          "intermolecular": 14.30980843145185,
+          "intramolecular": 0.21466940230831433,
+          "total_zero_reference": 12.672405735514692
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.09481363929609365,
+          "intramolecular": 0.0010514911649768532,
+          "total_zero_reference": 0.08180617557136038
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.004991151032317731,
+          "intramolecular": 0.0011295583775369489,
+          "total_zero_reference": 0.005340234183883297
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.1724737412066588e-06,
+          "intramolecular": 1.1295580673587047e-07,
+          "total_zero_reference": 1.1215194781755145e-06
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "fb9f62b390f9b6547e2f34cec92e9d76c9b4030c29f39d1a719494151a0c0734",
+      "native": {
+        "intermolecular": 0.65552370599599,
+        "intramolecular": 0.21418499323287468,
+        "total_zero_reference": 0.7588087939875798
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.6621417632908176,
+          "intramolecular": 0.21414770408621142,
+          "total_zero_reference": 0.764550423048492
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.6611668070113812,
+          "intramolecular": 0.21406930712772504,
+          "total_zero_reference": 0.7636313869381026
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.6555235110332059,
+          "intramolecular": 0.2141848810984487,
+          "total_zero_reference": 0.7588085260495177
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.006618057294827673,
+          "intramolecular": 3.7289146663260775e-05,
+          "total_zero_reference": 0.0057416290609121345
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0056431010153912275,
+          "intramolecular": 0.00011568610514964273,
+          "total_zero_reference": 0.004822592950522786
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.9496278402808542e-07,
+          "intramolecular": 1.1213442599466994e-07,
+          "total_zero_reference": 2.6793806218172733e-07
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "ea110f494dcca88c8b2a5cbae6f35fe85c5f3331c33d2d00612cdd53cd3058e4",
+      "native": {
+        "intermolecular": -0.10712062269906204,
+        "intramolecular": 0.21418499323287468,
+        "total_zero_reference": 0.09341218037238812
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.10712210320839051,
+          "intramolecular": 0.21424976097726753,
+          "total_zero_reference": 0.09346739760840816
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.10712210320839052,
+          "intramolecular": 0.21417131241661527,
+          "total_zero_reference": 0.09339895232580792
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.10712062250703644,
+          "intramolecular": 0.2141848810984487,
+          "total_zero_reference": 0.09341208270419425
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 1.4805093284664395e-06,
+          "intramolecular": 6.476774439284627e-05,
+          "total_zero_reference": 5.521723602004702e-05
+        },
+        "native_positive_cap": {
+          "intermolecular": 1.4805093284803172e-06,
+          "intramolecular": 1.3680816259409312e-05,
+          "total_zero_reference": 1.3228046580202046e-05
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.9202560375131128e-10,
+          "intramolecular": 1.1213442599466994e-07,
+          "total_zero_reference": 9.76681938658075e-08
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "39fe358ecbbb48c9bfebfede0d222cf6a434aa058e996b22c3d6509dbf250d69",
+      "native": {
+        "intermolecular": 30.57926822228615,
+        "intramolecular": -0.0334648678640264,
+        "total_zero_reference": 26.65079034543657
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 30.802927421277392,
+          "intramolecular": -0.03347921234575612,
+          "total_zero_reference": 26.84591738335439
+        },
+        "native_positive_cap": {
+          "intermolecular": 30.413920169198256,
+          "intramolecular": -0.03347921234575612,
+          "total_zero_reference": 26.506513943944945
+        },
+        "native_fast_reference": {
+          "intermolecular": 30.57926625002569,
+          "intramolecular": -0.03346486258286272,
+          "total_zero_reference": 26.650788629274377
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.22365919899124265,
+          "intramolecular": 1.4344481729718084e-05,
+          "total_zero_reference": 0.19512703791782116
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.16534805308789302,
+          "intramolecular": 1.4344481729718084e-05,
+          "total_zero_reference": 0.14427640149162357
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.9722604598371163e-06,
+          "intramolecular": 5.281163679982104e-09,
+          "total_zero_reference": 1.7161621919115078e-06
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "5bd245fbaa4fbfadeac44ea86affef221707c811c43e665fde53efddba6243a9",
+      "native": {
+        "intermolecular": 2.076781441844908,
+        "intramolecular": -0.033422322415829375,
+        "total_zero_reference": 1.782802529711712
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 2.0774514475096613,
+          "intramolecular": -0.033465713596787655,
+          "total_zero_reference": 1.783349242169763
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.075249295262114,
+          "intramolecular": -0.033465713596787655,
+          "total_zero_reference": 1.781427894835167
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.076781243340838,
+          "intramolecular": -0.03342231718666502,
+          "total_zero_reference": 1.7828023610820336
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0006700056647530594,
+          "intramolecular": 4.3391180958279874e-05,
+          "total_zero_reference": 0.0005467124580509353
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0015321465827939917,
+          "intramolecular": 4.3391180958279874e-05,
+          "total_zero_reference": 0.0013746348765451
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.9850407007027115e-07,
+          "intramolecular": 5.229164358466765e-09,
+          "total_zero_reference": 1.6862967844311072e-07
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "9ffd107be8b46d07717e339206010100db5cd98c275eef55c85a9455c78c1b52",
+      "native": {
+        "intermolecular": -0.13011819055847745,
+        "intramolecular": -0.0334648678640264,
+        "total_zero_reference": -0.14272395273088503
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.1301179446549067,
+          "intramolecular": -0.0334629107471348,
+          "total_zero_reference": -0.142722030626045
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.13011794465490673,
+          "intramolecular": -0.0334629107471348,
+          "total_zero_reference": -0.14272203062604505
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.13011819043904352,
+          "intramolecular": -0.03346486258286272,
+          "total_zero_reference": -0.1427239480189384
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.4590357075582325e-07,
+          "intramolecular": 1.9571168916043824e-06,
+          "total_zero_reference": 1.9221048400408502e-06
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.459035707280677e-07,
+          "intramolecular": 1.9571168916043824e-06,
+          "total_zero_reference": 1.922104839985339e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.1943393496416377e-10,
+          "intramolecular": 5.281163679982104e-09,
+          "total_zero_reference": 4.711946638424891e-09
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "dea371875686c732f81da1e9c5293a80e72468923a44d6e4a319ad345f36d3a1",
+      "native": {
+        "intermolecular": 6.844562746539476,
+        "intramolecular": 0.0,
+        "total_zero_reference": 6.844562746539476
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 6.904659347562817,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.904659347562817
+        },
+        "native_positive_cap": {
+          "intermolecular": 6.863890354016205,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.863890354016205
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.844561993222004,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.844561993222004
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.06009660102334102,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.06009660102334102
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.019327607476729014,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.019327607476729014
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.533174724017044e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.533174724017044e-07
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "864c4143a29b3f56ad2563729e945236d1af0fc49c5e616c5c00bf4eb6dabb8e",
+      "native": {
+        "intermolecular": 0.09891907633371694,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.09891907633371694
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.09960328506531087,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.09960328506531087
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.09957027945685673,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.09957027945685673
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.09891899175900329,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.09891899175900329
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0006842087315939299,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0006842087315939299
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.000651203123139793,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.000651203123139793
+        },
+        "native_fast_reference": {
+          "intermolecular": 8.45747136490882e-08,
+          "intramolecular": 0.0,
+          "total_zero_reference": 8.45747136490882e-08
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "cc811ae07e3e4986167c45282e5770ad8c5732ecc7ec245f0e779fb7ff0c1d87",
+      "native": {
+        "intermolecular": -0.06133833562637632,
+        "intramolecular": 0.0,
+        "total_zero_reference": -0.06133833562637632
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.06133914000500381,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.06133914000500381
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.0613391400050038,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0613391400050038
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.06133833569640225,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.06133833569640225
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 8.04378627490554e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 8.04378627490554e-07
+        },
+        "native_positive_cap": {
+          "intermolecular": 8.043786274836151e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 8.043786274836151e-07
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.002592949945097e-11,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.002592949945097e-11
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "36f7bdebc74dd549648d8aa09c1b779bfc88a1cfba3fdf71dc1f87d7df9388de",
+      "native": {
+        "intermolecular": 8.33491714506817,
+        "intramolecular": 0.0,
+        "total_zero_reference": 7.874569794860618
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 8.388531668685104,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.925223124808783
+        },
+        "native_positive_cap": {
+          "intermolecular": 8.33599197772752,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.875585263238593
+        },
+        "native_fast_reference": {
+          "intermolecular": 8.334916283262347,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.874568980653352
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.053614523616934306,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.050653329948164405
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0010748326593503776,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0010154683779743934
+        },
+        "native_fast_reference": {
+          "intermolecular": 8.618058231490977e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 8.142072660533017e-07
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "8eeab3f96c027cbecd99982ccc056f20967f2627d6d2b20809253e6a8a565ed4",
+      "native": {
+        "intermolecular": 0.5988440581117463,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.5657691911945151
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.5971799967309502,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.564197037895575
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.5969413631054733,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.563971584287997
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.5988438220106596,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.565768968133571
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0016640613807961113,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0015721532989401155
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0019026950062730474,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.00179760690651809
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.3610108679239517e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.2306094404900279e-07
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "be3f3000356244c5502a4d3d014323ec4ad505ee2fc20ee568cc57f2bf247b6b",
+      "native": {
+        "intermolecular": -0.07612436941706767,
+        "intramolecular": 0.0,
+        "total_zero_reference": -0.07191993029218645
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.07612141191427185,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.07191713613577448
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.07612141191427185,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.07191713613577448
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.07612436866995352,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0719199295863363
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.9575027958167466e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.794156411967119e-06
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.9575027958167466e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.794156411967119e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.471141483250676e-10,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.058501422241292e-10
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "c883e09bbb502743aa31e0beaabe333221bb34299856cb51fe661705d85a18d9",
+      "native": {
+        "intermolecular": 37.84059220430206,
+        "intramolecular": 1.0707724363492608,
+        "total_zero_reference": 30.80697399245594
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 38.396346121765475,
+          "intramolecular": 1.069148866862074,
+          "total_zero_reference": 31.245691045332048
+        },
+        "native_positive_cap": {
+          "intermolecular": 37.878438479806846,
+          "intramolecular": 1.0686951968127603,
+          "total_zero_reference": 30.835293116469877
+        },
+        "native_fast_reference": {
+          "intermolecular": 37.84058884701052,
+          "intramolecular": 1.0707721137022217,
+          "total_zero_reference": 30.806971078968502
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.555753917463413,
+          "intramolecular": 0.0016235694871866713,
+          "total_zero_reference": 0.4387170528761075
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.03784627550478348,
+          "intramolecular": 0.002077239536500519,
+          "total_zero_reference": 0.02831912401393666
+        },
+        "native_fast_reference": {
+          "intermolecular": 3.3572915398849545e-06,
+          "intramolecular": 3.2264703908602144e-07,
+          "total_zero_reference": 2.9134874388603293e-06
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "db4a53c895b780cf65dbb0315fbb1a333658f793c3a22a7cd5e774ef21aa54fe",
+      "native": {
+        "intermolecular": 4.919781932645512,
+        "intramolecular": 1.0707724363492608,
+        "total_zero_reference": 4.742852232255356
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 4.922436830982832,
+          "intramolecular": 1.0704427676629167,
+          "total_zero_reference": 4.744693167160766
+        },
+        "native_positive_cap": {
+          "intermolecular": 4.913212745756371,
+          "intramolecular": 1.0699881827208388,
+          "total_zero_reference": 4.737030353406549
+        },
+        "native_fast_reference": {
+          "intermolecular": 4.919781128045862,
+          "intramolecular": 1.0707721137022217,
+          "total_zero_reference": 4.7428513397896275
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0026548983373198,
+          "intramolecular": 0.00032966868634409785,
+          "total_zero_reference": 0.001840934905409597
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.006569186889141321,
+          "intramolecular": 0.0007842536284219381,
+          "total_zero_reference": 0.005821878848807138
+        },
+        "native_fast_reference": {
+          "intermolecular": 8.045996500172237e-07,
+          "intramolecular": 3.2264703908602144e-07,
+          "total_zero_reference": 8.924657288744697e-07
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "0e51c37f2a468a3ab2722d876296858cdc0e5ec7a6814107b7da8bf4643e9e17",
+      "native": {
+        "intermolecular": -0.15237355363465288,
+        "intramolecular": 1.070638772767456,
+        "total_zero_reference": 0.7270105529644463
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.15236725768988318,
+          "intramolecular": 1.0694896487649148,
+          "total_zero_reference": 0.7261057511262493
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.15236725768988318,
+          "intramolecular": 1.0690357744689793,
+          "total_zero_reference": 0.7257464089710755
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.15237355217630472,
+          "intramolecular": 1.070638450073366,
+          "total_zero_reference": 0.7270102986351203
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 6.2959447696964155e-06,
+          "intramolecular": 0.0011491240025411908,
+          "total_zero_reference": 0.0009048018381969669
+        },
+        "native_positive_cap": {
+          "intermolecular": 6.2959447696964155e-06,
+          "intramolecular": 0.0016029982984766544,
+          "total_zero_reference": 0.0012641439933708254
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.4583481644514507e-09,
+          "intramolecular": 3.2269408989371584e-07,
+          "total_zero_reference": 2.5432932593272284e-07
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 0,
+      "scorer": "vina",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "05850a32e210a604cf7e93ae92d7b08f452b035962514aaf535eaf7e095b08e4",
+      "native": {
+        "intermolecular": 29.878043266029557,
+        "intramolecular": -1.5644257081314474,
+        "total_zero_reference": 15.824647502472102
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 30.095621855210382,
+          "intramolecular": -1.5631797182701739,
+          "total_zero_reference": 15.946949847664728
+        },
+        "native_positive_cap": {
+          "intermolecular": 29.879078016602875,
+          "intramolecular": -1.5632052000050507,
+          "total_zero_reference": 15.82590797983346
+        },
+        "native_fast_reference": {
+          "intermolecular": 29.878039167741907,
+          "intramolecular": -1.564425772851185,
+          "total_zero_reference": 15.824645175742772
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.21757858918082462,
+          "intramolecular": 0.0012459898612735554,
+          "total_zero_reference": 0.12230234519262595
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0010347505733179219,
+          "intramolecular": 0.0012205081263967354,
+          "total_zero_reference": 0.0012604773613578146
+        },
+        "native_fast_reference": {
+          "intermolecular": 4.098287650577959e-06,
+          "intramolecular": 6.471973756916327e-08,
+          "total_zero_reference": 2.326729330093258e-06
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 1,
+      "scorer": "vina",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "5fb8b549bb52ca48299a26b945c813f3b4945039e45ef02c819ca8aa1eaf5210",
+      "native": {
+        "intermolecular": 3.734171253757754,
+        "intramolecular": -1.5620966035052646,
+        "total_zero_reference": 1.2139853065053792
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 3.7549272277120878,
+          "intramolecular": -1.5624603599684057,
+          "total_zero_reference": 1.2253826368864928
+        },
+        "native_positive_cap": {
+          "intermolecular": 3.738586513002381,
+          "intramolecular": -1.5624859457458395,
+          "total_zero_reference": 1.2162354152148387
+        },
+        "native_fast_reference": {
+          "intermolecular": 3.7341710883605557,
+          "intramolecular": -1.5620966686591928,
+          "total_zero_reference": 1.2139851776489976
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.02075597395433393,
+          "intramolecular": 0.0003637564631411294,
+          "total_zero_reference": 0.01139733038111368
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.004415259244627379,
+          "intramolecular": 0.0003893422405749636,
+          "total_zero_reference": 0.0022501087094595196
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.6539719815966691e-07,
+          "intramolecular": 6.515392825257038e-08,
+          "total_zero_reference": 1.288563815649013e-07
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 2,
+      "scorer": "vina",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "73ec6b1187ebb030f172ba7b3d13551c902361997aeb6e9281bcfe19a32af3b7",
+      "native": {
+        "intermolecular": 23.792055524598116,
+        "intramolecular": -1.56429297458328,
+        "total_zero_reference": 12.423227318210179
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 23.98782192545542,
+          "intramolecular": -1.5628107143236578,
+          "total_zero_reference": 12.533470755882073
+        },
+        "native_positive_cap": {
+          "intermolecular": 23.778471336006,
+          "intramolecular": -1.5628362919378394,
+          "total_zero_reference": 12.41644918375605
+        },
+        "native_fast_reference": {
+          "intermolecular": 23.79205308454721,
+          "intramolecular": -1.5642930392513468,
+          "total_zero_reference": 12.423225918308004
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.19576640085730546,
+          "intramolecular": 0.0014822602596222811,
+          "total_zero_reference": 0.11024343767189393
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.013584188592115964,
+          "intramolecular": 0.0014566826454407433,
+          "total_zero_reference": 0.006778134454128448
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.440050906216129e-06,
+          "intramolecular": 6.466806667937419e-08,
+          "total_zero_reference": 1.3999021746258222e-06
+        }
+      }
+    },
+    {
+      "ligand": "ethanol",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "b43413d87afe1caa6e3b868e69a78d26a241cfe6a9b37e349c65a7b4604a5879",
+      "native": {
+        "intermolecular": 6.364217225536881,
+        "intramolecular": 0.0,
+        "total_zero_reference": 6.183474272550237
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 6.379219671037347,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.198050650522572
+        },
+        "native_positive_cap": {
+          "intermolecular": 6.343588047997835,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.163430961007583
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.364216630533139,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.183473694444525
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.015002445500466699,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.01457637797233513
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.02062917753904614,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.020043311542654152
+        },
+        "native_fast_reference": {
+          "intermolecular": 5.950037413882114e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 5.781057117459909e-07
+        }
+      }
+    },
+    {
+      "ligand": "ethanol",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "0cfce60feade7b1c0913dbc76a936ce861b11e16a42ff77cbfc55173b6834146",
+      "native": {
+        "intermolecular": 0.011530989293072127,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.011203510676012288
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.01100751564560433,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.010694903612996442
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.011006529034789242,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.01069394502180197
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.011530931232962463,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.011203454264802291
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0005234736474677981,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0005086070630158455
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0005244602582828856,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0005095656542103179
+        },
+        "native_fast_reference": {
+          "intermolecular": 5.8060109664470616e-08,
+          "intramolecular": 0.0,
+          "total_zero_reference": 5.6411209996623524e-08
+        }
+      }
+    },
+    {
+      "ligand": "ethanol",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 1,
+      "vina_num_tors": 0.5,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "ccb3874f80057b4b7dea1801983b95b663de8b736c0193cb01b18cbbae7f58da",
+      "native": {
+        "intermolecular": -0.0005860915986807228,
+        "intramolecular": 0.0,
+        "total_zero_reference": -0.000569446672445151
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.000584085054006731,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0005674971133825587
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.000584085054006731,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0005674971133825587
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.0005860913084999741,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0005694463905054983
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.0065446739918162e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 1.94955906259234e-06
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.0065446739918162e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 1.94955906259234e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.9018074867905724e-10,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.8193965272236415e-10
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "b063ba4d3dbd4e43723320de7cf91a71b2585dd0f91eef9552e5fae0cbda7984",
+      "native": {
+        "intermolecular": 16.491840565187793,
+        "intramolecular": -0.07314641272217678,
+        "total_zero_reference": 13.629883657337741
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 16.651738878287293,
+          "intramolecular": -0.0732295632822019,
+          "total_zero_reference": 13.762553286960172
+        },
+        "native_positive_cap": {
+          "intermolecular": 16.548790702791106,
+          "intramolecular": -0.0732295632822019,
+          "total_zero_reference": 13.677091456578399
+        },
+        "native_fast_reference": {
+          "intermolecular": 16.491839639697925,
+          "intramolecular": -0.07314640820390428,
+          "total_zero_reference": 13.629882892798518
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.1598983130995002,
+          "intramolecular": 8.315056002511367e-05,
+          "total_zero_reference": 0.13266962962243056
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.056950137603312356,
+          "intramolecular": 8.315056002511367e-05,
+          "total_zero_reference": 0.04720779924065788
+        },
+        "native_fast_reference": {
+          "intermolecular": 9.254898678534573e-07,
+          "intramolecular": 4.518272506137677e-09,
+          "total_zero_reference": 7.645392230415382e-07
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "7fe84633f92ea9bbf6982d55f3c8c1d4a3b960da9280f4d170645f5f8baa6499",
+      "native": {
+        "intermolecular": -0.5254194231147438,
+        "intramolecular": -0.07314641272217678,
+        "total_zero_reference": -0.49689595457195324
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.5272856699511423,
+          "intramolecular": -0.07325736270209085,
+          "total_zero_reference": -0.49853731303345744
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.5272856699511423,
+          "intramolecular": -0.07325736270209085,
+          "total_zero_reference": -0.49853731303345744
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.5254193961037333,
+          "intramolecular": -0.07314640820390428,
+          "total_zero_reference": -0.496895928398102
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0018662468363985774,
+          "intramolecular": 0.00011094997991406563,
+          "total_zero_reference": 0.0016413584615042054
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0018662468363985774,
+          "intramolecular": 0.00011094997991406563,
+          "total_zero_reference": 0.0016413584615042054
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.7011010428346083e-08,
+          "intramolecular": 4.518272506137677e-09,
+          "total_zero_reference": 2.6173851253030733e-08
+        }
+      }
+    },
+    {
+      "ligand": "secondary_amine",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 8,
+      "torsdof": 4,
+      "vina_num_tors": 3.5,
+      "intra_pairs": 8,
+      "pdbqt_sha256": "5a0060a1072111c2da33250a0368e7e16fb28ea287f5fd6f34550a573cbadb9b",
+      "native": {
+        "intermolecular": -0.00039898390873146643,
+        "intramolecular": -0.0732623409516492,
+        "total_zero_reference": -0.061149521305966806
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.00039862113490530464,
+          "intramolecular": -0.07326732853628706,
+          "total_zero_reference": -0.06115336056581996
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.00039862113490530464,
+          "intramolecular": -0.07326732853628706,
+          "total_zero_reference": -0.06115336056581996
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.00039898375235848974,
+          "intramolecular": -0.0732623364333767,
+          "total_zero_reference": -0.061149517425336995
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 3.627738261617933e-07,
+          "intramolecular": 4.987584637863862e-06,
+          "total_zero_reference": 3.839259853151422e-06
+        },
+        "native_positive_cap": {
+          "intermolecular": 3.627738261617933e-07,
+          "intramolecular": 4.987584637863862e-06,
+          "total_zero_reference": 3.839259853151422e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.5637297668758335e-10,
+          "intramolecular": 4.518272492259889e-09,
+          "total_zero_reference": 3.880629810548708e-09
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "6ba8677174956768b670c813979f784a03f1a6755511903ff67a99cb53130014",
+      "native": {
+        "intermolecular": 14.275553853502343,
+        "intramolecular": 0.13880653709021212,
+        "total_zero_reference": 12.576329791556564
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 14.374364441336539,
+          "intramolecular": 0.1378284420154427,
+          "total_zero_reference": 12.66168728643893
+        },
+        "native_positive_cap": {
+          "intermolecular": 14.268801183467373,
+          "intramolecular": 0.1377666948438992,
+          "total_zero_reference": 12.56953093252303
+        },
+        "native_fast_reference": {
+          "intermolecular": 14.275552846779236,
+          "intramolecular": 0.13880643347988486,
+          "total_zero_reference": 12.576328822806023
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.09881058783419583,
+          "intramolecular": 0.000978095074769425,
+          "total_zero_reference": 0.08535749488236632
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.006752670034970265,
+          "intramolecular": 0.0010398422463129275,
+          "total_zero_reference": 0.006798859033533944
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.006723106655727e-06,
+          "intramolecular": 1.0361032726224906e-07,
+          "total_zero_reference": 9.687505411193342e-07
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "fb9f62b390f9b6547e2f34cec92e9d76c9b4030c29f39d1a719494151a0c0734",
+      "native": {
+        "intermolecular": 0.5728656212560403,
+        "intramolecular": 0.1383797490596418,
+        "total_zero_reference": 0.62055173434165
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.580194442037125,
+          "intramolecular": 0.13835273901352538,
+          "total_zero_reference": 0.6269224630725913
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.5791565166003863,
+          "intramolecular": 0.13829071040705992,
+          "total_zero_reference": 0.6259627684050483
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.5728654196438069,
+          "intramolecular": 0.13837964618025023,
+          "total_zero_reference": 0.6205514686769246
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.007328820781084655,
+          "intramolecular": 2.7010046116410225e-05,
+          "total_zero_reference": 0.006370728730941244
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.006290895344345904,
+          "intramolecular": 8.903865258186316e-05,
+          "total_zero_reference": 0.005411034063398268
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.0161223346359947e-07,
+          "intramolecular": 1.0287939156139458e-07,
+          "total_zero_reference": 2.656647254406508e-07
+        }
+      }
+    },
+    {
+      "ligand": "amide",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 9,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 11,
+      "pdbqt_sha256": "ea110f494dcca88c8b2a5cbae6f35fe85c5f3331c33d2d00612cdd53cd3058e4",
+      "native": {
+        "intermolecular": -0.006858533391004575,
+        "intramolecular": 0.1383797490596418,
+        "total_zero_reference": 0.11475043900766674
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.006855618502296659,
+          "intramolecular": 0.13845007360272282,
+          "total_zero_reference": 0.1148143393974839
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.006855618502296659,
+          "intramolecular": 0.13838800094856452,
+          "total_zero_reference": 0.11476018186648157
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.006858531791662857,
+          "intramolecular": 0.13837964618025023,
+          "total_zero_reference": 0.11475035064222604
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.91488870791598e-06,
+          "intramolecular": 7.032454308103508e-05,
+          "total_zero_reference": 6.39003898171564e-05
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.91488870791598e-06,
+          "intramolecular": 8.251888922727879e-06,
+          "total_zero_reference": 9.742858814831834e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.5993417180892866e-09,
+          "intramolecular": 1.0287939156139458e-07,
+          "total_zero_reference": 8.836544070078833e-08
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "39fe358ecbbb48c9bfebfede0d222cf6a434aa058e996b22c3d6509dbf250d69",
+      "native": {
+        "intermolecular": 29.256189211791742,
+        "intramolecular": -0.08234409073468006,
+        "total_zero_reference": 25.45377578943163
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 29.469261726530704,
+          "intramolecular": -0.08232940297823493,
+          "total_zero_reference": 25.6396914221982
+        },
+        "native_positive_cap": {
+          "intermolecular": 29.097464665794522,
+          "intramolecular": -0.08232940297823493,
+          "total_zero_reference": 25.315303636361982
+        },
+        "native_fast_reference": {
+          "intermolecular": 29.25618820442724,
+          "intramolecular": -0.08234408558581213,
+          "total_zero_reference": 25.453774915012367
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.21307251473896116,
+          "intramolecular": 1.4687756445128097e-05,
+          "total_zero_reference": 0.18591563276656942
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.1587245459972202,
+          "intramolecular": 1.4687756445128097e-05,
+          "total_zero_reference": 0.13847215306964955
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.0073645029251566e-06,
+          "intramolecular": 5.148867929238854e-09,
+          "total_zero_reference": 8.744192641074733e-07
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "5bd245fbaa4fbfadeac44ea86affef221707c811c43e665fde53efddba6243a9",
+      "native": {
+        "intermolecular": 1.6831098452758733,
+        "intramolecular": -0.08220943259076696,
+        "total_zero_reference": 1.3967634364482016
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 1.6841282371984503,
+          "intramolecular": -0.08232209984445757,
+          "total_zero_reference": 1.3975536686768684
+        },
+        "native_positive_cap": {
+          "intermolecular": 1.681962426820633,
+          "intramolecular": -0.08232209984445757,
+          "total_zero_reference": 1.3956640291202507
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.6831096013532645,
+          "intramolecular": -0.0822094274326452,
+          "total_zero_reference": 1.3967632281294937
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0010183919225770222,
+          "intramolecular": 0.00011266725369060704,
+          "total_zero_reference": 0.0007902322286668095
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0011474184552402455,
+          "intramolecular": 0.00011266725369060704,
+          "total_zero_reference": 0.0010994073279508854
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.439226087780355e-07,
+          "intramolecular": 5.158121763049195e-09,
+          "total_zero_reference": 2.0831870783943884e-07
+        }
+      }
+    },
+    {
+      "ligand": "pyridine",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 10,
+      "torsdof": 3,
+      "vina_num_tors": 2.5,
+      "intra_pairs": 14,
+      "pdbqt_sha256": "9ffd107be8b46d07717e339206010100db5cd98c275eef55c85a9455c78c1b52",
+      "native": {
+        "intermolecular": -0.0001615890827205855,
+        "intramolecular": -0.08234409073468006,
+        "total_zero_reference": -0.07198506287780888
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.0001605894093465142,
+          "intramolecular": -0.08228183076951455,
+          "total_zero_reference": -0.07192986971937448
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.00016058940934651417,
+          "intramolecular": -0.08228183076951455,
+          "total_zero_reference": -0.07192986971937448
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.00016158898810936554,
+          "intramolecular": -0.08234408558581213,
+          "total_zero_reference": -0.07198505830294595
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 9.996733740713008e-07,
+          "intramolecular": 6.225996516551202e-05,
+          "total_zero_reference": 5.5193158434399536e-05
+        },
+        "native_positive_cap": {
+          "intermolecular": 9.99673374071328e-07,
+          "intramolecular": 6.225996516551202e-05,
+          "total_zero_reference": 5.5193158434399536e-05
+        },
+        "native_fast_reference": {
+          "intermolecular": 9.461121995438596e-11,
+          "intramolecular": 5.148867929238854e-09,
+          "total_zero_reference": 4.574862932926749e-09
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "dea371875686c732f81da1e9c5293a80e72468923a44d6e4a319ad345f36d3a1",
+      "native": {
+        "intermolecular": 7.023798554969076,
+        "intramolecular": 0.0,
+        "total_zero_reference": 7.023798554969076
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 7.084980988148149,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.084980988148149
+        },
+        "native_positive_cap": {
+          "intermolecular": 7.042017854177133,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.042017854177133
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.023797953663667,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.023797953663667
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.06118243317907268,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.06118243317907268
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.01821929920805676,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.01821929920805676
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.013054090203696e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 6.013054090203696e-07
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "864c4143a29b3f56ad2563729e945236d1af0fc49c5e616c5c00bf4eb6dabb8e",
+      "native": {
+        "intermolecular": 0.022086470729896474,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.022086470729896474
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.022703131988350556,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.022703131988350556
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.022686990044803942,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.022686990044803942
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.022086396227673707,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.022086396227673707
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.000616661258454082,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.000616661258454082
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0006005193149074689,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0006005193149074689
+        },
+        "native_fast_reference": {
+          "intermolecular": 7.450222276605967e-08,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.450222276605967e-08
+        }
+      }
+    },
+    {
+      "ligand": "acetate",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 4,
+      "torsdof": 0,
+      "vina_num_tors": 0.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "cc811ae07e3e4986167c45282e5770ad8c5732ecc7ec245f0e779fb7ff0c1d87",
+      "native": {
+        "intermolecular": -0.00036206266802502095,
+        "intramolecular": 0.0,
+        "total_zero_reference": -0.00036206266802502095
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.0003605648474579028,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.0003605648474579028
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.00036056484745790286,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.00036056484745790286
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.00036206267767515727,
+          "intramolecular": 0.0,
+          "total_zero_reference": -0.00036206267767515727
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 1.4978205671181493e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 1.4978205671181493e-06
+        },
+        "native_positive_cap": {
+          "intermolecular": 1.497820567118095e-06,
+          "intramolecular": 0.0,
+          "total_zero_reference": 1.497820567118095e-06
+        },
+        "native_fast_reference": {
+          "intermolecular": 9.650136321547736e-12,
+          "intramolecular": 0.0,
+          "total_zero_reference": 9.650136321547736e-12
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "36f7bdebc74dd549648d8aa09c1b779bfc88a1cfba3fdf71dc1f87d7df9388de",
+      "native": {
+        "intermolecular": 8.44658676677673,
+        "intramolecular": 0.0,
+        "total_zero_reference": 7.980071771041636
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 8.504164898560688,
+          "intramolecular": 0.0,
+          "total_zero_reference": 8.034469794381165
+        },
+        "native_positive_cap": {
+          "intermolecular": 8.447790394591062,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.981208921065568
+        },
+        "native_fast_reference": {
+          "intermolecular": 8.446586146392384,
+          "intramolecular": 0.0,
+          "total_zero_reference": 7.9800711849218535
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.05757813178395921,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.05439802333952937
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0012036278143323642,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0011371500239327759
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.203843447849522e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 5.861197820422603e-07
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "8eeab3f96c027cbecd99982ccc056f20967f2627d6d2b20809253e6a8a565ed4",
+      "native": {
+        "intermolecular": 0.6047327579291966,
+        "intramolecular": 0.0,
+        "total_zero_reference": 0.571332651143356
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 0.6021496461899821,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.5688922077263026
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.6019505394503691,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.5687040978878457
+        },
+        "native_fast_reference": {
+          "intermolecular": 0.6047325332570753,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.5713324388801422
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.0025831117392144387,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.002440443417053406
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.002782218478827425,
+          "intramolecular": 0.0,
+          "total_zero_reference": 0.0026285532555102575
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.246721212406655e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.1226321378353674e-07
+        }
+      }
+    },
+    {
+      "ligand": "nitro",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 5,
+      "torsdof": 1,
+      "vina_num_tors": 1.0,
+      "intra_pairs": 0,
+      "pdbqt_sha256": "be3f3000356244c5502a4d3d014323ec4ad505ee2fc20ee568cc57f2bf247b6b",
+      "native": {
+        "intermolecular": -4.5044253472409685e-05,
+        "intramolecular": 0.0,
+        "total_zero_reference": -4.255640597888412e-05
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -4.53030367568877e-05,
+          "intramolecular": 0.0,
+          "total_zero_reference": -4.280089635592058e-05
+        },
+        "native_positive_cap": {
+          "intermolecular": -4.5303036756887705e-05,
+          "intramolecular": 0.0,
+          "total_zero_reference": -4.280089635592059e-05
+        },
+        "native_fast_reference": {
+          "intermolecular": -4.504424906659951e-05,
+          "intramolecular": 0.0,
+          "total_zero_reference": -4.255640181641206e-05
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 2.5878328447801277e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.444903770364623e-07
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.5878328447801954e-07,
+          "intramolecular": 0.0,
+          "total_zero_reference": 2.444903770364691e-07
+        },
+        "native_fast_reference": {
+          "intermolecular": 4.405810175782225e-12,
+          "intramolecular": 0.0,
+          "total_zero_reference": 4.162472057030013e-12
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "c883e09bbb502743aa31e0beaabe333221bb34299856cb51fe661705d85a18d9",
+      "native": {
+        "intermolecular": 38.638101547836044,
+        "intramolecular": 0.9044470238264637,
+        "total_zero_reference": 31.30669604349918
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 39.22266615853995,
+          "intramolecular": 0.9028468803962769,
+          "total_zero_reference": 31.76824169597586
+        },
+        "native_positive_cap": {
+          "intermolecular": 38.672164270124874,
+          "intramolecular": 0.9024697990224685,
+          "total_zero_reference": 31.3320988299519
+        },
+        "native_fast_reference": {
+          "intermolecular": 38.63809982314445,
+          "intramolecular": 0.9044466990169658,
+          "total_zero_reference": 31.306694420864574
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.5845646107039073,
+          "intramolecular": 0.0016001434301867734,
+          "total_zero_reference": 0.4615456524766799
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.034062722288830116,
+          "intramolecular": 0.0019772248039952034,
+          "total_zero_reference": 0.02540278645271954
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.7246915930968498e-06,
+          "intramolecular": 3.2480949785362867e-07,
+          "total_zero_reference": 1.6226346062353514e-06
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "db4a53c895b780cf65dbb0315fbb1a333658f793c3a22a7cd5e774ef21aa54fe",
+      "native": {
+        "intermolecular": 5.127421887232264,
+        "intramolecular": 0.9044470238264637,
+        "total_zero_reference": 4.775561854100507
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 5.1300942700214,
+          "intramolecular": 0.904089275212592,
+          "total_zero_reference": 4.7773944003372675
+        },
+        "native_positive_cap": {
+          "intermolecular": 5.120229319960065,
+          "intramolecular": 0.9037113973629609,
+          "total_zero_reference": 4.769284930623818
+        },
+        "native_fast_reference": {
+          "intermolecular": 5.127421234454956,
+          "intramolecular": 0.9044466990169658,
+          "total_zero_reference": 4.775561080123764
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.002672382789135952,
+          "intramolecular": 0.0003577486138717223,
+          "total_zero_reference": 0.001832546236760102
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.007192567272198858,
+          "intramolecular": 0.0007356264635027809,
+          "total_zero_reference": 0.006276923476689511
+        },
+        "native_fast_reference": {
+          "intermolecular": 6.527773077635857e-07,
+          "intramolecular": 3.2480949785362867e-07,
+          "total_zero_reference": 7.739767431402811e-07
+        }
+      }
+    },
+    {
+      "ligand": "branched",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 12,
+      "torsdof": 5,
+      "vina_num_tors": 4.5,
+      "intra_pairs": 30,
+      "pdbqt_sha256": "0e51c37f2a468a3ab2722d876296858cdc0e5ec7a6814107b7da8bf4643e9e17",
+      "native": {
+        "intermolecular": -0.0017621568308949793,
+        "intramolecular": 0.9042940576880459,
+        "total_zero_reference": 0.7145541425709985
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": -0.0017677897735232306,
+          "intramolecular": 0.903168148619667,
+          "total_zero_reference": 0.7136582761415787
+        },
+        "native_positive_cap": {
+          "intermolecular": -0.0017677897735232308,
+          "intramolecular": 0.9027908960603447,
+          "total_zero_reference": 0.7133595970823641
+        },
+        "native_fast_reference": {
+          "intermolecular": -0.0017621562379246934,
+          "intramolecular": 0.904293732868251,
+          "total_zero_reference": 0.7145538858735672
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 5.632942628251269e-06,
+          "intramolecular": 0.0011259090683789497,
+          "total_zero_reference": 0.0008958664294197449
+        },
+        "native_positive_cap": {
+          "intermolecular": 5.632942628251486e-06,
+          "intramolecular": 0.001503161627701255,
+          "total_zero_reference": 0.001194545488634402
+        },
+        "native_fast_reference": {
+          "intermolecular": 5.929702859373137e-10,
+          "intramolecular": 3.2481979495013746e-07,
+          "total_zero_reference": 2.566974313111814e-07
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 0,
+      "scorer": "vinardo",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "05850a32e210a604cf7e93ae92d7b08f452b035962514aaf535eaf7e095b08e4",
+      "native": {
+        "intermolecular": 30.846616907892027,
+        "intramolecular": -1.8406101160027617,
+        "total_zero_reference": 16.211627920640545
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 31.081653075126013,
+          "intramolecular": -1.839258340744829,
+          "total_zero_reference": 16.34374653304038
+        },
+        "native_positive_cap": {
+          "intermolecular": 30.84571784324934,
+          "intramolecular": -1.8392961293761783,
+          "total_zero_reference": 16.211859822979505
+        },
+        "native_fast_reference": {
+          "intermolecular": 30.846615444206726,
+          "intramolecular": -1.840610245078316,
+          "total_zero_reference": 16.211627030437125
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.2350361672339858,
+          "intramolecular": 0.0013517752579326192,
+          "total_zero_reference": 0.1321186123998359
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0008990646426880744,
+          "intramolecular": 0.001313986626583441,
+          "total_zero_reference": 0.00023190233896031032
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.46368530096197e-06,
+          "intramolecular": 1.2907555424490624e-07,
+          "total_zero_reference": 8.902034203117637e-07
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 1,
+      "scorer": "vinardo",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "5fb8b549bb52ca48299a26b945c813f3b4945039e45ef02c819ca8aa1eaf5210",
+      "native": {
+        "intermolecular": 2.9498011096733308,
+        "intramolecular": -1.8372435527123376,
+        "total_zero_reference": 0.6218149669189157
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 2.9620085863853562,
+          "intramolecular": -1.838111731029496,
+          "total_zero_reference": 0.6281525675330789
+        },
+        "native_positive_cap": {
+          "intermolecular": 2.952421131567264,
+          "intramolecular": -1.8381497518017507,
+          "total_zero_reference": 0.6227728325716452
+        },
+        "native_fast_reference": {
+          "intermolecular": 2.949800646337978,
+          "intramolecular": -1.837243681777276,
+          "total_zero_reference": 0.6218146358229063
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.012207476712025489,
+          "intramolecular": 0.0008681783171584634,
+          "total_zero_reference": 0.006337600614163219
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.0026200218939331776,
+          "intramolecular": 0.000906199089413029,
+          "total_zero_reference": 0.0009578656527294838
+        },
+        "native_fast_reference": {
+          "intermolecular": 4.6333535275167037e-07,
+          "intramolecular": 1.2906493829234478e-07,
+          "total_zero_reference": 3.310960093871884e-07
+        }
+      }
+    },
+    {
+      "ligand": "10gs_ligand",
+      "pose": 2,
+      "scorer": "vinardo",
+      "atoms": 38,
+      "torsdof": 14,
+      "vina_num_tors": 13.5,
+      "intra_pairs": 549,
+      "pdbqt_sha256": "73ec6b1187ebb030f172ba7b3d13551c902361997aeb6e9281bcfe19a32af3b7",
+      "native": {
+        "intermolecular": 24.41719420735234,
+        "intramolecular": -1.8416372031083201,
+        "total_zero_reference": 12.617611685740645
+      },
+      "values": {
+        "analytic": {
+          "intermolecular": 24.621750815259745,
+          "intramolecular": -1.8389790882522847,
+          "total_zero_reference": 12.733425213925399
+        },
+        "native_positive_cap": {
+          "intermolecular": 24.40069761832275,
+          "intramolecular": -1.8390169275120063,
+          "total_zero_reference": 12.609856132489055
+        },
+        "native_fast_reference": {
+          "intermolecular": 24.41719252362931,
+          "intramolecular": -1.8416373321991506,
+          "total_zero_reference": 12.617610672548308
+        }
+      },
+      "absolute_errors": {
+        "analytic": {
+          "intermolecular": 0.20455660790740637,
+          "intramolecular": 0.0026581148560353984,
+          "total_zero_reference": 0.11581352818475388
+        },
+        "native_positive_cap": {
+          "intermolecular": 0.016496589029589614,
+          "intramolecular": 0.002620275596313837,
+          "total_zero_reference": 0.007755553251589831
+        },
+        "native_fast_reference": {
+          "intermolecular": 1.6837230276678383e-06,
+          "intramolecular": 1.2909083046963588e-07,
+          "total_zero_reference": 1.0131923371403673e-06
+        }
+      }
+    }
+  ]
+}

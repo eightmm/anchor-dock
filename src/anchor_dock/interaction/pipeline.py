@@ -22,6 +22,7 @@ from ..core.engine import DockingEngine
 from ..core.features import ATOM_TYPING_VERSION
 from ..core.geometry import sample_uniform_rotation_vectors
 from ..core.io import (
+    RECEPTOR_PREPARATION_CONTRACT,
     ReceptorContext,
     choose_device,
     extract_pocket_around_residue,
@@ -334,7 +335,7 @@ def dock_interaction(
     max_matches: int = 16,
     max_joint_matches: int = 64,
     optimize: bool = True,
-    optimizer: Literal["adam", "adamw", "lbfgs"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
     opt_steps: int = 50,
     release_steps: int = 25,
     opt_lr: float = 0.05,
@@ -434,7 +435,7 @@ def _dock_multi_interaction(
     max_matches: int,
     max_joint_matches: int,
     optimize: bool,
-    optimizer: Literal["adam", "adamw", "lbfgs"],
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"],
     opt_steps: int,
     release_steps: int,
     opt_lr: float,
@@ -471,8 +472,8 @@ def _dock_multi_interaction(
         raise TypeError("optimize must be a bool")
     if not isinstance(torsion_penalty, bool):
         raise TypeError("torsion_penalty must be a bool")
-    if optimizer not in {"adam", "adamw", "lbfgs"}:
-        raise ValueError("optimizer must be adam, adamw, or lbfgs")
+    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+        raise ValueError("optimizer must be adam, adamw, lbfgs, or cartesian")
     if optimize and opt_steps > 0 and release_steps == 0:
         raise ValueError("release_steps must be positive when guided optimization steps are requested")
     if preselect_k > num_candidates:
@@ -504,16 +505,17 @@ def _dock_multi_interaction(
         bool(include_heteroatoms),
         str(target_device),
         ATOM_TYPING_VERSION,
+        RECEPTOR_PREPARATION_CONTRACT,
     )
     pocket_context = _INTERACTION_CONTEXT_CACHE.get(cache_key)
     if pocket_context is not None:
         _INTERACTION_CONTEXT_CACHE.move_to_end(cache_key)
     else:
-        receptor_no_hs = Chem.MolFromPDBFile(protein_path, sanitize=False, removeHs=True)
-        if receptor_no_hs is None:
+        receptor_with_hs = Chem.MolFromPDBFile(protein_path, sanitize=False, removeHs=False)
+        if receptor_with_hs is None:
             raise ValueError(f"failed to load receptor PDB from {protein_pdb}")
         pocket_mol = extract_pocket_around_residues(
-            receptor_no_hs,
+            receptor_with_hs,
             [selection.residue_id for selection in selections],
             cutoff=pocket_cutoff,
             include_heteroatoms=include_heteroatoms,
@@ -1101,7 +1103,7 @@ def _dock_single_interaction(
     max_matches: int = 16,
     max_joint_matches: int = 64,
     optimize: bool = True,
-    optimizer: Literal["adam", "adamw", "lbfgs"] = "adam",
+    optimizer: Literal["adam", "adamw", "lbfgs", "cartesian"] = "adam",
     opt_steps: int = 50,
     release_steps: int = 25,
     opt_lr: float = 0.05,
@@ -1143,8 +1145,8 @@ def _dock_single_interaction(
         raise TypeError("optimize must be a bool")
     if not isinstance(torsion_penalty, bool):
         raise TypeError("torsion_penalty must be a bool")
-    if optimizer not in {"adam", "adamw", "lbfgs"}:
-        raise ValueError("optimizer must be adam, adamw, or lbfgs")
+    if optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+        raise ValueError("optimizer must be adam, adamw, lbfgs, or cartesian")
     if optimize and opt_steps > 0 and release_steps == 0:
         raise ValueError("release_steps must be positive when guided optimization steps are requested")
     if preselect_k > num_candidates:
@@ -1173,19 +1175,20 @@ def _dock_single_interaction(
         bool(include_heteroatoms),
         str(target_device),
         ATOM_TYPING_VERSION,
+        RECEPTOR_PREPARATION_CONTRACT,
     )
 
     pocket_context = _INTERACTION_CONTEXT_CACHE.get(cache_key)
     if pocket_context is not None:
         _INTERACTION_CONTEXT_CACHE.move_to_end(cache_key)
     else:
-        # Load receptor with hydrogens removed
-        receptor_no_hs = Chem.MolFromPDBFile(protein_path, sanitize=False, removeHs=True)
-        if receptor_no_hs is None:
+        # Retain supplied H as protonation evidence; no H is generated.
+        receptor_with_hs = Chem.MolFromPDBFile(protein_path, sanitize=False, removeHs=False)
+        if receptor_with_hs is None:
             raise ValueError(f"failed to load receptor PDB from {protein_pdb}")
 
         pocket_mol = extract_pocket_around_residue(
-            receptor_no_hs,
+            receptor_with_hs,
             residue_spec=sel.residue_id,
             cutoff=pocket_cutoff,
             include_heteroatoms=include_heteroatoms,
@@ -1654,3 +1657,4 @@ def _dock_single_interaction(
         )
 
     return result
+

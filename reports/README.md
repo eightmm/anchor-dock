@@ -1,6 +1,15 @@
 # Reports
 
-This directory archives the pre-0.3 progress summary and visual assets for the 10gs example set. Its old scores, metadata names, and runtime measurements are historical evidence, not the 0.3 output contract or a current benchmark.
+This directory contains versioned validation evidence and historical progress notes. Each report states its input scope and numerical contract; historical timings and scores should not be mixed across contracts.
+
+## Current validation
+
+- [Implementation and validation](completion-2026-10-30.md): prepared input, scoring and optimizer completion, checks and limits.
+- [Native Vina/Vinardo scoring](native-scoring-parity-2026-10-30.md): 48 same-preparation full-ligand comparisons.
+- [AD4 scoring](ad4-native-scoring-2026-10-30.md): synthetic map and prepared intra checks against native Vina AD4.
+- [Local pose recovery](redocking-2026-10-30.md): fixed-frame symmetry RMSD on three real complexes.
+- [Initial scientific audit](scoring-audit-2026-10-30.md): atom-typing and pose-gradient corrections.
+- [Historical performance-only check](performance-2026-10-30.md): predates scientific corrections.
 
 ## Archived summary
 
@@ -8,8 +17,8 @@ This directory archives the pre-0.3 progress summary and visual assets for the 1
 
 ## Useful Cross-Links
 
-- [Current architecture](../docs/ARCHITECTURE.md): the 0.3 design and invariants
-- [Current reference strategy](../docs/ARCHITECTURE.md#reference-strategy): 0.3 MCS execution
+- [Architecture](../docs/ARCHITECTURE.md)
+- [Reference strategy](../docs/ARCHITECTURE.md#reference-strategy)
 
 ## Available Visual Assets
 
@@ -21,3 +30,4 @@ Primary GIFs already in the repository:
 - `examples/10gs/visualizations/mcs_q1_free.gif`
 - `examples/10gs/visualizations/coverage/`
 - `examples/10gs/predictions/`
+

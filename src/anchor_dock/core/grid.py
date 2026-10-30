@@ -15,6 +15,10 @@ import torch
 from torch import nn
 
 
+class GridBoundsError(ValueError):
+    """A pose lies outside the explicitly supported physical map domain."""
+
+
 def _vector3(value, reference: torch.Tensor, name: str, *, scalar: bool = False) -> torch.Tensor:
     result = torch.as_tensor(value, dtype=reference.dtype, device=reference.device).detach().clone()
     if scalar and result.ndim == 0:
@@ -93,7 +97,7 @@ class TrilinearGrid(nn.Module):
         last_indices = coordinates.new_tensor((nx - 1, ny - 1, nz - 1))
         upper = self.origin + self.spacing * last_indices
         if ((coordinates < self.origin) | (coordinates > upper)).any():
-            raise ValueError("coordinates are outside the closed physical grid bounds")
+            raise GridBoundsError("coordinates are outside the closed physical grid bounds")
 
         position = (coordinates - self.origin) / self.spacing
         lower = torch.floor(position).to(dtype=torch.long)
@@ -140,6 +144,8 @@ class AD4IntermolecularGrid(nn.Module):
         atom_types: Sequence[str],
         origin,
         spacing,
+        map_curl: float | None = None,
+        upper_exclusive: bool = False,
     ) -> None:
         super().__init__()
         if not isinstance(affinity_maps, torch.Tensor) or affinity_maps.ndim != 4:
@@ -160,6 +166,10 @@ class AD4IntermolecularGrid(nn.Module):
                 raise ValueError(f"{name} map dtype/device must match affinity maps")
             others.append(value.unsqueeze(0))
         self.atom_types = types
+        if map_curl is not None and (not isinstance(map_curl, (int, float)) or not 0 < map_curl < float("inf")):
+            raise ValueError("map_curl must be finite and positive, or None")
+        self.map_curl = map_curl
+        self.upper_exclusive = bool(upper_exclusive)
         self.field = TrilinearGrid(torch.cat((affinity_maps, *others), dim=0), origin=origin, spacing=spacing)
 
     def per_atom(self, coordinates: torch.Tensor, atom_channels, charges: torch.Tensor) -> torch.Tensor:
@@ -176,10 +186,19 @@ class AD4IntermolecularGrid(nn.Module):
             raise ValueError("charges must have shape [N] or [B,N]")
         if not torch.isfinite(charges).all():
             raise ValueError("charges must be finite")
+        if self.upper_exclusive:
+            nz, ny, nx = self.field.values.shape[1:]
+            upper = self.field.origin + self.field.spacing * coordinates.new_tensor((nx - 1, ny - 1, nz - 1))
+            if (coordinates >= upper).any():
+                raise GridBoundsError("coordinates are outside the upper-exclusive physical grid bounds")
         electrostatic = torch.full_like(channels, len(self.atom_types))
         desolvation = electrostatic + 1
         all_channels = torch.cat((channels, electrostatic, desolvation), dim=1)
         sampled = self.field(coordinates.repeat(1, 3, 1), all_channels)
+        if self.map_curl is not None:
+            # Positive-energy curl is applied to each unweighted map sample,
+            # before multiplication by q or |q|, as in Vina AD4.
+            sampled = sampled / (1.0 + sampled.clamp_min(0.0) / self.map_curl)
         affinity, electro, desolv = sampled.split(atoms, dim=1)
         return affinity + charges * electro + charges.abs() * desolv
 

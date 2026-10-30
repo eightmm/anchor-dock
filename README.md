@@ -8,6 +8,8 @@ AnchorDock is a Torch-native ligand pose engine with three explicit search strat
 
 All three strategies use the same scorer interface, rigid-frame kinematics, pose optimizer, receptor context, output schema, and heterogeneous batch runner. The only Python namespace is `anchor_dock`.
 
+Prepared graph/PDBQT inputs, an analytic AD4/AutoGrid reference backend, explicit native Vina-family final scoring, and an opt-in geometry-aware optimizer are documented in [prepared inputs and map scoring](docs/PREPARED.md). These additions retain bounded local search; GPU throughput and native AutoDock-GPU end-to-end agreement require separate validation.
+
 ## Installation
 
 ```bash
@@ -202,3 +204,4 @@ uv build --wheel
 ## License
 
 MIT
+

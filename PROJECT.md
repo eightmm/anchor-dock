@@ -24,6 +24,10 @@ Project-specific decisions and verification contract.
   - Score the union pocket around every selected receptor residue and key its bounded cache by the complete ordered receptor selector set.
   - Remove the former free API, CLI, batch factory/enum, module, examples, and current documentation; retain historical changelog text.
   - Publish multi-interaction support as 0.5.0 with SDF output schema 4 and batch resume epoch 5; 0.4 single-interaction calls remain source-compatible.
+  - Engine-level prepared graph/PDBQT inputs preserve explicit serial mapping, types/charges, polar H and branch mobility, with distinct Vina num_tors/AD4 TORSDOF. High-level inferred chemistry policies remain.
+  - Continuous optimization and nondifferentiable native Vina-family final scoring are separate APIs.
+  - Ordinary rigid-receptor AutoGrid/AD4 reference scoring declares formulation, map conventions and unbound model. Maps are authoritative; unsupported exclusions/extended types fail.
+  - Opt-in `cartesian` geometry-metric optimization is bounded and objective-checked. Adam remains the default.
 - Non-goals:
   - No global docking completeness claim.
   - No automatic residue or receptor-atom choice.
@@ -55,6 +59,7 @@ Project-specific decisions and verification contract.
   - Only preselected candidates enter optimization; guided restraint energy is never included in `AnchorDock_Score` or `AnchorDock_Search_Energy`.
   - Exported poses satisfy the requested distance window after the restraint-free release phase; an all-invalid run errors explicitly.
   - Batch signatures include the canonical ordered interaction list, its per-item weights, and every joint-search bound, and cannot resume artifacts from the prior epoch.
+  - Signatures include atom-typing, receptor-ingestion and optimizer contracts; supplied PDB H is preserved explicitly.
   - Package metadata, runtime version, lockfile, wheel, CLI, docs, and CI agree on 0.5.0 and the single/multi interaction API.
 - Required checks:
   - Focused interaction, CLI, batch, output, and compatibility tests.
@@ -84,3 +89,4 @@ Project-specific decisions and verification contract.
   - For multi runs, SDF and result provenance include the ordered interaction specifications, resolved receptor atoms, per-selector ligand matches, selected joint hypothesis, and per-interaction initial/guided/final distances.
   - PDB alternate locations and ambiguous chain/insertion identifiers must be rejected rather than guessed.
   - Restraint-dominated objectives can conceal poor physical poses; the release phase, hard final filter, and unmodified score reporting are mandatory.
+

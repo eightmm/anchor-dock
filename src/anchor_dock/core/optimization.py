@@ -5,17 +5,19 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from numbers import Integral, Real
 from typing import Literal
 
 import torch
 import torch.nn as nn
 from rdkit import Chem
 
+from .grid import GridBoundsError
 from .kinematics import LigandKinematics, rotation_vector_to_matrix
 from .scoring import PreparedScorer
 
-OptimizerName = Literal["adam", "adamw", "lbfgs"]
-OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1"
+OptimizerName = Literal["adam", "adamw", "lbfgs", "cartesian"]
+OPTIMIZATION_CONTRACT = "so3-exp-v2-per-pose-clip-v1-objective-consistent-v1-cartesian-pullback-v1"
 
 
 @dataclass(frozen=True)
@@ -131,6 +133,210 @@ def _clip_pose_gradients_(parameters: list[nn.Parameter], batch_size: int, max_n
     return total_norm
 
 
+def _as_pose_batch(coords: torch.Tensor) -> torch.Tensor:
+    if coords.ndim == 2:
+        coords = coords.unsqueeze(0)
+    if coords.ndim != 3 or coords.shape[-1] != 3:
+        raise ValueError("pose module must return [N,3] or [B,N,3] coordinates")
+    return coords
+
+
+def _flat_pose_state(parameters: list[nn.Parameter]) -> torch.Tensor:
+    return torch.cat([parameter.detach().reshape(parameter.shape[0], -1) for parameter in parameters], dim=1)
+
+
+def _copy_flat_pose_state_(parameters: list[nn.Parameter], values: torch.Tensor) -> None:
+    offset = 0
+    with torch.no_grad():
+        for parameter in parameters:
+            size = parameter[0].numel()
+            parameter.copy_(values[:, offset:offset + size].reshape_as(parameter))
+            offset += size
+
+
+def _cartesian_pose_jacobian(
+    model: nn.Module,
+    parameters: list[nn.Parameter],
+    flat_state: torch.Tensor,
+    row: int,
+) -> torch.Tensor:
+    """Reference per-pose Cartesian Jacobian without mutating live parameters.
+
+    The full module is evaluated so registered buffers and arbitrary parameter
+    names retain their meaning. Dense Jacobians are intentionally restricted to
+    this opt-in reference optimizer; normal Adam/LBFGS paths use only VJPs.
+    As with the other optimizers, batch rows must represent independent poses.
+    """
+    parameter_names = {id(value): name for name, value in model.named_parameters()}
+    row_index = torch.tensor([row], dtype=torch.long, device=flat_state.device)
+
+    def coordinates_at(values: torch.Tensor) -> torch.Tensor:
+        all_values = flat_state.index_copy(0, row_index, values.unsqueeze(0))
+        replacements = {}
+        offset = 0
+        for parameter in parameters:
+            size = parameter[0].numel()
+            replacements[parameter_names[id(parameter)]] = all_values[:, offset:offset + size].reshape_as(parameter)
+            offset += size
+        coords = torch.func.functional_call(model, replacements, ())
+        return _as_pose_batch(coords)[row].reshape(-1)
+
+    return torch.func.jacrev(coordinates_at)(flat_state[row]).detach()
+
+
+def _pullback_direction(
+    jacobian: torch.Tensor,
+    cartesian_gradient: torch.Tensor,
+    parameters: list[nn.Parameter],
+    damping: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Solve a damped Cartesian metric, not an energy Hessian approximation.
+
+    Block-isotropic damping uses each parameter tensor's mean metric diagonal.
+    This keeps translation/rotation vector blocks isotropic and gives a unit-
+    aware regularizer instead of mixing Angstrom and radian gradient norms.
+    Zero-motion columns are regularized and receive a zero step. Solving in
+    FP64 makes redundant/frozen torsions reliable even for FP32 pose modules.
+    """
+    matrix = jacobian.to(dtype=torch.float64)
+    gradient = matrix.T @ cartesian_gradient.reshape(-1).to(dtype=torch.float64)
+    if not torch.isfinite(matrix).all() or not torch.isfinite(gradient).all():
+        raise FloatingPointError("Cartesian Jacobian or energy gradient contains NaN or infinity")
+    metric = matrix.T @ matrix
+    diagonal = metric.diagonal()
+    scale_floor = diagonal.max().clamp_min(1.0) * torch.finfo(torch.float64).eps
+    regularizer = torch.empty_like(diagonal)
+    offset = 0
+    for parameter in parameters:
+        size = parameter[0].numel()
+        regularizer[offset:offset + size] = diagonal[offset:offset + size].mean().clamp_min(scale_floor)
+        offset += size
+    regularized = metric + damping * torch.diag(regularizer)
+    direction = torch.linalg.solve(regularized, -gradient)
+    if not torch.isfinite(direction).all():
+        raise FloatingPointError("damped Cartesian metric solve returned a nonfinite direction")
+    return direction.to(dtype=jacobian.dtype), torch.dot(gradient, direction)
+
+
+def _optimize_cartesian_pullback(
+    model: nn.Module,
+    energy_fn: Callable[[torch.Tensor], torch.Tensor],
+    parameters: list[nn.Parameter],
+    initial_losses: torch.Tensor,
+    *,
+    num_steps: int,
+    learning_rate: float,
+    early_stopping: bool,
+    patience: int,
+    min_delta: float,
+    damping: float,
+    max_atom_displacement: float,
+    max_backtracks: int,
+) -> tuple[torch.Tensor, OptimizationStats]:
+    """Geometry-aware reference optimizer with exact objective acceptance.
+
+    Every trial changes just one pose, allowing a strict map-domain exception
+    to reject that pose without shrinking another pose's step. Nonfinite trial
+    energies are also rejected. Programming errors propagate after restoring
+    the last accepted state. The actual, nonlinear atom displacement is checked
+    in addition to the linearized bound. Raw rotation-vector coordinates remain
+    the existing chart; this is not a Lie-retraction optimizer or a fused GPU
+    kernel.
+    """
+    batch_size = initial_losses.shape[0]
+    best_losses = initial_losses.clone()
+    best_parameters = [parameter.detach().clone() for parameter in parameters]
+    stale = torch.zeros(batch_size, dtype=torch.long, device=initial_losses.device)
+    converged = torch.zeros(batch_size, dtype=torch.bool, device=initial_losses.device)
+    step_counts = torch.zeros(batch_size, dtype=torch.long, device=initial_losses.device)
+
+    for _ in range(num_steps):
+        active = ~converged if early_stopping else torch.ones_like(converged)
+        if not active.any():
+            break
+        coords = _as_pose_batch(model())
+        losses = _checked_losses(energy_fn(coords), batch_size)
+        if not losses.requires_grad:
+            raise RuntimeError("energy function is not differentiable with respect to coordinates")
+        cartesian_gradient = torch.autograd.grad(losses[active].sum(), coords, allow_unused=True)[0]
+        if cartesian_gradient is None:
+            raise RuntimeError("energy function is not differentiable with respect to coordinates")
+        if not torch.isfinite(cartesian_gradient).all():
+            raise FloatingPointError("Cartesian energy gradient contains NaN or infinity")
+        baseline_coords = coords.detach().clone()
+        baseline_losses = losses.detach().clone()
+        flat_state = _flat_pose_state(parameters)
+        new_losses = losses.detach().clone()
+
+        for row in range(batch_size):
+            if not bool(active[row]):
+                continue
+            jacobian = _cartesian_pose_jacobian(model, parameters, flat_state, row)
+            direction, directional_derivative = _pullback_direction(
+                jacobian, cartesian_gradient[row], parameters, damping,
+            )
+            if not bool(directional_derivative < 0):
+                continue
+            predicted = (jacobian @ direction).reshape(-1, 3)
+            largest_displacement = torch.linalg.vector_norm(predicted, dim=1).max()
+            alpha = min(learning_rate, float(max_atom_displacement / largest_displacement.clamp_min(1e-30)))
+            accepted = False
+            try:
+                for _attempt in range(max_backtracks + 1):
+                    trial_state = flat_state.clone()
+                    trial_state[row] = flat_state[row] + alpha * direction
+                    _copy_flat_pose_state_(parameters, trial_state)
+                    with torch.no_grad():
+                        trial_coords = _as_pose_batch(model())
+                        displacement = torch.linalg.vector_norm(trial_coords[row] - baseline_coords[row], dim=1).max()
+                        if (not torch.isfinite(trial_coords[row]).all()
+                                or bool(displacement > max_atom_displacement * (1.0 + 1e-6))):
+                            alpha *= 0.5
+                            continue
+                        try:
+                            trial_losses = energy_fn(trial_coords)
+                        except GridBoundsError:
+                            alpha *= 0.5
+                            continue
+                        if trial_losses.ndim == 0 and batch_size == 1:
+                            trial_losses = trial_losses.reshape(1)
+                        if trial_losses.shape != (batch_size,):
+                            raise ValueError(f"energy function must return shape [{batch_size}]")
+                        value = trial_losses[row]
+                        threshold = baseline_losses[row] + 1e-4 * alpha * directional_derivative
+                        if bool(torch.isfinite(value) & (value <= threshold)):
+                            flat_state = trial_state
+                            new_losses[row] = value
+                            accepted = True
+                            break
+                    alpha *= 0.5
+            finally:
+                # flat_state changes only after acceptance, including when a
+                # scorer programming error interrupts a trial.
+                _copy_flat_pose_state_(parameters, flat_state)
+            if not accepted:
+                new_losses[row] = baseline_losses[row]
+
+        step_counts.add_(active)
+        improved = active & (new_losses < best_losses - min_delta)
+        _update_best_rows(parameters, best_parameters, improved)
+        best_losses = torch.where(improved, new_losses, best_losses)
+        stale = torch.where(improved, torch.zeros_like(stale), torch.where(active, stale + 1, stale))
+        if early_stopping:
+            converged |= stale >= patience
+            _restore_rows(parameters, best_parameters, converged)
+
+    _restore_rows(parameters, best_parameters, torch.ones_like(converged))
+    return model(), OptimizationStats(
+        average_steps=float(step_counts.float().mean().cpu()),
+        minimum_steps=int(step_counts.min().cpu()),
+        maximum_steps=int(step_counts.max().cpu()),
+        num_poses=batch_size,
+        initial_best_energy=float(initial_losses.min().cpu()),
+        final_best_energy=float(best_losses.min().cpu()),
+    )
+
+
 def optimize_pose_module(
     model: nn.Module,
     energy_fn: Callable[[torch.Tensor], torch.Tensor],
@@ -142,18 +348,39 @@ def optimize_pose_module(
     patience: int = 30,
     min_delta: float = 1e-5,
     gradient_clip: float | None = 1.0,
+    geometry_damping: float = 1e-3,
+    max_atom_displacement: float = 0.25,
+    max_backtracks: int = 12,
 ) -> tuple[torch.Tensor, OptimizationStats]:
-    """Optimize a pose module and restore the best state for every pose."""
-    if num_steps < 0:
-        raise ValueError("num_steps must be non-negative")
-    if learning_rate <= 0:
-        raise ValueError("learning_rate must be positive")
-    if patience <= 0:
-        raise ValueError("patience must be positive")
-    if min_delta < 0:
-        raise ValueError("min_delta must be non-negative")
-    if gradient_clip is not None and (not math.isfinite(gradient_clip) or gradient_clip <= 0):
+    """Optimize a pose module and restore the best state for every pose.
+
+    ``cartesian`` is an opt-in dense Cartesian pullback reference optimizer.
+    Its damping, actual atom displacement limit (Angstrom) and backtracking
+    affect only that mode. ``learning_rate=1`` is a useful initial trial scale;
+    objective acceptance and the displacement limit still bound every step.
+    It does not use numerical parameter-gradient clipping.
+    """
+    # Validate options before inspecting a module or taking an otherwise valid
+    # zero-step/no-parameter shortcut. Invalid configurations must not look
+    # successful merely because no optimization happened on that input.
+    for name, value, minimum in (("num_steps", num_steps, 0), ("patience", patience, 1)):
+        if isinstance(value, bool) or not isinstance(value, Integral) or value < minimum:
+            raise ValueError(f"{name} must be an integer >= {minimum}")
+    for name, value, positive in (("learning_rate", learning_rate, True), ("min_delta", min_delta, False)):
+        if (isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value)
+                or (value <= 0 if positive else value < 0)):
+            raise ValueError(f"{name} must be finite and {'positive' if positive else 'nonnegative'}")
+    if not isinstance(optimizer, str) or optimizer not in {"adam", "adamw", "lbfgs", "cartesian"}:
+        raise ValueError(f"unknown optimizer: {optimizer!r}")
+    if gradient_clip is not None and (isinstance(gradient_clip, bool) or not isinstance(gradient_clip, Real)
+                                      or not math.isfinite(gradient_clip) or gradient_clip <= 0):
         raise ValueError("gradient_clip must be finite and positive or None")
+    if optimizer == "cartesian":
+        for name, value in (("geometry_damping", geometry_damping), ("max_atom_displacement", max_atom_displacement)):
+            if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive")
+        if isinstance(max_backtracks, bool) or not isinstance(max_backtracks, Integral) or max_backtracks < 0:
+            raise ValueError("max_backtracks must be a non-negative integer")
     initial_coords = model()
     if initial_coords.ndim == 2:
         initial_coords = initial_coords.unsqueeze(0)
@@ -172,6 +399,25 @@ def optimize_pose_module(
             float(initial_losses.min().cpu()),
         )
         return model(), stats
+
+    if optimizer == "cartesian":
+        degrees_of_freedom = sum(parameter[0].numel() for parameter in parameters)
+        if degrees_of_freedom > 256 or initial_coords.numel() * degrees_of_freedom > 2_000_000:
+            raise ValueError(
+                "cartesian reference Jacobian exceeds its bounded size (256 parameters per pose or "
+                "2,000,000 batched Cartesian-Jacobian elements); reduce batch size or use adam/lbfgs"
+            )
+        return _optimize_cartesian_pullback(
+            model, energy_fn, parameters, initial_losses,
+            num_steps=num_steps,
+            learning_rate=learning_rate,
+            early_stopping=early_stopping,
+            patience=patience,
+            min_delta=min_delta,
+            damping=geometry_damping,
+            max_atom_displacement=max_atom_displacement,
+            max_backtracks=max_backtracks,
+        )
 
     if optimizer == "lbfgs" and batch_size != 1:
         raise ValueError("LBFGS optimization is performed one pose at a time")
@@ -291,7 +537,7 @@ def optimize_torsions(
     for start in range(0, coords.shape[0], batch_size):
         stop = min(start + batch_size, coords.shape[0])
         chunk = coords[start:stop]
-        if optimizer == "lbfgs":
+        if optimizer in {"lbfgs", "cartesian"}:
             chunk_outputs: list[torch.Tensor] = []
             chunk_stats: list[OptimizationStats] = []
             for pose in chunk:
@@ -301,7 +547,7 @@ def optimize_torsions(
                     lambda values: scorer.search_energy(values),
                     num_steps=num_steps,
                     learning_rate=learning_rate,
-                    optimizer="lbfgs",
+                    optimizer=optimizer,
                     early_stopping=early_stopping,
                     patience=patience,
                     min_delta=min_delta,
